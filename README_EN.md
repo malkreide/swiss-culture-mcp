@@ -125,4 +125,4 @@ MIT License — see [LICENSE](LICENSE)
 
 ## Author
 
-Hayal Oezkan · [malkreide](https://github.com/malkreide) · Schulamt der Stadt Zürich
+Hayal Oezkan · [malkreide](https://github.com/malkreide)
