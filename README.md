@@ -186,8 +186,6 @@ MIT License — siehe [LICENSE](LICENSE)
 
 ## Autor
 
-Hayal Oezkan · [malkreide](https://github.com/malkreide) · Schulamt der Stadt Zürich
+Hayal Oezkan · [malkreide](https://github.com/malkreide)
 
 ---
-
-*Öffentliche Verwaltung mit öffentlichem Geld sollte öffentliche Werkzeuge produzieren.*
