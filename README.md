@@ -1,71 +1,113 @@
-[🇬🇧 English Version](README_EN.md)
+> 🇨🇭 **Part of the [Swiss Public Data MCP Portfolio](https://github.com/malkreide)**
 
-# swiss-culture-mcp
+# 🏛️ swiss-culture-mcp
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Tests](https://img.shields.io/badge/tests-36%20bestanden-brightgreen)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
+[![Data Source](https://img.shields.io/badge/Data-BAK%20Open%20Data-red)](https://opendata.swiss/)
 
-> MCP-Server für Schweizer Kulturdaten des Bundesamts für Kultur (BAK) — ISOS, Lebendige Traditionen, Kulturpreise, Medienmitteilungen. Kein API-Schlüssel erforderlich.
+> MCP server for Swiss cultural heritage data from the Federal Office of Culture (BAK) — ISOS townscapes, Living Traditions, cultural prizes, press releases. No API key required.
 
-## Übersicht
+[🇩🇪 Deutsche Version](README.de.md)
 
-`swiss-culture-mcp` macht die Kulturdaten des Bundesamts für Kultur (BAK) für KI-Assistenten zugänglich. Der Server verbindet LLMs wie Claude mit dem nationalen Kulturerbe der Schweiz: von schützenswerten Ortsbildern über lebendige Traditionen bis hin zu aktuellen Kulturpreisen.
+---
 
-**Quellen:** geo.admin.ch REST API · news.admin.ch RSS · opendata.swiss CKAN · lebendige-traditionen.ch
+## Overview
 
-**Kein API-Schlüssel erforderlich.** Alle Datenquellen sind öffentlich zugänglich (Open Data / Open Government Data).
+**swiss-culture-mcp** makes Swiss cultural data accessible to AI assistants. The server connects LLMs like Claude with Switzerland's national cultural heritage: from protected townscapes (ISOS) to living traditions of intangible cultural heritage and current cultural awards.
 
-## Funktionen
+**Sources:** geo.admin.ch REST API · news.admin.ch RSS · opendata.swiss CKAN · lebendige-traditionen.ch
 
-| # | Tool | Beschreibung |
+**No API key required.** All data sources are publicly available (Open Government Data).
+
+**Anchor demo query:** *"Which protected townscapes are there in the school districts of the city of Zurich, and what living traditions are practised there?"*
+
+---
+
+## Features
+
+- 🏘️ **ISOS search** – Federal Inventory of Swiss Townscapes Worth Protecting by name, canton or settlement type
+- 📜 **Living Traditions** – 228 entries of Swiss intangible cultural heritage
+- 🏆 **Cultural prizes** – Swiss Film Prize, Grand Prix Literature, Music Prize and more
+- 📰 **BAK press releases** – current news from the Federal Office of Culture
+- 📦 **Open data catalogue** – BAK datasets on opendata.swiss
+- ☁️ **Dual transport** – stdio for Claude Desktop, Streamable HTTP for cloud deployment
+
+| # | Tool | Description |
 |---|---|---|
-| 1 | `bak_search_isos` | ISOS-Ortsbilder nach Ortsname suchen |
-| 2 | `bak_isos_by_kanton` | Alle ISOS-Objekte eines Kantons auflisten |
-| 3 | `bak_get_isos_detail` | Volldetails eines ISOS-Objekts abrufen |
-| 4 | `bak_isos_by_kategorie` | ISOS nach Siedlungstyp filtern (Stadt, Dorf, etc.) |
-| 5 | `bak_isos_statistics` | ISOS-Inventarstatistiken (Stichprobe nach Kanton) |
-| 6 | `bak_get_news` | Aktuelle BAK-Medienmitteilungen |
-| 7 | `bak_get_kulturpreise` | Schweizer Kulturpreise (Filmpreis, Grand Prix Literatur, etc.) |
-| 8 | `bak_get_opendata` | BAK-Datensätze auf opendata.swiss |
-| 9 | `bak_list_traditions` | Lebendige Traditionen der Schweiz auflisten |
-| 10 | `bak_get_tradition_detail` | Tradition im Detail abrufen |
+| 1 | `bak_search_isos` | Search ISOS townscapes by place name |
+| 2 | `bak_isos_by_kanton` | List all ISOS objects in a canton |
+| 3 | `bak_get_isos_detail` | Get full details of an ISOS object |
+| 4 | `bak_isos_by_kategorie` | Filter ISOS by settlement type (Stadt, Dorf, etc.) |
+| 5 | `bak_isos_statistics` | ISOS inventory statistics (sampled by canton) |
+| 6 | `bak_get_news` | Current BAK press releases |
+| 7 | `bak_get_kulturpreise` | Swiss cultural prizes (Film Prize, Grand Prix Literature, etc.) |
+| 8 | `bak_get_opendata` | BAK datasets on opendata.swiss |
+| 9 | `bak_list_traditions` | List Switzerland's Living Traditions |
+| 10 | `bak_get_tradition_detail` | Get detailed description of a tradition |
 
 **3 Resources:** `bak://isos/kantone` · `bak://isos/kategorien` · `bak://kulturpreise/uebersicht`
 
-### Datenquellen
+---
 
-| Quelle | API-Typ | Inhalt |
+## Data Sources
+
+| Source | API Type | Content |
 |---|---|---|
-| **geo.admin.ch** | REST MapServer | ISOS (Bundesinventar schützenswerte Ortsbilder) |
-| **news.admin.ch** | RSS-Feed | BAK-Medienmitteilungen, Kulturpreise |
-| **opendata.swiss** | CKAN REST API | BAK Open-Data-Datensätze |
-| **lebendige-traditionen.ch** | HTML-Fetch | 228 Einträge immaterielles Kulturerbe |
+| **geo.admin.ch** | REST MapServer | ISOS (Federal Inventory of Swiss Townscapes) |
+| **news.admin.ch** | RSS Feed | BAK press releases, cultural prizes |
+| **opendata.swiss** | CKAN REST API | BAK open data datasets |
+| **lebendige-traditionen.ch** | HTML Fetch | 228 entries of intangible cultural heritage |
 
-## Voraussetzungen
+---
+
+## Prerequisites
 
 - Python 3.11+
-- `uv` oder `pip`
-- Keine API-Schlüssel erforderlich
+- `uv` or `pip`
+- No API keys required
+
+---
 
 ## Installation
 
 ```bash
-# Empfohlen: uvx (kein Installationsschritt nötig)
+# Recommended: uvx (no install step needed)
 uvx swiss-culture-mcp
 
-# Alternativ: pip
+# Alternative: pip
 pip install swiss-culture-mcp
 ```
 
-## Verwendung
+---
 
-### Claude Desktop
+## Quickstart
 
-Konfigurationsdatei öffnen:
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+```bash
+# Start the server (stdio mode for Claude Desktop)
+uvx swiss-culture-mcp
+```
+
+Try it immediately in Claude Desktop:
+
+> *"Show me all protected townscapes in the canton of Graubünden"*
+> *"Which living traditions are practised in canton Appenzell?"*
+> *"Which Swiss cultural prizes were awarded in 2026?"*
+
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` or `streamable_http` |
+| `MCP_PORT` | `8000` | Port for HTTP transport |
+
+### Claude Desktop Configuration
 
 ```json
 {
@@ -78,114 +120,162 @@ Konfigurationsdatei öffnen:
 }
 ```
 
-Nach Neustart von Claude Desktop stehen alle Tools zur Verfügung. Beispielfragen:
+**Config file locations:**
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-- «Zeig mir alle schützenswerten Ortsbilder im Kanton Graubünden»
-- «Was ist das Alphorn- und Büchelspiel?»
-- «Welche Schweizer Kulturpreise wurden 2026 vergeben?»
-- «Ist die Altstadt von Stein am Rhein im ISOS-Inventar?»
-- «Welche lebendigen Traditionen gibt es im Kanton Appenzell?»
+After restarting Claude Desktop, all tools are available. Example queries:
 
-### Lokale Entwicklung
+- "Show me all protected townscapes in the canton of Graubünden"
+- "What is the Alphorn and Büchelspiel tradition?"
+- "Which Swiss cultural prizes were awarded in 2026?"
+- "Is the old town of Stein am Rhein in the ISOS inventory?"
+- "Which living traditions are practised in canton Appenzell?"
 
-```bash
-git clone https://github.com/malkreide/swiss-culture-mcp.git
-cd swiss-culture-mcp
-pip install -e ".[dev]"
+### Cloud Deployment (Streamable HTTP)
 
-# Tests ausführen
-pytest                          # Unit-Tests (Mocks)
-pytest --run-live               # + Live-API-Tests
+For use via **claude.ai in the browser** (e.g. on managed workstations without local software):
 
-# Server starten
-python -m swiss_culture_mcp.server
-```
-
-### Cloud-Deployment (Render.com)
+**Render.com (recommended):**
+1. Push/fork the repository to GitHub
+2. On [render.com](https://render.com): New Web Service → connect GitHub repo
+3. Set environment variables in the Render dashboard
+4. In claude.ai under Settings → MCP Servers, add: `https://your-app.onrender.com/mcp`
 
 ```bash
-# Streamable HTTP-Transport
+# Docker / local HTTP mode
 MCP_TRANSPORT=streamable_http MCP_PORT=8000 python -m swiss_culture_mcp.server
 ```
 
-## Konfiguration
+---
 
-| Umgebungsvariable | Standard | Beschreibung |
-|---|---|---|
-| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` oder `streamable_http` |
-| `MCP_PORT` | `8000` | Port für HTTP-Transport |
+## Architecture
 
-## Projektstruktur
+```
+┌─────────────────┐     ┌──────────────────────────┐     ┌──────────────────────────┐
+│   Claude / AI   │────▶│   Swiss Culture MCP      │────▶│  geo.admin.ch REST       │
+│   (MCP Host)    │◀────│   (MCP Server)           │◀────│  news.admin.ch RSS       │
+└─────────────────┘     │                          │     │  opendata.swiss CKAN     │
+                        │  10 Tools · 3 Resources  │     │  lebendige-traditionen   │
+                        │  Stdio | Streamable HTTP  │     └──────────────────────────┘
+                        └──────────────────────────┘
+```
+
+---
+
+## Project Structure
 
 ```
 swiss-culture-mcp/
 ├── src/
 │   └── swiss_culture_mcp/
 │       ├── __init__.py
-│       └── server.py          # Alle 10 Tools, 3 Resources
+│       └── server.py          # All 10 tools, 3 resources
 ├── tests/
-│   ├── conftest.py            # pytest-Konfiguration
-│   └── test_server.py         # 36 Tests (Unit + Live)
+│   ├── conftest.py            # pytest configuration
+│   └── test_server.py         # 36 tests (unit + live)
 ├── pyproject.toml
 ├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── LICENSE
-└── README.md
+├── README.md                  # This file (English)
+└── README.de.md               # German version
 ```
 
-## Anwendungsbeispiele
+---
 
-### Schulamt / Bildung
+## Testing
+
+```bash
+# Unit tests (no API key required)
+PYTHONPATH=src pytest tests/ -m "not live"
+
+# Integration tests (live API calls)
+PYTHONPATH=src pytest tests/ -m "live"
+```
+
+---
+
+## Example Use Cases
+
+### Schools / Education
 
 ```
-«Welche schützenswerten Ortsbilder gibt es in den Schulkreisen der Stadt Zürich?»
+"Which protected townscapes are there in the school districts of the city of Zurich?"
 → bak_isos_by_kanton(kanton="ZH") + bak_get_isos_detail(...)
 
-«Finde lebendige Traditionen für eine Projektwoche zum Thema Kulturerbe»
+"Find living traditions for a project week on the theme of cultural heritage"
 → bak_list_traditions() + bak_get_tradition_detail(slug="...")
 
-«Welche UNESCO-Welterbestätten sind auch im ISOS?»
+"Which UNESCO World Heritage Sites are also in ISOS?"
 → bak_search_isos(query="...") + bak_get_opendata(query="UNESCO")
 ```
 
-### Stadtverwaltung / Raumplanung
+### City Administration / Spatial Planning
 
 ```
-«Ist das Gebäude an der Adresse X in einem ISOS-Perimeter?»
-→ bak_search_isos(query="Gemeinschaft-/Ortsname")
+"Is the building at address X within an ISOS perimeter?"
+→ bak_search_isos(query="community/place name")
 
-«Welche BAK-Daten stehen für GIS-Integration zur Verfügung?»
-→ bak_get_opendata() → WMS/WFS-URLs für GIS-Software
+"Which BAK datasets are available for GIS integration?"
+→ bak_get_opendata() → WMS/WFS URLs for GIS software
 ```
 
-### KI-Fachgruppe / Demos
+### AI Working Group / Demos
 
 ```
-«Zeige aktuelle Kulturpolitik des Bundes»
+"Show current cultural policy of the federal government"
 → bak_get_news() + bak_get_kulturpreise()
 ```
 
-## Synergie mit anderen MCP-Servern
+---
 
-`swiss-culture-mcp` lässt sich mit anderen Servern des Portfolios kombinieren:
+## Known Limitations
 
-| Kombination | Anwendungsfall |
+- **ISOS statistics:** Sample-based per canton (not exhaustive for all cantons)
+- **Living Traditions:** HTML scraping – may break if lebendige-traditionen.ch changes its structure
+- **BAK news/prizes:** RSS feed limited to the most recent entries
+- **opendata.swiss CKAN:** Full-text search may return results from other publishers
+
+---
+
+## Synergies with Other MCP Servers
+
+`swiss-culture-mcp` can be combined with other servers in the portfolio:
+
+| Combination | Use Case |
 |---|---|
-| `+ swiss-transport-mcp` | Kulturtourismus: Tagesreisen zu Traditionen mit ÖV |
-| `+ zurich-opendata-mcp` | Lokaler Kulturatlas: ISOS + Zürcher Veranstaltungen |
-| `+ global-education-mcp` | Kulturelle Bildung im internationalen Vergleich |
-| `+ fedlex-mcp` | Kulturgütertransfergesetz + BAK-Vollzugspraxis |
-| `+ swiss-statistics-mcp` | Kulturausgaben nach Kanton (BFS-Daten) |
+| `+ swiss-transport-mcp` | Cultural tourism: day trips to traditions by public transport |
+| `+ zurich-opendata-mcp` | Local cultural atlas: ISOS + Zurich city events |
+| `+ global-education-mcp` | Cultural education in international comparison |
+| `+ fedlex-mcp` | Cultural property transfer act + BAK enforcement practice |
+| `+ swiss-statistics-mcp` | Cultural expenditure by canton (BFS data) |
+
+---
 
 ## Changelog
 
-Siehe [CHANGELOG.md](CHANGELOG.md)
+See [CHANGELOG.md](CHANGELOG.md)
 
-## Lizenz
+---
 
-MIT License — siehe [LICENSE](LICENSE)
+## License
 
-## Autor
+MIT License — see [LICENSE](LICENSE)
+
+---
+
+## Author
 
 Hayal Oezkan · [malkreide](https://github.com/malkreide)
 
 ---
+
+## Credits & Related Projects
+
+- **Data:** [Bundesamt für Kultur (BAK)](https://www.bak.admin.ch/) – Federal Office of Culture
+- **ISOS:** [geo.admin.ch](https://geo.admin.ch/) – Federal Office of Topography swisstopo
+- **Traditions:** [lebendige-traditionen.ch](https://www.lebendige-traditionen.ch/) – BAK living traditions registry
+- **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/) – Anthropic / Linux Foundation
+- **Related:** [zurich-opendata-mcp](https://github.com/malkreide/zurich-opendata-mcp) – MCP server for Zurich city open data
+- **Portfolio:** [Swiss Public Data MCP Portfolio](https://github.com/malkreide)
