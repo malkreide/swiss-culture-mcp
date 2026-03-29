@@ -41,21 +41,44 @@ TIMEOUT = 20.0
 
 # Kantonskürzel → offizieller Name
 KANTONE = {
-    "AG": "Aargau", "AI": "Appenzell Innerrhoden", "AR": "Appenzell Ausserrhoden",
-    "BE": "Bern", "BL": "Basel-Landschaft", "BS": "Basel-Stadt",
-    "FR": "Freiburg", "GE": "Genf", "GL": "Glarus",
-    "GR": "Graubünden", "JU": "Jura", "LU": "Luzern",
-    "NE": "Neuenburg", "NW": "Nidwalden", "OW": "Obwalden",
-    "SG": "St. Gallen", "SH": "Schaffhausen", "SO": "Solothurn",
-    "SZ": "Schwyz", "TG": "Thurgau", "TI": "Tessin",
-    "UR": "Uri", "VD": "Waadt", "VS": "Wallis",
-    "ZG": "Zug", "ZH": "Zürich",
+    "AG": "Aargau",
+    "AI": "Appenzell Innerrhoden",
+    "AR": "Appenzell Ausserrhoden",
+    "BE": "Bern",
+    "BL": "Basel-Landschaft",
+    "BS": "Basel-Stadt",
+    "FR": "Freiburg",
+    "GE": "Genf",
+    "GL": "Glarus",
+    "GR": "Graubünden",
+    "JU": "Jura",
+    "LU": "Luzern",
+    "NE": "Neuenburg",
+    "NW": "Nidwalden",
+    "OW": "Obwalden",
+    "SG": "St. Gallen",
+    "SH": "Schaffhausen",
+    "SO": "Solothurn",
+    "SZ": "Schwyz",
+    "TG": "Thurgau",
+    "TI": "Tessin",
+    "UR": "Uri",
+    "VD": "Waadt",
+    "VS": "Wallis",
+    "ZG": "Zug",
+    "ZH": "Zürich",
 }
 
 # Alle gültigen Siedlungskategorien im ISOS
 SIEDLUNGSKATEGORIEN = [
-    "Stadt", "Kleinstadt/Flecken", "Dorf", "Weiler/Einzelsiedlung",
-    "Spezialfall", "cas particulier", "villaggio", "cas spécial",
+    "Stadt",
+    "Kleinstadt/Flecken",
+    "Dorf",
+    "Weiler/Einzelsiedlung",
+    "Spezialfall",
+    "cas particulier",
+    "villaggio",
+    "cas spécial",
 ]
 
 # ---------------------------------------------------------------------------
@@ -76,6 +99,7 @@ mcp = FastMCP(
 # Hilfsfunktionen
 # ---------------------------------------------------------------------------
 
+
 async def _get(url: str, params: dict | None = None) -> dict:
     """HTTP GET mit einheitlichem Error-Handling."""
     async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
@@ -87,9 +111,13 @@ async def _get(url: str, params: dict | None = None) -> dict:
 async def _get_text(url: str, params: dict | None = None) -> str:
     """HTTP GET, gibt rohen Text zurück (für HTML/XML)."""
     async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-        response = await client.get(url, params=params, headers={
-            "User-Agent": "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
-        })
+        response = await client.get(
+            url,
+            params=params,
+            headers={
+                "User-Agent": "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
+            },
+        )
         response.raise_for_status()
         return response.text
 
@@ -138,22 +166,27 @@ def _parse_rss_items(xml_text: str, max_items: int = 20) -> list[dict]:
     root = ET.fromstring(xml_text)
     items = []
     for item in root.findall(".//item")[:max_items]:
-        items.append({
-            "id": item.attrib.get(NSB_ID, ""),
-            "title": item.findtext("title") or "",
-            "description": item.findtext("description") or "",
-            "link": item.findtext("link") or "",
-            "pubDate": item.findtext("pubDate") or "",
-            "author": item.findtext("author") or "BAK",
-        })
+        items.append(
+            {
+                "id": item.attrib.get(NSB_ID, ""),
+                "title": item.findtext("title") or "",
+                "description": item.findtext("description") or "",
+                "link": item.findtext("link") or "",
+                "pubDate": item.findtext("pubDate") or "",
+                "author": item.findtext("author") or "BAK",
+            }
+        )
     return items
+
 
 # ---------------------------------------------------------------------------
 # Pydantic Input-Modelle
 # ---------------------------------------------------------------------------
 
+
 class IsosSearchInput(BaseModel):
     """Eingabe für ISOS-Suche nach Ortsname."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     query: str = Field(
@@ -172,6 +205,7 @@ class IsosSearchInput(BaseModel):
 
 class IsosKantonInput(BaseModel):
     """Eingabe für ISOS-Abfrage nach Kanton."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     kanton: str = Field(
@@ -192,12 +226,15 @@ class IsosKantonInput(BaseModel):
     def validate_kanton(cls, v: str) -> str:
         upper = v.upper()
         if upper not in KANTONE:
-            raise ValueError(f"Ungültiges Kantonskürzel '{v}'. Gültige Werte: {', '.join(sorted(KANTONE.keys()))}")
+            raise ValueError(
+                f"Ungültiges Kantonskürzel '{v}'. Gültige Werte: {', '.join(sorted(KANTONE.keys()))}"
+            )
         return upper
 
 
 class IsosDetailInput(BaseModel):
     """Eingabe für ISOS-Detailabfrage."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     feature_id: str = Field(
@@ -209,6 +246,7 @@ class IsosDetailInput(BaseModel):
 
 class IsosKategorieInput(BaseModel):
     """Eingabe für ISOS-Filterung nach Siedlungskategorie."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     kategorie: str = Field(
@@ -229,6 +267,7 @@ class IsosKategorieInput(BaseModel):
 
 class NewsInput(BaseModel):
     """Eingabe für BAK-Medienmitteilungen."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     limit: int | None = Field(
@@ -246,6 +285,7 @@ class NewsInput(BaseModel):
 
 class KulturpreiseInput(BaseModel):
     """Eingabe für Schweizer Kulturpreise."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     sparte: str | None = Field(
@@ -261,6 +301,7 @@ class KulturpreiseInput(BaseModel):
 
 class OpendataInput(BaseModel):
     """Eingabe für BAK Open-Data-Datensätze."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     query: str | None = Field(
@@ -272,6 +313,7 @@ class OpendataInput(BaseModel):
 
 class TraditionDetailInput(BaseModel):
     """Eingabe für eine spezifische Lebendige Tradition."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     slug: str = Field(
@@ -287,6 +329,7 @@ class TraditionDetailInput(BaseModel):
 
 class TraditionListInput(BaseModel):
     """Eingabe für Liste der Lebendigen Traditionen."""
+
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
     buchstabe: str | None = Field(
@@ -300,6 +343,7 @@ class TraditionListInput(BaseModel):
 # ---------------------------------------------------------------------------
 # Tool 1: ISOS Suche nach Ortsname
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_search_isos",
@@ -333,13 +377,16 @@ async def bak_search_isos(params: IsosSearchInput) -> str:
             - gisos_url: Link zur GISOS-Detailseite des BAK
     """
     try:
-        data = await _get(f"{GEO_ADMIN_BASE}/find", params={
-            "layer": ISOS_LAYER,
-            "searchText": params.query,
-            "searchField": "name",
-            "lang": "de",
-            "returnGeometry": "false",
-        })
+        data = await _get(
+            f"{GEO_ADMIN_BASE}/find",
+            params={
+                "layer": ISOS_LAYER,
+                "searchText": params.query,
+                "searchField": "name",
+                "lang": "de",
+                "returnGeometry": "false",
+            },
+        )
         results = data.get("results", [])
         # Deduplizieren nach feature_id
         seen = set()
@@ -372,6 +419,7 @@ async def bak_search_isos(params: IsosSearchInput) -> str:
 # Tool 2: ISOS nach Kanton
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool(
     name="bak_isos_by_kanton",
     annotations={
@@ -400,13 +448,16 @@ async def bak_isos_by_kanton(params: IsosKantonInput) -> str:
             - results: Liste mit feature_id, isos_nummer, name, siedlungskategorie
     """
     try:
-        data = await _get(f"{GEO_ADMIN_BASE}/find", params={
-            "layer": ISOS_LAYER,
-            "searchText": params.kanton,
-            "searchField": "kantone",
-            "lang": "de",
-            "returnGeometry": "false",
-        })
+        data = await _get(
+            f"{GEO_ADMIN_BASE}/find",
+            params={
+                "layer": ISOS_LAYER,
+                "searchText": params.kanton,
+                "searchField": "kantone",
+                "lang": "de",
+                "returnGeometry": "false",
+            },
+        )
         results = data.get("results", [])
         # Deduplizieren
         seen = set()
@@ -417,13 +468,12 @@ async def bak_isos_by_kanton(params: IsosKantonInput) -> str:
                 seen.add(fid)
                 unique.append(r)
 
-        unique_sorted = sorted(
-            unique, key=lambda r: r.get("attributes", {}).get("name", "")
-        )[: params.limit]
+        unique_sorted = sorted(unique, key=lambda r: r.get("attributes", {}).get("name", ""))[
+            : params.limit
+        ]
 
         formatted = [
-            _format_isos_entry(r.get("attributes", {}), r.get("id", ""))
-            for r in unique_sorted
+            _format_isos_entry(r.get("attributes", {}), r.get("id", "")) for r in unique_sorted
         ]
 
         return json.dumps(
@@ -444,6 +494,7 @@ async def bak_isos_by_kanton(params: IsosKantonInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 3: ISOS Detailabfrage
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_get_isos_detail",
@@ -498,6 +549,7 @@ async def bak_get_isos_detail(params: IsosDetailInput) -> str:
 # Tool 4: ISOS nach Siedlungskategorie
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool(
     name="bak_isos_by_kategorie",
     annotations={
@@ -526,13 +578,16 @@ async def bak_isos_by_kategorie(params: IsosKategorieInput) -> str:
     """
     try:
         # Suche über Siedlungskategorie-Feld
-        data = await _get(f"{GEO_ADMIN_BASE}/find", params={
-            "layer": ISOS_LAYER,
-            "searchText": params.kategorie,
-            "searchField": "siedlungskategorie",
-            "lang": "de",
-            "returnGeometry": "false",
-        })
+        data = await _get(
+            f"{GEO_ADMIN_BASE}/find",
+            params={
+                "layer": ISOS_LAYER,
+                "searchText": params.kategorie,
+                "searchField": "siedlungskategorie",
+                "lang": "de",
+                "returnGeometry": "false",
+            },
+        )
         results = data.get("results", [])
 
         # Deduplizieren
@@ -548,15 +603,11 @@ async def bak_isos_by_kategorie(params: IsosKategorieInput) -> str:
         if params.kanton:
             kanton_upper = params.kanton.upper()
             unique = [
-                r for r in unique
-                if kanton_upper in (r.get("attributes", {}).get("kantone") or [])
+                r for r in unique if kanton_upper in (r.get("attributes", {}).get("kantone") or [])
             ]
 
         unique = unique[: params.limit]
-        formatted = [
-            _format_isos_entry(r.get("attributes", {}), r.get("id", ""))
-            for r in unique
-        ]
+        formatted = [_format_isos_entry(r.get("attributes", {}), r.get("id", "")) for r in unique]
 
         return json.dumps(
             {
@@ -575,6 +626,7 @@ async def bak_isos_by_kategorie(params: IsosKategorieInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 5: ISOS Statistiken
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_isos_statistics",
@@ -609,13 +661,16 @@ async def bak_isos_statistics() -> str:
 
         for kanton in sample_kantone:
             try:
-                data = await _get(f"{GEO_ADMIN_BASE}/find", params={
-                    "layer": ISOS_LAYER,
-                    "searchText": kanton,
-                    "searchField": "kantone",
-                    "lang": "de",
-                    "returnGeometry": "false",
-                })
+                data = await _get(
+                    f"{GEO_ADMIN_BASE}/find",
+                    params={
+                        "layer": ISOS_LAYER,
+                        "searchText": kanton,
+                        "searchField": "kantone",
+                        "lang": "de",
+                        "returnGeometry": "false",
+                    },
+                )
                 results = data.get("results", [])
                 seen = set()
                 for r in results:
@@ -654,6 +709,7 @@ async def bak_isos_statistics() -> str:
 # Tool 6: BAK Medienmitteilungen
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool(
     name="bak_get_news",
     annotations={
@@ -684,19 +740,22 @@ async def bak_get_news(params: NewsInput) -> str:
             - link: URL zur vollständigen Meldung
     """
     try:
-        xml_text = await _get_text(RSS_BASE, params={
-            "lang": "de",
-            "org-nr": BAK_ORG_NR,
-        })
+        xml_text = await _get_text(
+            RSS_BASE,
+            params={
+                "lang": "de",
+                "org-nr": BAK_ORG_NR,
+            },
+        )
         items = _parse_rss_items(xml_text, max_items=params.limit * 3)
 
         # Keyword-Filter
         if params.keyword:
             keyword_lower = params.keyword.lower()
             items = [
-                i for i in items
-                if keyword_lower in i["title"].lower()
-                or keyword_lower in i["description"].lower()
+                i
+                for i in items
+                if keyword_lower in i["title"].lower() or keyword_lower in i["description"].lower()
             ]
 
         items = items[: params.limit]
@@ -718,6 +777,7 @@ async def bak_get_news(params: NewsInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 7: Schweizer Kulturpreise
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_get_kulturpreise",
@@ -811,7 +871,8 @@ async def bak_get_kulturpreise(params: KulturpreiseInput) -> str:
     if params.sparte:
         sparte_lower = params.sparte.lower()
         preisuebersicht = [
-            p for p in preisuebersicht
+            p
+            for p in preisuebersicht
             if sparte_lower in p["sparte"].lower() or sparte_lower in p["name"].lower()
         ]
 
@@ -820,16 +881,28 @@ async def bak_get_kulturpreise(params: KulturpreiseInput) -> str:
         xml_text = await _get_text(RSS_BASE, params={"lang": "de", "org-nr": BAK_ORG_NR})
         all_items = _parse_rss_items(xml_text, max_items=50)
 
-        preis_keywords = ["preis", "grand prix", "prix", "filmpreis", "literatur",
-                          "design", "musik", "theater", "auszeichnung", "preisträger"]
+        preis_keywords = [
+            "preis",
+            "grand prix",
+            "prix",
+            "filmpreis",
+            "literatur",
+            "design",
+            "musik",
+            "theater",
+            "auszeichnung",
+            "preisträger",
+        ]
         if params.sparte:
             preis_keywords.append(params.sparte.lower())
 
         preis_items = [
-            i for i in all_items
-            if any(kw in i["title"].lower() or kw in i["description"].lower()
-                   for kw in preis_keywords)
-        ][:params.limit]
+            i
+            for i in all_items
+            if any(
+                kw in i["title"].lower() or kw in i["description"].lower() for kw in preis_keywords
+            )
+        ][: params.limit]
 
         return json.dumps(
             {
@@ -857,6 +930,7 @@ async def bak_get_kulturpreise(params: KulturpreiseInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 8: BAK Datensätze auf opendata.swiss
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_get_opendata",
@@ -916,15 +990,19 @@ async def bak_get_opendata(params: OpendataInput) -> str:
             if isinstance(desc, dict):
                 desc = desc.get("de") or desc.get("fr") or next(iter(desc.values()), "")
 
-            formatted.append({
-                "name": ds.get("name", ""),
-                "title": title,
-                "beschreibung": (desc or "")[:300],
-                "formate": list({r.get("format", "") for r in ds.get("resources", []) if r.get("format")}),
-                "ressourcen": ressourcen[:5],
-                "opendata_url": f"https://opendata.swiss/de/dataset/{ds.get('name', '')}",
-                "letzte_aenderung": ds.get("metadata_modified", ""),
-            })
+            formatted.append(
+                {
+                    "name": ds.get("name", ""),
+                    "title": title,
+                    "beschreibung": (desc or "")[:300],
+                    "formate": list(
+                        {r.get("format", "") for r in ds.get("resources", []) if r.get("format")}
+                    ),
+                    "ressourcen": ressourcen[:5],
+                    "opendata_url": f"https://opendata.swiss/de/dataset/{ds.get('name', '')}",
+                    "letzte_aenderung": ds.get("metadata_modified", ""),
+                }
+            )
 
         return json.dumps(
             {
@@ -945,6 +1023,7 @@ async def bak_get_opendata(params: OpendataInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 9: Lebendige Traditionen – Übersichtsliste
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_list_traditions",
@@ -977,10 +1056,7 @@ async def bak_list_traditions(params: TraditionListInput) -> str:
         html = await _get_text(f"{TRADITIONS_BASE}/liste/liste.html")
         import re
 
-        links = re.findall(
-            r'href="(/tradition/de/home/traditionen/([^"]+\.html))"',
-            html
-        )
+        links = re.findall(r'href="(/tradition/de/home/traditionen/([^"]+\.html))"', html)
         # Deduplizieren, Slug extrahieren
         seen_slugs = set()
         traditions = []
@@ -990,11 +1066,13 @@ async def bak_list_traditions(params: TraditionListInput) -> str:
                 continue
             seen_slugs.add(slug)
             name = slug.replace("--", " – ").replace("-", " ").title()
-            traditions.append({
-                "slug": slug,
-                "name_aus_slug": name,
-                "url": f"https://www.lebendige-traditionen.ch{path}",
-            })
+            traditions.append(
+                {
+                    "slug": slug,
+                    "name_aus_slug": name,
+                    "url": f"https://www.lebendige-traditionen.ch{path}",
+                }
+            )
 
         # Buchstaben-Filter
         if params.buchstabe:
@@ -1027,6 +1105,7 @@ async def bak_list_traditions(params: TraditionListInput) -> str:
 # ---------------------------------------------------------------------------
 # Tool 10: Lebendige Tradition – Detailseite
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool(
     name="bak_get_tradition_detail",
@@ -1065,6 +1144,7 @@ async def bak_get_tradition_detail(params: TraditionDetailInput) -> str:
     """
     try:
         import re
+
         url = f"{TRADITIONS_BASE}/traditionen/{params.slug}.html"
         html = await _get_text(url)
 
@@ -1079,18 +1159,13 @@ async def bak_get_tradition_detail(params: TraditionDetailInput) -> str:
         # Weitere Textabschnitte aus <p>-Tags
         p_tags = re.findall(r"<p[^>]*>([^<]{50,})</p>", html)
         text_absaetze = [
-            re.sub(r"<[^>]+>", "", p).strip()
-            for p in p_tags[:5]
-            if len(p.strip()) > 50
+            re.sub(r"<[^>]+>", "", p).strip() for p in p_tags[:5] if len(p.strip()) > 50
         ]
 
         # Kantone heuristisch erkennen
         kanton_namen = list(KANTONE.values())
         content_lower = html.lower()
-        erwähnte_kantone = [
-            name for name in kanton_namen
-            if name.lower() in content_lower
-        ]
+        erwähnte_kantone = [name for name in kanton_namen if name.lower() in content_lower]
 
         return json.dumps(
             {
@@ -1114,16 +1189,14 @@ async def bak_get_tradition_detail(params: TraditionDetailInput) -> str:
 # Resources
 # ---------------------------------------------------------------------------
 
+
 @mcp.resource("bak://isos/kantone")
 async def resource_isos_kantone() -> str:
     """Liste aller Schweizer Kantone mit Kürzel und Name für ISOS-Abfragen."""
     return json.dumps(
         {
             "beschreibung": "Gültige Kantonskürzel für bak_isos_by_kanton",
-            "kantone": [
-                {"kuerzel": k, "name": v}
-                for k, v in sorted(KANTONE.items())
-            ],
+            "kantone": [{"kuerzel": k, "name": v} for k, v in sorted(KANTONE.items())],
         },
         ensure_ascii=False,
         indent=2,
@@ -1169,6 +1242,7 @@ async def resource_kulturpreise() -> str:
 # ---------------------------------------------------------------------------
 # Einstiegspunkt
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     """Startet den MCP-Server. Transport via Umgebungsvariable konfigurierbar."""
