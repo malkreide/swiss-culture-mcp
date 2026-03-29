@@ -13,8 +13,6 @@ Kein API-Schlüssel erforderlich. Alle Quellen sind öffentlich zugänglich.
 import json
 import os
 import xml.etree.ElementTree as ET
-from enum import Enum
-from typing import Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -78,7 +76,7 @@ mcp = FastMCP(
 # Hilfsfunktionen
 # ---------------------------------------------------------------------------
 
-async def _get(url: str, params: Optional[dict] = None) -> dict:
+async def _get(url: str, params: dict | None = None) -> dict:
     """HTTP GET mit einheitlichem Error-Handling."""
     async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
         response = await client.get(url, params=params)
@@ -86,7 +84,7 @@ async def _get(url: str, params: Optional[dict] = None) -> dict:
         return response.json()
 
 
-async def _get_text(url: str, params: Optional[dict] = None) -> str:
+async def _get_text(url: str, params: dict | None = None) -> str:
     """HTTP GET, gibt rohen Text zurück (für HTML/XML)."""
     async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
         response = await client.get(url, params=params, headers={
@@ -128,7 +126,7 @@ def _format_isos_entry(attrs: dict, feature_id: str = "") -> dict:
         "teil_name": attrs.get("teil_name"),
         "teil_nummer": attrs.get("teil_nummer"),
         "gisos_url": attrs.get("url") or (f"{GISOS_BASE}/{nummer}" if nummer != "–" else ""),
-        "isos_url": f"https://www.isos.ch",
+        "isos_url": "https://www.isos.ch",
     }
 
 
@@ -164,7 +162,7 @@ class IsosSearchInput(BaseModel):
         min_length=2,
         max_length=100,
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=20,
         description="Maximale Anzahl Resultate (1–100)",
         ge=1,
@@ -182,7 +180,7 @@ class IsosKantonInput(BaseModel):
         min_length=2,
         max_length=2,
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=50,
         description="Maximale Anzahl Resultate (1–500)",
         ge=1,
@@ -220,26 +218,26 @@ class IsosKategorieInput(BaseModel):
             "'Stadt', 'Kleinstadt/Flecken', 'Dorf', 'Weiler/Einzelsiedlung', 'Spezialfall'"
         ),
     )
-    kanton: Optional[str] = Field(
+    kanton: str | None = Field(
         default=None,
         description="Optional: Kanton einschränken (Kürzel, z.B. 'ZH')",
         min_length=2,
         max_length=2,
     )
-    limit: Optional[int] = Field(default=50, ge=1, le=200)
+    limit: int | None = Field(default=50, ge=1, le=200)
 
 
 class NewsInput(BaseModel):
     """Eingabe für BAK-Medienmitteilungen."""
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=10,
         description="Anzahl Medienmitteilungen (1–50)",
         ge=1,
         le=50,
     )
-    keyword: Optional[str] = Field(
+    keyword: str | None = Field(
         default=None,
         description="Stichwort für Filterung (z.B. 'Filmpreis', 'Literatur', 'Design')",
         max_length=100,
@@ -250,7 +248,7 @@ class KulturpreiseInput(BaseModel):
     """Eingabe für Schweizer Kulturpreise."""
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
-    sparte: Optional[str] = Field(
+    sparte: str | None = Field(
         default=None,
         description=(
             "Kultursparte filtern: 'Film', 'Literatur', 'Design', 'Musik', 'Theater', "
@@ -258,14 +256,14 @@ class KulturpreiseInput(BaseModel):
         ),
         max_length=50,
     )
-    limit: Optional[int] = Field(default=20, ge=1, le=50)
+    limit: int | None = Field(default=20, ge=1, le=50)
 
 
 class OpendataInput(BaseModel):
     """Eingabe für BAK Open-Data-Datensätze."""
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
-    query: Optional[str] = Field(
+    query: str | None = Field(
         default=None,
         description="Suchbegriff für BAK-Datensätze auf opendata.swiss (optional)",
         max_length=100,
@@ -291,7 +289,7 @@ class TraditionListInput(BaseModel):
     """Eingabe für Liste der Lebendigen Traditionen."""
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
 
-    buchstabe: Optional[str] = Field(
+    buchstabe: str | None = Field(
         default=None,
         description="Anfangsbuchstabe filtern (A–Z), um Traditionen alphabetisch zu durchsuchen",
         min_length=1,
