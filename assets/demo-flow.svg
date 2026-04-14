@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#6b7280"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#059669"/>
+    </marker>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fafafa"/>
+      <stop offset="100%" style="stop-color:#f0f0f5"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" rx="12" fill="url(#bg)" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="450" y="36" text-anchor="middle" font-size="16" font-weight="700" fill="#1f2937">swiss-culture-mcp &mdash; How it works</text>
+  <text x="450" y="56" text-anchor="middle" font-size="11" fill="#6b7280">Model Context Protocol (MCP) connects AI assistants with Swiss cultural heritage data</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Step 1: User Question -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="30" y="80" width="250" height="68" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  </g>
+  <circle cx="54" cy="100" r="10" fill="#e0e7ff"/>
+  <text x="54" y="104" text-anchor="middle" font-size="12">&#x1F464;</text>
+  <text x="72" y="104" font-size="11" font-weight="600" fill="#4338ca">User asks Claude</text>
+  <text x="44" y="124" font-size="10.5" fill="#374151" font-style="italic">&laquo;Which protected townscapes</text>
+  <text x="44" y="138" font-size="10.5" fill="#374151" font-style="italic">are in canton Graub&#xFC;nden?&raquo;</text>
+
+  <!-- Arrow 1 → 2 -->
+  <line x1="280" y1="114" x2="328" y2="114" stroke="#7c3aed" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+  <text x="304" y="107" text-anchor="middle" font-size="9" fill="#7c3aed" font-weight="600">MCP</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Step 2: MCP Server / Tool Call -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="336" y="76" width="228" height="76" rx="10" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.5"/>
+  </g>
+  <text x="450" y="97" text-anchor="middle" font-size="11" font-weight="700" fill="#6d28d9">swiss-culture-mcp</text>
+  <rect x="358" y="106" width="184" height="34" rx="6" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="366" y="120" font-size="9" fill="#7c3aed" font-family="'SF Mono', 'Consolas', monospace">bak_isos_by_kanton(</text>
+  <text x="376" y="133" font-size="9" fill="#7c3aed" font-family="'SF Mono', 'Consolas', monospace">kanton=&quot;GR&quot;)</text>
+
+  <!-- Arrow 2 → 3 -->
+  <line x1="564" y1="114" x2="612" y2="114" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="588" y="107" text-anchor="middle" font-size="9" fill="#6b7280">REST</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Step 3: External APIs -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="620" y="76" width="250" height="76" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  </g>
+  <text x="745" y="97" text-anchor="middle" font-size="11" font-weight="600" fill="#1f2937">Data Sources</text>
+  <text x="640" y="116" font-size="10" fill="#059669">&#x25CF;</text>
+  <text x="654" y="116" font-size="9.5" fill="#374151">geo.admin.ch (ISOS)</text>
+  <text x="640" y="132" font-size="10" fill="#059669">&#x25CF;</text>
+  <text x="654" y="132" font-size="9.5" fill="#374151">opendata.swiss (CKAN)</text>
+  <text x="640" y="148" font-size="10" fill="#059669">&#x25CF;</text>
+  <text x="654" y="148" font-size="9.5" fill="#374151">news.admin.ch (RSS)</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Return Arrow (APIs → MCP → User) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <path d="M 745 158 L 745 182 L 155 182 L 155 154" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)" stroke-dasharray="5,3"/>
+  <text x="450" y="177" text-anchor="middle" font-size="9" fill="#059669" font-weight="600">Structured JSON response</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Step 4: Response Box -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="30" y="200" width="840" height="190" rx="10" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  </g>
+  <rect x="30" y="200" width="840" height="30" rx="10" fill="#f9fafb"/>
+  <rect x="30" y="220" width="840" height="1" fill="#e5e7eb"/>
+  <circle cx="52" cy="215" r="5" fill="#fca5a5"/>
+  <circle cx="68" cy="215" r="5" fill="#fcd34d"/>
+  <circle cx="84" cy="215" r="5" fill="#6ee7b7"/>
+  <text x="450" y="219" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">Claude's Response</text>
+
+  <text x="52" y="248" font-size="11" font-weight="600" fill="#1f2937">Found 47 protected townscapes in canton Graub&#xFC;nden:</text>
+
+  <text x="52" y="272" font-size="10" fill="#374151">&#x2022; <tspan font-weight="600">Chur</tspan> &#x2014; Stadt (ISOS Nr. 1001) &#x2014; national significance</text>
+  <text x="52" y="290" font-size="10" fill="#374151">&#x2022; <tspan font-weight="600">Sent/Scuol</tspan> &#x2014; Dorf (ISOS Nr. 1045) &#x2014; Engadin village</text>
+  <text x="52" y="308" font-size="10" fill="#374151">&#x2022; <tspan font-weight="600">Guarda</tspan> &#x2014; Dorf (ISOS Nr. 1023) &#x2014; historical Engadin architecture</text>
+  <text x="52" y="326" font-size="10" fill="#6b7280">&#x2022; ... 44 more townscapes</text>
+
+  <rect x="52" y="342" width="230" height="36" rx="6" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+  <text x="62" y="358" font-size="9" fill="#059669" font-weight="600">&#x1F512; Read-only</text>
+  <text x="62" y="372" font-size="8.5" fill="#6b7280">No API key &#x2022; Open Government Data</text>
+
+  <rect x="300" y="342" width="280" height="36" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="310" y="358" font-size="9" fill="#2563eb" font-weight="600">&#x1F3DB;&#xFE0F; 10 Tools &#x2022; 3 Resources &#x2022; 4 APIs</text>
+  <text x="310" y="372" font-size="8.5" fill="#6b7280">ISOS &#x2022; Traditions &#x2022; Prizes &#x2022; News &#x2022; Open Data</text>
+
+  <rect x="598" y="342" width="254" height="36" rx="6" fill="#fef3c7" stroke="#fde68a" stroke-width="1"/>
+  <text x="608" y="358" font-size="9" fill="#d97706" font-weight="600">&#x2601;&#xFE0F; Dual Transport</text>
+  <text x="608" y="372" font-size="8.5" fill="#6b7280">stdio (Claude Desktop) &#x2022; HTTP (claude.ai)</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- Tool Overview Strip -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="30" y="410" width="840" height="90" rx="10" fill="#fafafe" stroke="#e5e7eb" stroke-width="1"/>
+  </g>
+  <text x="450" y="432" text-anchor="middle" font-size="11" font-weight="700" fill="#4338ca">Available Tools</text>
+
+  <!-- Row 1 -->
+  <rect x="50"  y="444" width="148" height="22" rx="4" fill="#ede9fe"/>
+  <text x="124" y="459" text-anchor="middle" font-size="8.5" fill="#6d28d9" font-family="'SF Mono', 'Consolas', monospace">bak_search_isos</text>
+
+  <rect x="210" y="444" width="148" height="22" rx="4" fill="#ede9fe"/>
+  <text x="284" y="459" text-anchor="middle" font-size="8.5" fill="#6d28d9" font-family="'SF Mono', 'Consolas', monospace">bak_isos_by_kanton</text>
+
+  <rect x="370" y="444" width="148" height="22" rx="4" fill="#ede9fe"/>
+  <text x="444" y="459" text-anchor="middle" font-size="8.5" fill="#6d28d9" font-family="'SF Mono', 'Consolas', monospace">bak_get_isos_detail</text>
+
+  <rect x="530" y="444" width="148" height="22" rx="4" fill="#ede9fe"/>
+  <text x="604" y="459" text-anchor="middle" font-size="8.5" fill="#6d28d9" font-family="'SF Mono', 'Consolas', monospace">bak_isos_by_kategorie</text>
+
+  <rect x="690" y="444" width="148" height="22" rx="4" fill="#ede9fe"/>
+  <text x="764" y="459" text-anchor="middle" font-size="8.5" fill="#6d28d9" font-family="'SF Mono', 'Consolas', monospace">bak_isos_statistics</text>
+
+  <!-- Row 2 -->
+  <rect x="50"  y="472" width="148" height="22" rx="4" fill="#ecfdf5"/>
+  <text x="124" y="487" text-anchor="middle" font-size="8.5" fill="#059669" font-family="'SF Mono', 'Consolas', monospace">bak_get_news</text>
+
+  <rect x="210" y="472" width="148" height="22" rx="4" fill="#ecfdf5"/>
+  <text x="284" y="487" text-anchor="middle" font-size="8.5" fill="#059669" font-family="'SF Mono', 'Consolas', monospace">bak_get_kulturpreise</text>
+
+  <rect x="370" y="472" width="148" height="22" rx="4" fill="#ecfdf5"/>
+  <text x="444" y="487" text-anchor="middle" font-size="8.5" fill="#059669" font-family="'SF Mono', 'Consolas', monospace">bak_get_opendata</text>
+
+  <rect x="530" y="472" width="148" height="22" rx="4" fill="#fef3c7"/>
+  <text x="604" y="487" text-anchor="middle" font-size="8.5" fill="#d97706" font-family="'SF Mono', 'Consolas', monospace">bak_list_traditions</text>
+
+  <rect x="690" y="472" width="148" height="22" rx="4" fill="#fef3c7"/>
+  <text x="764" y="487" text-anchor="middle" font-size="8.5" fill="#d97706" font-family="'SF Mono', 'Consolas', monospace">bak_get_tradition_detail</text>
+</svg>

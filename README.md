@@ -13,6 +13,10 @@
 
 [🇩🇪 Deutsche Version](README.de.md)
 
+<p align="center">
+  <img src="assets/demo-flow.svg" alt="Demo: Claude queries ISOS townscapes via MCP tool call" width="780">
+</p>
+
 ---
 
 ## Overview
@@ -228,6 +232,20 @@ PYTHONPATH=src pytest tests/ -m "live"
 "Show current cultural policy of the federal government"
 → bak_get_news() + bak_get_kulturpreise()
 ```
+
+---
+
+## Safety & Limits
+
+| Aspect | Details |
+|--------|---------|
+| **Access** | Read-only — the server cannot modify or delete any data |
+| **Personal data** | No personal data — all sources are aggregated, public cultural heritage data |
+| **Rate limits** | Built-in per-query caps (e.g. max 100 ISOS results, 50 news items, 200 category entries) |
+| **Timeout** | 20 seconds per API call |
+| **Authentication** | No API keys required — all 4 data sources are publicly accessible |
+| **Licenses** | All data under open licenses (Open Government Data): geo.admin.ch, opendata.swiss, news.admin.ch |
+| **Terms of Service** | Subject to ToS of the respective data sources: [geo.admin.ch](https://www.geo.admin.ch/de/geo-dienstleistungen/geodienste/terms-of-use.html), [opendata.swiss](https://opendata.swiss/de/terms-of-use), [news.admin.ch](https://www.admin.ch/gov/de/start/rechtliches.html), [lebendige-traditionen.ch](https://www.lebendige-traditionen.ch/) |
 
 ---
 

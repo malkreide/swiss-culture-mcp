@@ -13,6 +13,10 @@
 
 > MCP-Server für Schweizer Kulturdaten des Bundesamts für Kultur (BAK) — ISOS-Ortsbilder, Lebendige Traditionen, Kulturpreise, Medienmitteilungen. Kein API-Schlüssel erforderlich.
 
+<p align="center">
+  <img src="assets/demo-flow.svg" alt="Demo: Claude fragt ISOS-Ortsbilder via MCP Tool Call ab" width="780">
+</p>
+
 ---
 
 ## Übersicht
@@ -228,6 +232,20 @@ PYTHONPATH=src pytest tests/ -m "live"
 «Zeige aktuelle Kulturpolitik des Bundes»
 → bak_get_news() + bak_get_kulturpreise()
 ```
+
+---
+
+## Sicherheit & Grenzen
+
+| Aspekt | Details |
+|--------|---------|
+| **Zugriff** | Nur lesend — der Server kann keine Daten verändern oder löschen |
+| **Personendaten** | Keine Personendaten — alle Quellen sind aggregierte, öffentliche Kulturdaten |
+| **Abfragelimits** | Eingebaute Obergrenzen pro Abfrage (z.B. max. 100 ISOS-Resultate, 50 News-Einträge, 200 Kategorieeinträge) |
+| **Timeout** | 20 Sekunden pro API-Aufruf |
+| **Authentifizierung** | Keine API-Schlüssel erforderlich — alle 4 Datenquellen sind öffentlich zugänglich |
+| **Lizenzen** | Alle Daten unter offenen Lizenzen (Open Government Data): geo.admin.ch, opendata.swiss, news.admin.ch |
+| **Nutzungsbedingungen** | Es gelten die Nutzungsbedingungen der jeweiligen Datenquellen: [geo.admin.ch](https://www.geo.admin.ch/de/geo-dienstleistungen/geodienste/terms-of-use.html), [opendata.swiss](https://opendata.swiss/de/terms-of-use), [news.admin.ch](https://www.admin.ch/gov/de/start/rechtliches.html), [lebendige-traditionen.ch](https://www.lebendige-traditionen.ch/) |
 
 ---
 
