@@ -231,6 +231,7 @@ PYTHONPATH=src pytest tests/ -m "live"
 ```
 "Show current cultural policy of the federal government"
 → bak_get_news() + bak_get_kulturpreise()
+→ More use cases by audience →
 ```
 
 ---
