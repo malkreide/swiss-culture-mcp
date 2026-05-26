@@ -110,7 +110,10 @@ Try it immediately in Claude Desktop:
 | Variable | Default | Description |
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | Transport: `stdio` or `streamable_http` |
+| `MCP_HOST` | `127.0.0.1` | Bind host for HTTP transport (loopback by default) |
 | `MCP_PORT` | `8000` | Port for HTTP transport |
+| `MCP_ALLOW_PUBLIC_BIND` | `false` | If `true`, permits binding `0.0.0.0` without auth. Set this **only** behind an authenticating reverse proxy (e.g. Cloudflare Access, oauth2-proxy). |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` — structured JSON logs to stderr |
 
 ### Claude Desktop Configuration
 
@@ -148,9 +151,18 @@ For use via **claude.ai in the browser** (e.g. on managed workstations without l
 4. In claude.ai under Settings → MCP Servers, add: `https://your-app.onrender.com/mcp`
 
 ```bash
-# Docker / local HTTP mode
+# Docker / local HTTP mode (loopback only — safe default)
 MCP_TRANSPORT=streamable_http MCP_PORT=8000 python -m swiss_culture_mcp.server
+
+# Public bind (DANGEROUS — only behind an authenticating reverse proxy)
+MCP_TRANSPORT=streamable_http MCP_HOST=0.0.0.0 MCP_ALLOW_PUBLIC_BIND=true \
+    python -m swiss_culture_mcp.server
 ```
+
+> ⚠️ **Security:** The server itself has no authentication. Binding to a public
+> interface without an upstream auth layer turns it into an open proxy for the
+> federal data sources. Always run an authenticating reverse proxy (Cloudflare
+> Access, oauth2-proxy, nginx + auth_request) in front of `0.0.0.0` deployments.
 
 ---
 

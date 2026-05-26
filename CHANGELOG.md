@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **SEC-003**: Streamable-HTTP-Transport bindet nun standardmässig auf `127.0.0.1`. Öffentliches Binding nur mit explizitem `MCP_HOST=0.0.0.0` + `MCP_ALLOW_PUBLIC_BIND=true` und dem dokumentierten Hinweis auf vorgelagerten Auth-Proxy.
+- **SEC-006**: `_handle_error` propagiert keinen Upstream-Response-Body mehr an den LLM. Volle Diagnose nur noch im Log.
+
+### Added
+- **OBS-001**: Strukturierte JSON-Logs auf stderr via `logging`-Stdlib. Log-Level via `LOG_LEVEL`-Env (Default `INFO`). Server-Start, Upstream-HTTP-Fehler, Timeouts und Connect-Errors werden geloggt.
+- Neue Env-Vars: `MCP_HOST`, `MCP_ALLOW_PUBLIC_BIND`, `LOG_LEVEL`.
+- 5 zusätzliche Tests (41 statt 36): Hardening von `main()` + Anti-Leak-Test in `_handle_error`.
+
 ## [1.0.0] - 2026-03-11
 
 ### Added
