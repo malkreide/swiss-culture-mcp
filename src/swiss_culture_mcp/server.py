@@ -11,12 +11,31 @@ Kein API-Schlüssel erforderlich. Alle Quellen sind öffentlich zugänglich.
 """
 
 import json
+import logging
 import os
+import sys
 import xml.etree.ElementTree as ET
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+logger = logging.getLogger("swiss_culture_mcp")
+
+if not logger.handlers:
+    _handler = logging.StreamHandler(sys.stderr)
+    _handler.setFormatter(
+        logging.Formatter(
+            '{"ts":"%(asctime)s","lvl":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
+        )
+    )
+    logger.addHandler(_handler)
+    logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+    logger.propagate = False
 
 # ---------------------------------------------------------------------------
 # Konstanten
@@ -123,9 +142,17 @@ async def _get_text(url: str, params: dict | None = None) -> str:
 
 
 def _handle_error(e: Exception) -> str:
-    """Einheitliche, handlungsorientierte Fehlermeldungen auf Deutsch."""
+    """Einheitliche, handlungsorientierte Fehlermeldungen auf Deutsch.
+
+    Upstream-Response-Bodies werden NICHT an den LLM zurückgegeben
+    (Information-Disclosure-Schutz). Volle Diagnose landet im Log.
+    """
     if isinstance(e, httpx.HTTPStatusError):
         code = e.response.status_code
+        url = str(e.response.request.url) if e.response.request else "?"
+        logger.warning(
+            "upstream_http_error code=%s url=%s body=%r", code, url, e.response.text[:500]
+        )
         if code == 404:
             return "Fehler: Ressource nicht gefunden. Bitte Suchbegriff oder ID prüfen."
         if code == 403:
@@ -134,12 +161,15 @@ def _handle_error(e: Exception) -> str:
             return "Fehler: Anfragelimit überschritten. Bitte etwas warten und erneut versuchen."
         if code >= 500:
             return f"Fehler: Server-Fehler (HTTP {code}). Die API ist möglicherweise vorübergehend nicht verfügbar."
-        return f"Fehler: HTTP {code} – {e.response.text[:200]}"
+        return f"Fehler: HTTP {code} (Upstream gemeldet)."
     if isinstance(e, httpx.TimeoutException):
+        logger.warning("upstream_timeout: %s", e)
         return "Fehler: Zeitüberschreitung. Die API antwortet nicht. Bitte später erneut versuchen."
     if isinstance(e, httpx.ConnectError):
+        logger.warning("upstream_connect_error: %s", e)
         return "Fehler: Verbindung fehlgeschlagen. Bitte Netzwerkverbindung prüfen."
-    return f"Fehler: {type(e).__name__} – {str(e)[:200]}"
+    logger.exception("unhandled_tool_error: %s", type(e).__name__)
+    return f"Fehler: {type(e).__name__}."
 
 
 def _format_isos_entry(attrs: dict, feature_id: str = "") -> dict:
@@ -1245,13 +1275,36 @@ async def resource_kulturpreise() -> str:
 
 
 def main() -> None:
-    """Startet den MCP-Server. Transport via Umgebungsvariable konfigurierbar."""
+    """Startet den MCP-Server. Transport via Umgebungsvariable konfigurierbar.
+
+    Env-Vars:
+      MCP_TRANSPORT       'stdio' (Default) oder 'streamable_http'
+      MCP_HOST            Bind-Host für HTTP-Transport (Default: 127.0.0.1)
+      MCP_PORT            Port für HTTP-Transport (Default: 8000)
+      MCP_ALLOW_PUBLIC_BIND  Wenn 'true', erlaubt Bindings auf 0.0.0.0 ohne Auth
+                              (sonst SystemExit zum Schutz vor offenem Proxy)
+      LOG_LEVEL           DEBUG/INFO/WARNING/ERROR (Default: INFO)
+    """
     transport = os.getenv("MCP_TRANSPORT", "stdio")
+    host = os.getenv("MCP_HOST", "127.0.0.1")
     port = int(os.getenv("MCP_PORT", "8000"))
+    allow_public = os.getenv("MCP_ALLOW_PUBLIC_BIND", "false").lower() == "true"
 
     if transport == "streamable_http":
-        mcp.run(transport="streamable_http", host="0.0.0.0", port=port)
+        if host == "0.0.0.0" and not allow_public:
+            logger.error(
+                "refuse_public_bind host=0.0.0.0 without auth; set MCP_ALLOW_PUBLIC_BIND=true "
+                "to override (only behind an authenticating reverse proxy, e.g. Cloudflare Access)"
+            )
+            raise SystemExit(
+                "Refusing to bind streamable_http on 0.0.0.0 without auth. "
+                "Set MCP_ALLOW_PUBLIC_BIND=true to override (do this only behind an "
+                "authenticating reverse proxy)."
+            )
+        logger.info("server_start transport=streamable_http host=%s port=%s", host, port)
+        mcp.run(transport="streamable_http", host=host, port=port)
     else:
+        logger.info("server_start transport=stdio")
         mcp.run(transport="stdio")
 
 

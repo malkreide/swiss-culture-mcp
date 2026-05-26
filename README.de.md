@@ -110,7 +110,10 @@ Sofort in Claude Desktop ausprobieren:
 | Umgebungsvariable | Standard | Beschreibung |
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | Transport: `stdio` oder `streamable_http` |
+| `MCP_HOST` | `127.0.0.1` | Bind-Host für HTTP-Transport (per Default loopback) |
 | `MCP_PORT` | `8000` | Port für HTTP-Transport |
+| `MCP_ALLOW_PUBLIC_BIND` | `false` | Wenn `true`, erlaubt Binding auf `0.0.0.0` ohne Auth. **Nur** hinter authentifizierendem Reverse-Proxy setzen (z. B. Cloudflare Access, oauth2-proxy). |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` — strukturierte JSON-Logs auf stderr |
 
 ### Claude Desktop Konfiguration
 
@@ -148,9 +151,19 @@ Für den Einsatz via **claude.ai im Browser** (z. B. auf verwalteten Arbeitsplä
 4. In claude.ai unter Settings → MCP Servers eintragen: `https://your-app.onrender.com/mcp`
 
 ```bash
-# Docker / lokaler HTTP-Modus
+# Docker / lokaler HTTP-Modus (nur loopback — sicherer Default)
 MCP_TRANSPORT=streamable_http MCP_PORT=8000 python -m swiss_culture_mcp.server
+
+# Öffentliches Binding (GEFÄHRLICH — nur hinter authentifizierendem Reverse-Proxy)
+MCP_TRANSPORT=streamable_http MCP_HOST=0.0.0.0 MCP_ALLOW_PUBLIC_BIND=true \
+    python -m swiss_culture_mcp.server
 ```
+
+> ⚠️ **Sicherheit:** Der Server selbst hat keine Authentifizierung. Ein Binding
+> auf eine öffentliche Schnittstelle ohne vorgelagerten Auth-Layer macht ihn zum
+> offenen Proxy für die Bundesdaten-Quellen. Vor `0.0.0.0`-Deployments immer
+> einen authentifizierenden Reverse-Proxy (Cloudflare Access, oauth2-proxy,
+> nginx + auth_request) vorschalten.
 
 ---
 

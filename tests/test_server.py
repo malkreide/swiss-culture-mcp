@@ -32,6 +32,7 @@ from swiss_culture_mcp.server import (
     bak_isos_statistics,
     bak_list_traditions,
     bak_search_isos,
+    main,
 )
 
 # ---------------------------------------------------------------------------
@@ -215,6 +216,52 @@ class TestHelperFunctions:
     def test_handle_error_generic(self):
         result = _handle_error(ValueError("something went wrong"))
         assert "ValueError" in result
+
+    def test_handle_error_no_upstream_body_leak(self):
+        import httpx
+        request = httpx.Request("GET", "https://example.com")
+        response = httpx.Response(418, request=request, text="SECRET_TEAPOT_INTERNALS")
+        err = httpx.HTTPStatusError("teapot", request=request, response=response)
+        result = _handle_error(err)
+        assert "SECRET_TEAPOT_INTERNALS" not in result
+        assert "418" in result
+
+
+# ---------------------------------------------------------------------------
+# Unit-Tests: main() / Server-Start-Hardening (SEC-003)
+# ---------------------------------------------------------------------------
+
+
+class TestMainHardening:
+    def test_main_refuses_public_bind_without_override(self, monkeypatch):
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with pytest.raises(SystemExit):
+            main()
+
+    def test_main_allows_public_bind_with_override(self, monkeypatch):
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        monkeypatch.setenv("MCP_ALLOW_PUBLIC_BIND", "true")
+        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            main()
+            mock_run.assert_called_once_with(transport="streamable_http", host="0.0.0.0", port=8000)
+
+    def test_main_default_loopback_bind(self, monkeypatch):
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.delenv("MCP_HOST", raising=False)
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            main()
+            kwargs = mock_run.call_args.kwargs
+            assert kwargs["host"] == "127.0.0.1"
+
+    def test_main_stdio_default(self, monkeypatch):
+        monkeypatch.delenv("MCP_TRANSPORT", raising=False)
+        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            main()
+            mock_run.assert_called_once_with(transport="stdio")
 
 
 # ---------------------------------------------------------------------------
