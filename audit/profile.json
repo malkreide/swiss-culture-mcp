@@ -1,0 +1,29 @@
+{
+  "server_name": "swiss-culture-mcp",
+  "transport": ["stdio", "streamable_http"],
+  "transport_default": "stdio",
+  "auth_model": "none",
+  "datenklasse": "public-ogd",
+  "schreibzugriff": false,
+  "deployment": ["local-stdio", "cloud-http (Render.com / Docker)"],
+  "repo_url": "https://github.com/malkreide/swiss-culture-mcp",
+  "spec_version": "MCP 2025-06-18 (FastMCP)",
+  "language": "Python 3.11+",
+  "sdk": "modelcontextprotocol/python-sdk (mcp[cli]>=1.3.0, FastMCP)",
+  "external_dependencies": ["httpx", "pydantic>=2", "xml.etree.ElementTree (stdlib)"],
+  "data_sources": [
+    {"name": "geo.admin.ch", "type": "REST", "auth": "none", "data": "ISOS"},
+    {"name": "news.admin.ch", "type": "RSS/XML", "auth": "none", "data": "BAK Medienmitteilungen"},
+    {"name": "opendata.swiss", "type": "CKAN REST", "auth": "none", "data": "BAK Open Data"},
+    {"name": "lebendige-traditionen.ch", "type": "HTML scrape", "auth": "none", "data": "Lebendige Traditionen"}
+  ],
+  "tool_count": 10,
+  "resource_count": 3,
+  "destructive_tools": 0,
+  "applicability_notes": {
+    "OAuth/Auth-Checks": "Nur teilweise anwendbar — Server hat kein Auth-Modell; relevant wenn HTTP-Transport ohne Gateway eingesetzt wird.",
+    "HITL-Checks": "Meist nicht anwendbar — alle Tools read-only, keine sampling/elicitation, keine Mutationen.",
+    "PII/Datenschutz (DSG/EDÖB)": "Tiefes Risiko — ausschliesslich aggregierte Open Government Data, keine personenbezogenen Daten.",
+    "Sandbox/Containerisolation": "Optional — relevant nur für HTTP-Deployment."
+  }
+}

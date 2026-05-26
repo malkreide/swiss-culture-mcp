@@ -1,0 +1,19 @@
+{
+  "run_id": "2026-05-26-swiss-culture-mcp",
+  "started_at": "2026-05-26T12:19:19Z",
+  "audit_skill": "https://github.com/malkreide/mcp-audit-skill",
+  "audit_skill_version": "v1.0.0 (catalog 2025-06-18)",
+  "auditor": "claude-opus-4-7 (automated)",
+  "target": {
+    "repo": "malkreide/swiss-culture-mcp",
+    "ref": "claude/magical-hawking-wZO9W",
+    "commit": "14edf2bf2208a6f4344f4ee7215ec856e88b51b4",
+    "version": "1.0.0"
+  },
+  "method": "Profile → Catalog → Applicability-Filter → Execute → Findings → Report",
+  "notes": [
+    "Katalogdetails wurden via SKILL.md/README/MANIFEST.txt aus dem Skill-Repo geladen.",
+    "Einzelne Check-Beschreibungen (`checks/<ID>.md`) wurden nicht inline kopiert; Findings zitieren die Check-ID und Kategorie gemäss Manifest, die Bewertung erfolgt nach der dokumentierten 5-Layer-/SOLID-Methodik.",
+    "Falsifizierbare Evidenz pro Finding: Datei + Zeile."
+  ]
+}

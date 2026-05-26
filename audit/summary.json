@@ -1,0 +1,37 @@
+{
+  "audit_run_id": "2026-05-26-swiss-culture-mcp",
+  "target_commit": "14edf2bf2208a6f4344f4ee7215ec856e88b51b4",
+  "checks": {
+    "catalog_total": 68,
+    "applicable": 41,
+    "skipped_na": 27,
+    "passed": 33,
+    "failed": 8
+  },
+  "findings_by_severity": {
+    "critical": 0,
+    "high": 2,
+    "medium": 5,
+    "low": 1
+  },
+  "production_ready": false,
+  "blocking_issues": [
+    "SEC-003-streamable-http-noauth-bind-all",
+    "OBS-001-no-logging"
+  ],
+  "non_blocking_open": [
+    "SEC-004-xxe-elementtree",
+    "SEC-005-ssrf-path-slug",
+    "SEC-006-error-leak",
+    "SEC-019-html-regex-untrusted",
+    "SCALE-001-no-connection-pool",
+    "SCALE-002-sequential-cantons",
+    "ARCH-005-monolith-server",
+    "ARCH-008-late-imports"
+  ],
+  "applicability_summary": {
+    "rationale": "Open-Data-Server, read-only, kein PII → Auth/HITL/PII-Checks grossteils n/a. Sicherheits-/Skalierungsbefunde fokussieren auf HTTP-Deployment-Pfad.",
+    "stdio_only_deployment_blockers": 1,
+    "http_deployment_blockers": 2
+  }
+}
