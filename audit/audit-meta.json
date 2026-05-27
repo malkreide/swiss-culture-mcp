@@ -1,19 +1,26 @@
 {
-  "run_id": "2026-05-26-swiss-culture-mcp",
-  "started_at": "2026-05-26T12:19:19Z",
+  "run_id": "2026-05-27-swiss-culture-mcp-rerun-2",
+  "previous_run_id": "2026-05-26-swiss-culture-mcp",
+  "started_at": "2026-05-27T09:55:30Z",
   "audit_skill": "https://github.com/malkreide/mcp-audit-skill",
   "audit_skill_version": "v1.0.0 (catalog 2025-06-18)",
   "auditor": "claude-opus-4-7 (automated)",
   "target": {
     "repo": "malkreide/swiss-culture-mcp",
-    "ref": "claude/magical-hawking-wZO9W",
-    "commit": "14edf2bf2208a6f4344f4ee7215ec856e88b51b4",
-    "version": "1.0.0"
+    "ref": "main",
+    "commit": "2ad18fae32d1068ad7a704756e2b55b55891435a",
+    "version": "1.0.0 (+ Unreleased: Audit-Hardening)"
   },
   "method": "Profile → Catalog → Applicability-Filter → Execute → Findings → Report",
+  "purpose": "Re-Audit nach Behebung aller 8 fail-Befunde aus Run-1 (PRs #2, #3, #4 gemerged).",
+  "delta_to_previous": {
+    "checks_failed_run_1": 8,
+    "checks_failed_run_2": 0,
+    "regressions": 0
+  },
   "notes": [
-    "Katalogdetails wurden via SKILL.md/README/MANIFEST.txt aus dem Skill-Repo geladen.",
-    "Einzelne Check-Beschreibungen (`checks/<ID>.md`) wurden nicht inline kopiert; Findings zitieren die Check-ID und Kategorie gemäss Manifest, die Bewertung erfolgt nach der dokumentierten 5-Layer-/SOLID-Methodik.",
-    "Falsifizierbare Evidenz pro Finding: Datei + Zeile."
+    "Alle ehemals failenden Checks wurden mit konkretem Code-Pointer im Repo verifiziert.",
+    "Test-Suite gewachsen 36 → 54 (alle grün); Lint + Format sauber.",
+    "Server-Modul gesplittet (1337 → 1074 Z. server.py + 3 neue Module)."
   ]
 }

@@ -1,5 +1,7 @@
 # SCALE-002 — Sequenzielle Kanton-Calls in `bak_isos_statistics`
 
+> **✅ CLOSED in Run-2** — behoben durch PR #3 (commit a154335). `asyncio.gather` in `server.py:455-477`. ~7× Latenz-Reduktion.
+
 - **Severity:** MEDIUM
 - **Kategorie:** SCALE
 - **Status:** open

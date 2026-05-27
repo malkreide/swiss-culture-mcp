@@ -1,5 +1,7 @@
 # SEC-005 — Pfadinjektion über `slug` in Lebendige-Traditionen-URL
 
+> **✅ CLOSED in Run-2** — behoben durch PR #3 (commit a154335). Slug-Regex `^[a-z0-9][a-z0-9\-]+$` + Host-Allowlist via `_assert_host_allowed`. Verifiziert durch 4 Slug- + 2 Host-Tests.
+
 - **Severity:** MEDIUM
 - **Kategorie:** SEC
 - **Status:** open

@@ -1,5 +1,7 @@
 # SCALE-001 — Kein HTTP-Connection-Pool
 
+> **✅ CLOSED in Run-2** — behoben durch PR #3 (commit a154335). Modulweiter `_get_http_client()`-Singleton in `http_client.py:54-63`. Verifiziert durch `TestConnectionPool` (2 Tests).
+
 - **Severity:** MEDIUM
 - **Kategorie:** SCALE
 - **Status:** open

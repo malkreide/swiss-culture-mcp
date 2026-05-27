@@ -1,5 +1,7 @@
 # SEC-003 — Streamable HTTP bindet 0.0.0.0 ohne Auth
 
+> **✅ CLOSED in Run-2** — behoben durch PR #2 (commit 391e093). Verifiziert durch `TestMainHardening` (4 Tests). Default-Bind ist jetzt `127.0.0.1`; `0.0.0.0` löst `SystemExit` aus, ausser `MCP_ALLOW_PUBLIC_BIND=true`.
+
 - **Severity:** HIGH
 - **Kategorie:** SEC
 - **Status:** open

@@ -1,37 +1,44 @@
 {
-  "audit_run_id": "2026-05-26-swiss-culture-mcp",
-  "target_commit": "14edf2bf2208a6f4344f4ee7215ec856e88b51b4",
+  "audit_run_id": "2026-05-27-swiss-culture-mcp-rerun-2",
+  "previous_run_id": "2026-05-26-swiss-culture-mcp",
+  "target_commit": "2ad18fae32d1068ad7a704756e2b55b55891435a",
   "checks": {
     "catalog_total": 68,
     "applicable": 41,
     "skipped_na": 27,
-    "passed": 33,
-    "failed": 8
+    "passed": 41,
+    "failed": 0,
+    "partial": 1
   },
   "findings_by_severity": {
     "critical": 0,
-    "high": 2,
-    "medium": 5,
-    "low": 1
+    "high": 0,
+    "medium": 0,
+    "low": 0
   },
-  "production_ready": false,
-  "blocking_issues": [
-    "SEC-003-streamable-http-noauth-bind-all",
-    "OBS-001-no-logging"
-  ],
+  "production_ready": true,
+  "blocking_issues": [],
   "non_blocking_open": [
-    "SEC-004-xxe-elementtree",
-    "SEC-005-ssrf-path-slug",
-    "SEC-006-error-leak",
-    "SEC-019-html-regex-untrusted",
-    "SCALE-001-no-connection-pool",
-    "SCALE-002-sequential-cantons",
-    "ARCH-005-monolith-server",
-    "ARCH-008-late-imports"
+    "OBS-002 (partial — keine expliziten Request-/Correlation-IDs; akzeptabel für Single-Tenant stdio-Profil)"
   ],
-  "applicability_summary": {
-    "rationale": "Open-Data-Server, read-only, kein PII → Auth/HITL/PII-Checks grossteils n/a. Sicherheits-/Skalierungsbefunde fokussieren auf HTTP-Deployment-Pfad.",
-    "stdio_only_deployment_blockers": 1,
-    "http_deployment_blockers": 2
-  }
+  "closed_since_run_1": [
+    {"id": "SEC-003", "severity": "high",   "closed_by": "PR #2", "regression_test": "TestMainHardening (4 Tests)"},
+    {"id": "OBS-001", "severity": "high",   "closed_by": "PR #2", "regression_test": "Logger via grep verifiziert"},
+    {"id": "SEC-006", "severity": "medium", "closed_by": "PR #2", "regression_test": "test_handle_error_no_upstream_body_leak"},
+    {"id": "SEC-004", "severity": "medium", "closed_by": "PR #3", "regression_test": "test_defusedxml_blocks_billion_laughs"},
+    {"id": "SEC-005", "severity": "medium", "closed_by": "PR #3", "regression_test": "TestInputValidation 4 Slug-Tests + TestSecurityHardening 2 Host-Tests"},
+    {"id": "SCALE-001","severity": "medium", "closed_by": "PR #3", "regression_test": "TestConnectionPool (2 Tests)"},
+    {"id": "SCALE-002","severity": "medium", "closed_by": "PR #3"},
+    {"id": "ARCH-008", "severity": "low",   "closed_by": "PR #3"},
+    {"id": "ARCH-005", "severity": "low",   "closed_by": "PR #4"},
+    {"id": "SEC-019",  "severity": "low",   "closed_by": "PR #4", "regression_test": "TestHtmlFixtures (4 Tests)"}
+  ],
+  "delta_summary": {
+    "findings_run_1": 8,
+    "findings_run_2": 0,
+    "regressions": 0,
+    "newly_passing": 10,
+    "new_tests_added": 18
+  },
+  "verdict": "Alle Audit-Befunde aus Run-1 sind geschlossen, durch Regression-Tests abgesichert, ohne Regressionen. HTTP-Deployment ist nicht mehr Production-blockiert. Release-Empfehlung: v1.1.0."
 }

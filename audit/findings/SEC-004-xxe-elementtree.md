@@ -1,5 +1,7 @@
 # SEC-004 — XXE/Billion-Laughs-Risiko durch ElementTree
 
+> **✅ CLOSED in Run-2** — behoben durch PR #3 (commit a154335). `defusedxml.ElementTree` ersetzt stdlib. Verifiziert durch `test_defusedxml_blocks_billion_laughs`.
+
 - **Severity:** MEDIUM
 - **Kategorie:** SEC
 - **Status:** open
