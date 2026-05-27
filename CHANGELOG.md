@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **ARCH-005**: `server.py` modularisiert (1337 → 1074 Zeilen, −20 %). Neue Module: `constants.py` (Konstanten und Referenzdaten), `http_client.py` (HTTP-Client, Logging, Host-Allowlist, Error-Handler), `models.py` (alle Pydantic-Input-Modelle). Öffentliche API über `server.py`-Re-Exports unverändert.
+## [1.1.0] - 2026-05-27
 
-### Added
-- **SEC-019**: HTML-Snapshots als versionierte Fixtures unter `tests/fixtures/` (`tradition_alphorn.html`, `tradition_list.html`) plus `TestHtmlFixtures`-Regression-Klasse — Frühwarnsystem für strukturelle Änderungen auf lebendige-traditionen.ch.
+Security- und Observability-Hardening-Release nach dem Durchlauf des
+[`mcp-audit-skill`](https://github.com/malkreide/mcp-audit-skill)-Katalogs
+(68 Checks). Alle 8 in Run-1 gefundenen Befunde behoben (2 HIGH, 5 MEDIUM,
+1 LOW) und durch 18 Regression-Tests abgesichert; Run-2 zeigt 0 offene
+Findings. HTTP-Deployment-Pfad ist nicht mehr Production-blockiert.
 
 ### Security
 - **SEC-003**: Streamable-HTTP-Transport bindet nun standardmässig auf `127.0.0.1`. Öffentliches Binding nur mit explizitem `MCP_HOST=0.0.0.0` + `MCP_ALLOW_PUBLIC_BIND=true` und dem dokumentierten Hinweis auf vorgelagerten Auth-Proxy.
@@ -25,9 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **OBS-001**: Strukturierte JSON-Logs auf stderr via `logging`-Stdlib. Log-Level via `LOG_LEVEL`-Env (Default `INFO`). Server-Start, Upstream-HTTP-Fehler, Timeouts, Connect-Errors und blockierte Hosts werden geloggt.
+- **SEC-019**: HTML-Snapshots als versionierte Fixtures unter `tests/fixtures/` (`tradition_alphorn.html`, `tradition_list.html`) plus `TestHtmlFixtures`-Regression-Klasse — Frühwarnsystem für strukturelle Änderungen auf lebendige-traditionen.ch.
 - Neue Env-Vars: `MCP_HOST`, `MCP_ALLOW_PUBLIC_BIND`, `LOG_LEVEL`.
 - Neue Dependency: `defusedxml>=0.7.1`.
-- 14 zusätzliche Tests (50 statt 36): Hardening von `main()`, Anti-Leak, Slug-Regex (4 Tests), Host-Allowlist (2), Defused-XML (1), Connection-Pool-Singleton (2).
+- 18 zusätzliche Tests (54 statt 36): Main-Hardening (4), Anti-Leak (1), Slug-Regex (4), Host-Allowlist (2), Defused-XML (1), Connection-Pool-Singleton (2), HTML-Fixture-Regressionen (4).
+
+### Changed
+- **ARCH-005**: `server.py` modularisiert (1337 → 1074 Zeilen, −20 %). Neue Module: `constants.py` (Konstanten und Referenzdaten), `http_client.py` (HTTP-Client, Logging, Host-Allowlist, Error-Handler), `models.py` (alle Pydantic-Input-Modelle). Öffentliche API über `server.py`-Re-Exports unverändert.
+- **ARCH-008**: Lazy `import re` aus Tool-Funktionen entfernt; jetzt am Modulkopf.
+
+### Migration
+
+| Szenario | Aktion nötig |
+|---|---|
+| Claude Desktop / stdio | Keine — Default-Verhalten unverändert |
+| HTTP-Deployment auf Render.com / Docker | Env-Vars setzen: `MCP_HOST=0.0.0.0` + `MCP_ALLOW_PUBLIC_BIND=true` (nur hinter Auth-Reverse-Proxy!) |
+| pip/uvx | `uvx swiss-culture-mcp@1.1.0` oder `pip install -U swiss-culture-mcp` |
+
+Vollständige Audit-Berichte unter `audit/audit-report.md` (Run-2).
 
 ## [1.0.0] - 2026-03-11
 
