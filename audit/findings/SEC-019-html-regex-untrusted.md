@@ -1,5 +1,7 @@
 # SEC-019 — Regex-Parsing von Drittanbieter-HTML
 
+> **✅ CLOSED in Run-2** — adressiert durch PR #4 (commit 932247f) als Regression-Schutz. Versionierte HTML-Fixtures unter `tests/fixtures/` + `TestHtmlFixtures` (4 Tests). Regex-Parser selbst beibehalten (kein neues Dep nötig), Frühwarnsystem bricht bei DOM-Änderungen.
+
 - **Severity:** MEDIUM (kombiniert mit SEC-005); LOW eigenständig
 - **Kategorie:** SEC / ARCH
 - **Status:** open

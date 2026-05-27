@@ -1,5 +1,7 @@
 # ARCH-008 — Lazy `import re` innerhalb von Tool-Funktionen
 
+> **✅ CLOSED in Run-2** — behoben durch PR #3 (commit a154335). `import re` ist jetzt am Modulkopf (`server.py:17`).
+
 - **Severity:** LOW
 - **Kategorie:** ARCH
 - **Status:** open

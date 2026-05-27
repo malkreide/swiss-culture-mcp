@@ -1,5 +1,7 @@
 # ARCH-005 — Monolithisches `server.py` (1259 Zeilen)
 
+> **✅ CLOSED in Run-2** — behoben durch PR #4 (commit 932247f). Split in 4 Module: `constants.py` (70 Z.), `http_client.py` (119 Z.), `models.py` (162 Z.), `server.py` (1074 Z.). Insgesamt −20 % in `server.py`.
+
 - **Severity:** LOW
 - **Kategorie:** ARCH
 - **Status:** open

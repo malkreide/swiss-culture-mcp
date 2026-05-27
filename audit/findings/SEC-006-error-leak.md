@@ -1,5 +1,7 @@
 # SEC-006 — Upstream-Response-Leak in Fehlermeldungen
 
+> **✅ CLOSED in Run-2** — behoben durch PR #2 (commit 391e093). Verifiziert durch `test_handle_error_no_upstream_body_leak`. `_handle_error` gibt nur noch Statuscode an LLM; voller Body geht ins Log.
+
 - **Severity:** MEDIUM
 - **Kategorie:** SEC
 - **Status:** open

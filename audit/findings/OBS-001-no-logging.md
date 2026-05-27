@@ -1,5 +1,7 @@
 # OBS-001 — Kein Logging im Server
 
+> **✅ CLOSED in Run-2** — behoben durch PR #2 (commit 391e093). Strukturierte JSON-Logs auf stderr, konfigurierbar via `LOG_LEVEL`. Logger lebt in `src/swiss_culture_mcp/http_client.py:18-30`.
+
 - **Severity:** HIGH (für Production-Deployment), MEDIUM (für reines stdio-Demo)
 - **Kategorie:** OBS
 - **Status:** open
