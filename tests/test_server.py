@@ -14,8 +14,8 @@ from swiss_culture_mcp.server import (
     IsosDetailInput,
     IsosKantonInput,
     IsosSearchInput,
-    NewsInput,
     KulturpreiseInput,
+    NewsInput,
     OpendataInput,
     TraditionDetailInput,
     TraditionListInput,
@@ -28,8 +28,6 @@ from swiss_culture_mcp.server import (
     bak_get_opendata,
     bak_get_tradition_detail,
     bak_isos_by_kanton,
-    bak_isos_by_kategorie,
-    bak_isos_statistics,
     bak_list_traditions,
     bak_search_isos,
     main,
@@ -265,6 +263,60 @@ class TestMainHardening:
 
 
 # ---------------------------------------------------------------------------
+# Unit-Tests: Host-Allowlist + Defused-XML (SEC-004, SEC-005)
+# ---------------------------------------------------------------------------
+
+
+class TestSecurityHardening:
+    def test_assert_host_allowed_blocks_unknown_host(self):
+        import httpx as _httpx
+
+        from swiss_culture_mcp.server import _assert_host_allowed
+
+        with pytest.raises(_httpx.RequestError):
+            _assert_host_allowed(_httpx.URL("https://evil.example.com/x"))
+
+    def test_assert_host_allowed_passes_known_host(self):
+        import httpx as _httpx
+
+        from swiss_culture_mcp.server import _assert_host_allowed
+
+        _assert_host_allowed(_httpx.URL("https://api3.geo.admin.ch/rest"))
+
+    def test_defusedxml_blocks_billion_laughs(self):
+        from swiss_culture_mcp.server import _parse_rss_items
+
+        billion_laughs = """<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+]>
+<rss><channel><item><title>&lol2;</title></item></channel></rss>"""
+        with pytest.raises(Exception):
+            _parse_rss_items(billion_laughs)
+
+
+# ---------------------------------------------------------------------------
+# Unit-Tests: Connection-Pool (SCALE-001)
+# ---------------------------------------------------------------------------
+
+
+class TestConnectionPool:
+    def test_http_client_is_singleton(self):
+        from swiss_culture_mcp.server import _get_http_client
+
+        c1 = _get_http_client()
+        c2 = _get_http_client()
+        assert c1 is c2
+
+    def test_http_client_has_user_agent(self):
+        from swiss_culture_mcp.server import _get_http_client
+
+        c = _get_http_client()
+        assert "swiss-culture-mcp" in c.headers.get("user-agent", "")
+
+
+# ---------------------------------------------------------------------------
 # Unit-Tests: Input-Validierung
 # ---------------------------------------------------------------------------
 
@@ -296,6 +348,23 @@ class TestInputValidation:
         assert "ZH" in KANTONE
         assert "GE" in KANTONE
         assert "TI" in KANTONE
+
+    def test_tradition_slug_rejects_path_traversal(self):
+        with pytest.raises(Exception):
+            TraditionDetailInput(slug="../../etc/passwd")
+
+    def test_tradition_slug_rejects_uppercase(self):
+        with pytest.raises(Exception):
+            TraditionDetailInput(slug="Fasnacht-Basel")
+
+    def test_tradition_slug_rejects_special_chars(self):
+        with pytest.raises(Exception):
+            TraditionDetailInput(slug="schwingen?injected=1")
+
+    def test_tradition_slug_accepts_double_dash(self):
+        # Echter Slug aus Inventar: 'alphorn--und-buechelspiel'
+        inp = TraditionDetailInput(slug="alphorn--und-buechelspiel")
+        assert inp.slug == "alphorn--und-buechelspiel"
 
 
 # ---------------------------------------------------------------------------

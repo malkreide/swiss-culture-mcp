@@ -10,12 +10,14 @@ Datenquellen:
 Kein API-Schlüssel erforderlich. Alle Quellen sind öffentlich zugänglich.
 """
 
+import asyncio
 import json
 import logging
 import os
+import re
 import sys
-import xml.etree.ElementTree as ET
 
+import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
 import httpx
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -118,27 +120,59 @@ mcp = FastMCP(
 # Hilfsfunktionen
 # ---------------------------------------------------------------------------
 
+USER_AGENT = "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
+
+# Whitelist erlaubter Upstream-Hosts. Nach Redirect-Auflösung wird gegen diese
+# Liste geprüft, um SSRF via Open-Redirect (z. B. wenn ein Upstream auf einen
+# internen Host umlenkt) zu verhindern.
+ALLOWED_HOSTS = frozenset(
+    {
+        "api3.geo.admin.ch",
+        "opendata.swiss",
+        "www.newsd.admin.ch",
+        "www.lebendige-traditionen.ch",
+        "www.gisos.bak.admin.ch",
+    }
+)
+
+# Modulweiter HTTP-Client (Connection-Pooling). Lazy initialisiert beim ersten
+# Tool-Call; in async-Loops via FastMCP-Stdio/HTTP-Lifespan wiederverwendet.
+_http_client: httpx.AsyncClient | None = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=TIMEOUT,
+            follow_redirects=True,
+            headers={"User-Agent": USER_AGENT},
+        )
+    return _http_client
+
+
+def _assert_host_allowed(url: httpx.URL) -> None:
+    if url.host not in ALLOWED_HOSTS:
+        logger.warning("blocked_host_after_redirect host=%s url=%s", url.host, url)
+        raise httpx.RequestError(f"Host nicht erlaubt: {url.host}")
+
 
 async def _get(url: str, params: dict | None = None) -> dict:
-    """HTTP GET mit einheitlichem Error-Handling."""
-    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-        response = await client.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
+    """HTTP GET mit einheitlichem Error-Handling und Host-Allowlist."""
+    client = _get_http_client()
+    response = await client.get(url, params=params)
+    _assert_host_allowed(response.url)
+    response.raise_for_status()
+    return response.json()
 
 
 async def _get_text(url: str, params: dict | None = None) -> str:
     """HTTP GET, gibt rohen Text zurück (für HTML/XML)."""
-    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-        response = await client.get(
-            url,
-            params=params,
-            headers={
-                "User-Agent": "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
-            },
-        )
-        response.raise_for_status()
-        return response.text
+    client = _get_http_client()
+    response = await client.get(url, params=params)
+    _assert_host_allowed(response.url)
+    response.raise_for_status()
+    return response.text
 
 
 def _handle_error(e: Exception) -> str:
@@ -354,6 +388,7 @@ class TraditionDetailInput(BaseModel):
         ),
         min_length=3,
         max_length=200,
+        pattern=r"^[a-z0-9][a-z0-9\-]+$",
     )
 
 
@@ -682,35 +717,29 @@ async def bak_isos_statistics() -> str:
             - kategorien: Überblick über Siedlungskategorien
             - quellen: Informationen zu Datenquellen und weiterführenden Links
     """
-    try:
-        # Stichprobe: Zähle Objekte in grossen Kantonen (aus Erfahrungswerten)
-        # Vollständige Iteration über alle 26 Kantone wäre 26 API-Calls – zu langsam.
-        # Stattdessen: Informationsseite + bekannte Zahlen
-        sample_kantone = ["ZH", "BE", "GR", "VS", "VD", "AG", "SO"]
-        per_kanton = {}
+    sample_kantone = ["ZH", "BE", "GR", "VS", "VD", "AG", "SO"]
 
-        for kanton in sample_kantone:
-            try:
-                data = await _get(
-                    f"{GEO_ADMIN_BASE}/find",
-                    params={
-                        "layer": ISOS_LAYER,
-                        "searchText": kanton,
-                        "searchField": "kantone",
-                        "lang": "de",
-                        "returnGeometry": "false",
-                    },
-                )
-                results = data.get("results", [])
-                seen = set()
-                for r in results:
-                    seen.add(r.get("id") or r.get("featureId", ""))
-                per_kanton[kanton] = {
-                    "kanton_name": KANTONE[kanton],
-                    "objekte": len(seen),
-                }
-            except Exception:
-                per_kanton[kanton] = {"kanton_name": KANTONE[kanton], "objekte": None}
+    async def _count_kanton(kanton: str) -> tuple[str, dict]:
+        try:
+            data = await _get(
+                f"{GEO_ADMIN_BASE}/find",
+                params={
+                    "layer": ISOS_LAYER,
+                    "searchText": kanton,
+                    "searchField": "kantone",
+                    "lang": "de",
+                    "returnGeometry": "false",
+                },
+            )
+            results = data.get("results", [])
+            seen = {r.get("id") or r.get("featureId", "") for r in results}
+            return kanton, {"kanton_name": KANTONE[kanton], "objekte": len(seen)}
+        except Exception:
+            return kanton, {"kanton_name": KANTONE[kanton], "objekte": None}
+
+    try:
+        results = await asyncio.gather(*[_count_kanton(k) for k in sample_kantone])
+        per_kanton = dict(results)
 
         return json.dumps(
             {
@@ -1084,8 +1113,6 @@ async def bak_list_traditions(params: TraditionListInput) -> str:
     """
     try:
         html = await _get_text(f"{TRADITIONS_BASE}/liste/liste.html")
-        import re
-
         links = re.findall(r'href="(/tradition/de/home/traditionen/([^"]+\.html))"', html)
         # Deduplizieren, Slug extrahieren
         seen_slugs = set()
@@ -1173,8 +1200,6 @@ async def bak_get_tradition_detail(params: TraditionDetailInput) -> str:
             - url: Direktlink zur BAK-Seite
     """
     try:
-        import re
-
         url = f"{TRADITIONS_BASE}/traditionen/{params.slug}.html"
         html = await _get_text(url)
 
