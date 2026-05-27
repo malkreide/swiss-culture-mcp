@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **ARCH-005**: `server.py` modularisiert (1337 → 1074 Zeilen, −20 %). Neue Module: `constants.py` (Konstanten und Referenzdaten), `http_client.py` (HTTP-Client, Logging, Host-Allowlist, Error-Handler), `models.py` (alle Pydantic-Input-Modelle). Öffentliche API über `server.py`-Re-Exports unverändert.
+
+### Added
+- **SEC-019**: HTML-Snapshots als versionierte Fixtures unter `tests/fixtures/` (`tradition_alphorn.html`, `tradition_list.html`) plus `TestHtmlFixtures`-Regression-Klasse — Frühwarnsystem für strukturelle Änderungen auf lebendige-traditionen.ch.
+
 ### Security
 - **SEC-003**: Streamable-HTTP-Transport bindet nun standardmässig auf `127.0.0.1`. Öffentliches Binding nur mit explizitem `MCP_HOST=0.0.0.0` + `MCP_ALLOW_PUBLIC_BIND=true` und dem dokumentierten Hinweis auf vorgelagerten Auth-Proxy.
 - **SEC-004**: RSS-Parsing nutzt `defusedxml.ElementTree` statt `xml.etree.ElementTree` — schützt vor XXE und Billion-Laughs.
