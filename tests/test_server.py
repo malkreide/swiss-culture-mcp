@@ -5,6 +5,7 @@ Einheitstests mit Mocks (immer) und Live-Integrationstests (mit --run-live).
 """
 
 import json
+import pathlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -127,23 +128,13 @@ MOCK_CKAN_RESPONSE = {
     }
 }
 
-MOCK_TRADITION_HTML = """<html>
-<head>
-<title>Alphorn- und Büchelspiel | Lebendige Traditionen</title>
-<meta name="description" content="Das Alphorn ist ein traditionelles Blasinstrument der Schweizer Alpen.">
-</head>
-<body>
-<p>Das Alphorn ist ein langes Holzblasinstrument, das seit Jahrhunderten in den Schweizer Alpen gespielt wird.</p>
-<p>Die Tradition ist besonders im Kanton Bern, Graubünden und Wallis verbreitet.</p>
-</body>
-</html>"""
+MOCK_TRADITION_HTML = (
+    pathlib.Path(__file__).parent / "fixtures" / "tradition_alphorn.html"
+).read_text(encoding="utf-8")
 
-MOCK_TRADITION_LIST_HTML = """<html><body>
-<a href="/tradition/de/home/traditionen/alphorn--und-buechelspiel.html">Alphorn</a>
-<a href="/tradition/de/home/traditionen/schwingen.html">Schwingen</a>
-<a href="/tradition/de/home/traditionen/fasnacht-basel.html">Basler Fasnacht</a>
-<a href="/tradition/de/home/traditionen/alphorn--und-buechelspiel.html">Alphorn (Duplikat)</a>
-</body></html>"""
+MOCK_TRADITION_LIST_HTML = (
+    pathlib.Path(__file__).parent / "fixtures" / "tradition_list.html"
+).read_text(encoding="utf-8")
 
 # ---------------------------------------------------------------------------
 # Unit-Tests: Hilfsfunktionen
@@ -586,6 +577,56 @@ class TestBakGetTraditionDetail:
             )
             data = json.loads(result)
             assert "Bern" in data["erwaehnte_kantone"]
+
+
+# ---------------------------------------------------------------------------
+# HTML-Fixture-Regressionen (SEC-019)
+# ---------------------------------------------------------------------------
+
+
+class TestHtmlFixtures:
+    """Sichert die Regex-basierten Parser gegen eingefrorene HTML-Snapshots ab.
+
+    Bricht, sobald lebendige-traditionen.ch seine DOM-Struktur ändert UND die
+    eingefrorene Fixture in tests/fixtures/ aktualisiert wurde. Frühwarnsystem
+    für die Regex-Patterns in server.py.
+    """
+
+    FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
+
+    def test_alphorn_fixture_exists(self):
+        assert (self.FIXTURES_DIR / "tradition_alphorn.html").is_file()
+
+    def test_list_fixture_exists(self):
+        assert (self.FIXTURES_DIR / "tradition_list.html").is_file()
+
+    @pytest.mark.asyncio
+    async def test_alphorn_fixture_extracts_title_meta_kantone(self):
+        from swiss_culture_mcp.server import bak_get_tradition_detail
+
+        html = (self.FIXTURES_DIR / "tradition_alphorn.html").read_text(encoding="utf-8")
+        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = html
+            result = await bak_get_tradition_detail(
+                TraditionDetailInput(slug="alphorn--und-buechelspiel")
+            )
+            data = json.loads(result)
+            assert "Alphorn" in data["titel"]
+            assert "Blasinstrument" in data["meta_beschreibung"]
+            assert {"Bern", "Graubünden", "Wallis"}.issubset(set(data["erwaehnte_kantone"]))
+            assert any("Holzblasinstrument" in p for p in data["text_absaetze"])
+
+    @pytest.mark.asyncio
+    async def test_list_fixture_extracts_three_unique_slugs(self):
+        from swiss_culture_mcp.server import bak_list_traditions
+
+        html = (self.FIXTURES_DIR / "tradition_list.html").read_text(encoding="utf-8")
+        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = html
+            result = await bak_list_traditions(TraditionListInput())
+            data = json.loads(result)
+            slugs = {t["slug"] for t in data["traditions"]}
+            assert slugs == {"alphorn--und-buechelspiel", "schwingen", "fasnacht-basel"}
 
 
 # ---------------------------------------------------------------------------

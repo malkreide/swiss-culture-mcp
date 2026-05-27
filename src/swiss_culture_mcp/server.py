@@ -12,94 +12,77 @@ Kein API-Schlüssel erforderlich. Alle Quellen sind öffentlich zugänglich.
 
 import asyncio
 import json
-import logging
 import os
 import re
-import sys
 
 import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
-import httpx
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
+from .constants import (
+    BAK_ORG,
+    BAK_ORG_NR,
+    CKAN_BASE,
+    GEO_ADMIN_BASE,
+    GISOS_BASE,
+    ISOS_LAYER,
+    KANTONE,
+    NSB_ID,
+    RSS_BASE,
+    SIEDLUNGSKATEGORIEN,
+    TRADITIONS_BASE,
+)
+from .http_client import (
+    _assert_host_allowed,
+    _get,
+    _get_http_client,
+    _get_text,
+    _handle_error,
+    logger,
+)
+from .models import (
+    IsosDetailInput,
+    IsosKantonInput,
+    IsosKategorieInput,
+    IsosSearchInput,
+    KulturpreiseInput,
+    NewsInput,
+    OpendataInput,
+    TraditionDetailInput,
+    TraditionListInput,
+)
 
-logger = logging.getLogger("swiss_culture_mcp")
-
-if not logger.handlers:
-    _handler = logging.StreamHandler(sys.stderr)
-    _handler.setFormatter(
-        logging.Formatter(
-            '{"ts":"%(asctime)s","lvl":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
-        )
-    )
-    logger.addHandler(_handler)
-    logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
-    logger.propagate = False
-
-# ---------------------------------------------------------------------------
-# Konstanten
-# ---------------------------------------------------------------------------
-
-GEO_ADMIN_BASE = "https://api3.geo.admin.ch/rest/services/all/MapServer"
-GEO_ADMIN_SEARCH = "https://api3.geo.admin.ch/rest/services/api/SearchServer"
-ISOS_LAYER = "ch.bak.bundesinventar-schuetzenswerte-ortsbilder"
-ISOS_2021_LAYER = "ch.bak.bundesinventar-schuetzenswerte-ortsbilder-ab-2021"
-
-CKAN_BASE = "https://opendata.swiss/api/3/action"
-BAK_ORG = "bundesamt-fur-kultur-bak"
-
-RSS_BASE = "https://www.newsd.admin.ch/newsd/feeds/rss"
-BAK_ORG_NR = "314"  # BAK-Organisations-ID im News Service Bund
-
-TRADITIONS_BASE = "https://www.lebendige-traditionen.ch/tradition/de/home"
-
-GISOS_BASE = "https://www.gisos.bak.admin.ch/sites"
-
-TIMEOUT = 20.0
-
-# Kantonskürzel → offizieller Name
-KANTONE = {
-    "AG": "Aargau",
-    "AI": "Appenzell Innerrhoden",
-    "AR": "Appenzell Ausserrhoden",
-    "BE": "Bern",
-    "BL": "Basel-Landschaft",
-    "BS": "Basel-Stadt",
-    "FR": "Freiburg",
-    "GE": "Genf",
-    "GL": "Glarus",
-    "GR": "Graubünden",
-    "JU": "Jura",
-    "LU": "Luzern",
-    "NE": "Neuenburg",
-    "NW": "Nidwalden",
-    "OW": "Obwalden",
-    "SG": "St. Gallen",
-    "SH": "Schaffhausen",
-    "SO": "Solothurn",
-    "SZ": "Schwyz",
-    "TG": "Thurgau",
-    "TI": "Tessin",
-    "UR": "Uri",
-    "VD": "Waadt",
-    "VS": "Wallis",
-    "ZG": "Zug",
-    "ZH": "Zürich",
-}
-
-# Alle gültigen Siedlungskategorien im ISOS
-SIEDLUNGSKATEGORIEN = [
-    "Stadt",
-    "Kleinstadt/Flecken",
-    "Dorf",
-    "Weiler/Einzelsiedlung",
-    "Spezialfall",
-    "cas particulier",
-    "villaggio",
-    "cas spécial",
+__all__ = [
+    # Re-exports für Backwards-Kompatibilität und Test-Suite
+    "KANTONE",
+    "SIEDLUNGSKATEGORIEN",
+    "IsosDetailInput",
+    "IsosKantonInput",
+    "IsosKategorieInput",
+    "IsosSearchInput",
+    "KulturpreiseInput",
+    "NewsInput",
+    "OpendataInput",
+    "TraditionDetailInput",
+    "TraditionListInput",
+    "_assert_host_allowed",
+    "_format_isos_entry",
+    "_get",
+    "_get_http_client",
+    "_get_text",
+    "_handle_error",
+    "_parse_rss_items",
+    "bak_get_isos_detail",
+    "bak_get_kulturpreise",
+    "bak_get_news",
+    "bak_get_opendata",
+    "bak_get_tradition_detail",
+    "bak_isos_by_kanton",
+    "bak_isos_by_kategorie",
+    "bak_isos_statistics",
+    "bak_list_traditions",
+    "bak_search_isos",
+    "main",
+    "mcp",
 ]
 
 # ---------------------------------------------------------------------------
@@ -116,94 +99,10 @@ mcp = FastMCP(
     ),
 )
 
+
 # ---------------------------------------------------------------------------
-# Hilfsfunktionen
+# Modul-lokale Helfer (eng an die Tools gebunden)
 # ---------------------------------------------------------------------------
-
-USER_AGENT = "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
-
-# Whitelist erlaubter Upstream-Hosts. Nach Redirect-Auflösung wird gegen diese
-# Liste geprüft, um SSRF via Open-Redirect (z. B. wenn ein Upstream auf einen
-# internen Host umlenkt) zu verhindern.
-ALLOWED_HOSTS = frozenset(
-    {
-        "api3.geo.admin.ch",
-        "opendata.swiss",
-        "www.newsd.admin.ch",
-        "www.lebendige-traditionen.ch",
-        "www.gisos.bak.admin.ch",
-    }
-)
-
-# Modulweiter HTTP-Client (Connection-Pooling). Lazy initialisiert beim ersten
-# Tool-Call; in async-Loops via FastMCP-Stdio/HTTP-Lifespan wiederverwendet.
-_http_client: httpx.AsyncClient | None = None
-
-
-def _get_http_client() -> httpx.AsyncClient:
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(
-            timeout=TIMEOUT,
-            follow_redirects=True,
-            headers={"User-Agent": USER_AGENT},
-        )
-    return _http_client
-
-
-def _assert_host_allowed(url: httpx.URL) -> None:
-    if url.host not in ALLOWED_HOSTS:
-        logger.warning("blocked_host_after_redirect host=%s url=%s", url.host, url)
-        raise httpx.RequestError(f"Host nicht erlaubt: {url.host}")
-
-
-async def _get(url: str, params: dict | None = None) -> dict:
-    """HTTP GET mit einheitlichem Error-Handling und Host-Allowlist."""
-    client = _get_http_client()
-    response = await client.get(url, params=params)
-    _assert_host_allowed(response.url)
-    response.raise_for_status()
-    return response.json()
-
-
-async def _get_text(url: str, params: dict | None = None) -> str:
-    """HTTP GET, gibt rohen Text zurück (für HTML/XML)."""
-    client = _get_http_client()
-    response = await client.get(url, params=params)
-    _assert_host_allowed(response.url)
-    response.raise_for_status()
-    return response.text
-
-
-def _handle_error(e: Exception) -> str:
-    """Einheitliche, handlungsorientierte Fehlermeldungen auf Deutsch.
-
-    Upstream-Response-Bodies werden NICHT an den LLM zurückgegeben
-    (Information-Disclosure-Schutz). Volle Diagnose landet im Log.
-    """
-    if isinstance(e, httpx.HTTPStatusError):
-        code = e.response.status_code
-        url = str(e.response.request.url) if e.response.request else "?"
-        logger.warning(
-            "upstream_http_error code=%s url=%s body=%r", code, url, e.response.text[:500]
-        )
-        if code == 404:
-            return "Fehler: Ressource nicht gefunden. Bitte Suchbegriff oder ID prüfen."
-        if code == 403:
-            return "Fehler: Zugriff verweigert. Die Ressource ist möglicherweise nicht öffentlich."
-        if code == 429:
-            return "Fehler: Anfragelimit überschritten. Bitte etwas warten und erneut versuchen."
-        if code >= 500:
-            return f"Fehler: Server-Fehler (HTTP {code}). Die API ist möglicherweise vorübergehend nicht verfügbar."
-        return f"Fehler: HTTP {code} (Upstream gemeldet)."
-    if isinstance(e, httpx.TimeoutException):
-        logger.warning("upstream_timeout: %s", e)
-        return "Fehler: Zeitüberschreitung. Die API antwortet nicht. Bitte später erneut versuchen."
-    if isinstance(e, httpx.ConnectError):
-        logger.warning("upstream_connect_error: %s", e)
-        return "Fehler: Verbindung fehlgeschlagen. Bitte Netzwerkverbindung prüfen."
-    logger.exception("unhandled_tool_error: %s", type(e).__name__)
-    return f"Fehler: {type(e).__name__}."
 
 
 def _format_isos_entry(attrs: dict, feature_id: str = "") -> dict:
@@ -222,9 +121,6 @@ def _format_isos_entry(attrs: dict, feature_id: str = "") -> dict:
     }
 
 
-NSB_ID = "{https://www.news.admin.ch/rss}id"  # Clark-Notation für nsb:id Attribut
-
-
 def _parse_rss_items(xml_text: str, max_items: int = 20) -> list[dict]:
     """Parst BAK RSS-Feed und gibt strukturierte Items zurück."""
     root = ET.fromstring(xml_text)
@@ -241,168 +137,6 @@ def _parse_rss_items(xml_text: str, max_items: int = 20) -> list[dict]:
             }
         )
     return items
-
-
-# ---------------------------------------------------------------------------
-# Pydantic Input-Modelle
-# ---------------------------------------------------------------------------
-
-
-class IsosSearchInput(BaseModel):
-    """Eingabe für ISOS-Suche nach Ortsname."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    query: str = Field(
-        ...,
-        description="Ortsname oder Teilname suchen (z.B. 'Zürich', 'Stein am Rhein', 'Bern')",
-        min_length=2,
-        max_length=100,
-    )
-    limit: int | None = Field(
-        default=20,
-        description="Maximale Anzahl Resultate (1–100)",
-        ge=1,
-        le=100,
-    )
-
-
-class IsosKantonInput(BaseModel):
-    """Eingabe für ISOS-Abfrage nach Kanton."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    kanton: str = Field(
-        ...,
-        description="Kantonskürzel (z.B. 'ZH', 'BE', 'GR'). Gross- oder Kleinschreibung möglich.",
-        min_length=2,
-        max_length=2,
-    )
-    limit: int | None = Field(
-        default=50,
-        description="Maximale Anzahl Resultate (1–500)",
-        ge=1,
-        le=500,
-    )
-
-    @field_validator("kanton")
-    @classmethod
-    def validate_kanton(cls, v: str) -> str:
-        upper = v.upper()
-        if upper not in KANTONE:
-            raise ValueError(
-                f"Ungültiges Kantonskürzel '{v}'. Gültige Werte: {', '.join(sorted(KANTONE.keys()))}"
-            )
-        return upper
-
-
-class IsosDetailInput(BaseModel):
-    """Eingabe für ISOS-Detailabfrage."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    feature_id: str = Field(
-        ...,
-        description="geo.admin.ch Feature-ID des ISOS-Objekts (aus bak_search_isos oder bak_isos_by_kanton)",
-        min_length=5,
-    )
-
-
-class IsosKategorieInput(BaseModel):
-    """Eingabe für ISOS-Filterung nach Siedlungskategorie."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    kategorie: str = Field(
-        ...,
-        description=(
-            "Siedlungskategorie filtern. Gültige Werte: "
-            "'Stadt', 'Kleinstadt/Flecken', 'Dorf', 'Weiler/Einzelsiedlung', 'Spezialfall'"
-        ),
-    )
-    kanton: str | None = Field(
-        default=None,
-        description="Optional: Kanton einschränken (Kürzel, z.B. 'ZH')",
-        min_length=2,
-        max_length=2,
-    )
-    limit: int | None = Field(default=50, ge=1, le=200)
-
-
-class NewsInput(BaseModel):
-    """Eingabe für BAK-Medienmitteilungen."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    limit: int | None = Field(
-        default=10,
-        description="Anzahl Medienmitteilungen (1–50)",
-        ge=1,
-        le=50,
-    )
-    keyword: str | None = Field(
-        default=None,
-        description="Stichwort für Filterung (z.B. 'Filmpreis', 'Literatur', 'Design')",
-        max_length=100,
-    )
-
-
-class KulturpreiseInput(BaseModel):
-    """Eingabe für Schweizer Kulturpreise."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    sparte: str | None = Field(
-        default=None,
-        description=(
-            "Kultursparte filtern: 'Film', 'Literatur', 'Design', 'Musik', 'Theater', "
-            "'Denkmalpflege' oder leer für alle Preise"
-        ),
-        max_length=50,
-    )
-    limit: int | None = Field(default=20, ge=1, le=50)
-
-
-class OpendataInput(BaseModel):
-    """Eingabe für BAK Open-Data-Datensätze."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    query: str | None = Field(
-        default=None,
-        description="Suchbegriff für BAK-Datensätze auf opendata.swiss (optional)",
-        max_length=100,
-    )
-
-
-class TraditionDetailInput(BaseModel):
-    """Eingabe für eine spezifische Lebendige Tradition."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    slug: str = Field(
-        ...,
-        description=(
-            "URL-Slug der Tradition (z.B. 'alphorn--und-buechelspiel', 'fasnacht-basel', "
-            "'schwingen'). Aus bak_list_traditions oder als bekannte Tradition eingeben."
-        ),
-        min_length=3,
-        max_length=200,
-        pattern=r"^[a-z0-9][a-z0-9\-]+$",
-    )
-
-
-class TraditionListInput(BaseModel):
-    """Eingabe für Liste der Lebendigen Traditionen."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
-
-    buchstabe: str | None = Field(
-        default=None,
-        description="Anfangsbuchstabe filtern (A–Z), um Traditionen alphabetisch zu durchsuchen",
-        min_length=1,
-        max_length=1,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -838,6 +572,67 @@ async def bak_get_news(params: NewsInput) -> str:
 # ---------------------------------------------------------------------------
 
 
+# Statische Preisübersicht (stabile Referenzdaten)
+_PREISUEBERSICHT_STATIC: list[dict] = [
+    {
+        "name": "Schweizer Filmpreis (Quartz)",
+        "sparte": "Film",
+        "beschreibung": "Jährlicher Schweizer Filmpreis des BAK für Langfilm, Dokumentarfilm, Kurzfilm, Drehbuch u.a.",
+        "url": "https://www.schweizerkulturpreise.ch/de/filmpreis",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Grand Prix Literatur",
+        "sparte": "Literatur",
+        "beschreibung": "Höchste Literaturauszeichnung der Schweiz, vergeben vom BAK.",
+        "url": "https://www.schweizerkulturpreise.ch/de/literaturpreise",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Grand Prix Design",
+        "sparte": "Design",
+        "beschreibung": "Ausgezeichnet werden herausragende Designleistungen auf Empfehlung der Eidg. Designkommission.",
+        "url": "https://www.schweizerkulturpreise.ch/de/design",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Grand Prix Musik",
+        "sparte": "Musik",
+        "beschreibung": "Höchste Schweizer Auszeichnung für Musiker:innen.",
+        "url": "https://www.schweizerkulturpreise.ch/de/musikpreise",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Grand Prix Theater / Hans-Reinhart-Ring",
+        "sparte": "Theater",
+        "beschreibung": "Höchste Auszeichnung für Theaterschaffende der Schweiz.",
+        "url": "https://www.schweizerkulturpreise.ch/de/theaterpreise",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Prix Meret Oppenheim",
+        "sparte": "Architektur/Kunst/Kuratieren",
+        "beschreibung": "Ausgezeichnet werden Persönlichkeiten aus Architektur, bildender Kunst und Kuratieren.",
+        "url": "https://www.schweizerkulturpreise.ch/de/prix-meret-oppenheim",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Tanzpreis",
+        "sparte": "Tanz",
+        "beschreibung": "Ausgezeichnet werden Choreograf:innen, Tänzer:innen und Tanzinstitutionen.",
+        "url": "https://www.schweizerkulturpreise.ch/de/tanzpreis",
+        "rhythmus": "jährlich",
+    },
+    {
+        "name": "Schweizer Kulturpreis Manor",
+        "sparte": "Nachwuchs",
+        "beschreibung": "Nachwuchsförderpreis, vergeben in Partnerschaft zwischen BAK und Manor AG.",
+        "url": "https://www.schweizerkulturpreise.ch",
+        "rhythmus": "jährlich",
+    },
+]
+
+
 @mcp.tool(
     name="bak_get_kulturpreise",
     annotations={
@@ -866,65 +661,7 @@ async def bak_get_kulturpreise(params: KulturpreiseInput) -> str:
             - aktuelle_preise: Preisträger aus aktuellem/letztem Jahr (aus RSS)
             - preisuebersicht: Statische Übersicht aller BAK-Kulturpreise mit Links
     """
-    # Statische Preisübersicht (stabile Referenzdaten)
-    preisuebersicht = [
-        {
-            "name": "Schweizer Filmpreis (Quartz)",
-            "sparte": "Film",
-            "beschreibung": "Jährlicher Schweizer Filmpreis des BAK für Langfilm, Dokumentarfilm, Kurzfilm, Drehbuch u.a.",
-            "url": "https://www.schweizerkulturpreise.ch/de/filmpreis",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Grand Prix Literatur",
-            "sparte": "Literatur",
-            "beschreibung": "Höchste Literaturauszeichnung der Schweiz, vergeben vom BAK.",
-            "url": "https://www.schweizerkulturpreise.ch/de/literaturpreise",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Grand Prix Design",
-            "sparte": "Design",
-            "beschreibung": "Ausgezeichnet werden herausragende Designleistungen auf Empfehlung der Eidg. Designkommission.",
-            "url": "https://www.schweizerkulturpreise.ch/de/design",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Grand Prix Musik",
-            "sparte": "Musik",
-            "beschreibung": "Höchste Schweizer Auszeichnung für Musiker:innen.",
-            "url": "https://www.schweizerkulturpreise.ch/de/musikpreise",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Grand Prix Theater / Hans-Reinhart-Ring",
-            "sparte": "Theater",
-            "beschreibung": "Höchste Auszeichnung für Theaterschaffende der Schweiz.",
-            "url": "https://www.schweizerkulturpreise.ch/de/theaterpreise",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Prix Meret Oppenheim",
-            "sparte": "Architektur/Kunst/Kuratieren",
-            "beschreibung": "Ausgezeichnet werden Persönlichkeiten aus Architektur, bildender Kunst und Kuratieren.",
-            "url": "https://www.schweizerkulturpreise.ch/de/prix-meret-oppenheim",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Tanzpreis",
-            "sparte": "Tanz",
-            "beschreibung": "Ausgezeichnet werden Choreograf:innen, Tänzer:innen und Tanzinstitutionen.",
-            "url": "https://www.schweizerkulturpreise.ch/de/tanzpreis",
-            "rhythmus": "jährlich",
-        },
-        {
-            "name": "Schweizer Kulturpreis Manor",
-            "sparte": "Nachwuchs",
-            "beschreibung": "Nachwuchsförderpreis, vergeben in Partnerschaft zwischen BAK und Manor AG.",
-            "url": "https://www.schweizerkulturpreise.ch",
-            "rhythmus": "jährlich",
-        },
-    ]
+    preisuebersicht = list(_PREISUEBERSICHT_STATIC)
 
     # Sparten-Filter
     if params.sparte:
