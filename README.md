@@ -2,7 +2,7 @@
 
 # 🏛️ swiss-culture-mcp
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -11,7 +11,7 @@
 
 > MCP server for Swiss cultural heritage data from the Federal Office of Culture (BAK) — ISOS townscapes, Living Traditions, cultural prizes, press releases. No API key required.
 
-[🇩🇪 Deutsche Version](README.de.md)
+🌐 **English** | **[Deutsch](README.de.md)**
 
 <p align="center">
   <img src="assets/demo-flow.svg" alt="Demo: Claude queries ISOS townscapes via MCP tool call" width="780">
@@ -193,7 +193,10 @@ swiss-culture-mcp/
 │   └── test_server.py         # 36 tests (unit + live)
 ├── pyproject.toml
 ├── CHANGELOG.md
-├── CONTRIBUTING.md
+├── CONTRIBUTING.md            # Contribution guide (English)
+├── CONTRIBUTING.de.md         # Contribution guide (German)
+├── SECURITY.md               # Security policy & posture (English)
+├── SECURITY.de.md            # Security policy & posture (German)
 ├── LICENSE
 ├── README.md                  # This file (English)
 └── README.de.md               # German version
@@ -288,6 +291,18 @@ PYTHONPATH=src pytest tests/ -m "live"
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## Security
+
+Security posture, hardening details and the responsible-disclosure process are documented in [SECURITY.md](SECURITY.md).
+
+---
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

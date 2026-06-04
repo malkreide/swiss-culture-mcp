@@ -1,15 +1,15 @@
-[🇬🇧 English Version](README.md)
-
 > 🇨🇭 **Teil des [Swiss Public Data MCP Portfolios](https://github.com/malkreide)**
 
 # 🏛️ swiss-culture-mcp
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
 [![Datenquelle](https://img.shields.io/badge/Daten-BAK%20Open%20Data-red)](https://opendata.swiss/)
 ![CI](https://github.com/malkreide/swiss-culture-mcp/actions/workflows/ci.yml/badge.svg)
+
+🌐 **[English](README.md)** | **Deutsch**
 
 > MCP-Server für Schweizer Kulturdaten des Bundesamts für Kultur (BAK) — ISOS-Ortsbilder, Lebendige Traditionen, Kulturpreise, Medienmitteilungen. Kein API-Schlüssel erforderlich.
 
@@ -194,7 +194,10 @@ swiss-culture-mcp/
 │   └── test_server.py         # 36 Tests (Unit + Live)
 ├── pyproject.toml
 ├── CHANGELOG.md
-├── CONTRIBUTING.md
+├── CONTRIBUTING.md            # Beitragsleitfaden (Englisch)
+├── CONTRIBUTING.de.md         # Beitragsleitfaden (Deutsch)
+├── SECURITY.md               # Sicherheitsrichtlinie & -posture (Englisch)
+├── SECURITY.de.md            # Sicherheitsrichtlinie & -posture (Deutsch)
 ├── LICENSE
 ├── README.md                  # Englische Hauptversion
 └── README.de.md               # Diese Datei (Deutsch)
@@ -289,6 +292,18 @@ PYTHONPATH=src pytest tests/ -m "live"
 ## Changelog
 
 Siehe [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## Sicherheit
+
+Sicherheits-Posture, Hardening-Details und der Prozess für verantwortungsvolle Offenlegung sind in [SECURITY.de.md](SECURITY.de.md) dokumentiert.
+
+---
+
+## Beitragen
+
+Beiträge sind willkommen – siehe [CONTRIBUTING.de.md](CONTRIBUTING.de.md).
 
 ---
 
