@@ -44,7 +44,6 @@ dev = [
 swiss-culture-mcp = "swiss_culture_mcp.server:main"
 
 [project.urls]
-"mcp-name" = "io.github.malkreide/swiss-culture-mcp"
 Homepage = "https://github.com/malkreide/swiss-culture-mcp"
 Repository = "https://github.com/malkreide/swiss-culture-mcp"
 "Bug Tracker" = "https://github.com/malkreide/swiss-culture-mcp/issues"
