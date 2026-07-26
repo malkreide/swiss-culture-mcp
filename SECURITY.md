@@ -35,7 +35,7 @@ lebendige-traditionen.ch — see `README.md`). Hardening already in place:
 | Logging | Structured JSON logs pinned to stderr; stdout is reserved for the JSON-RPC stream (OBS-001) |
 | Resilience | A 20s per-request timeout bounds every upstream call; per-query result caps limit response size (SCALE-001/002) |
 
-The audit (`audit/audit-report.md`) and its rerun — 2 High, 5 Medium and 1 Low —
+The audit (`audits/2026-05-27-swiss-culture-mcp-rerun-2/audit-report.md`) and its rerun — 2 High, 5 Medium and 1 Low —
 are **fully closed** as of `v1.1.0`, each backed by a regression test (54 tests,
 CI matrix 3.11/3.12/3.13). See `CHANGELOG.md` for the hardening history.
 
