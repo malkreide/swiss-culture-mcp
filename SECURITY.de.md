@@ -37,7 +37,7 @@ news.admin.ch RSS, opendata.swiss CKAN, lebendige-traditionen.ch — siehe
 | Logging | Strukturierte JSON-Logs fest auf stderr; stdout ist dem JSON-RPC-Stream vorbehalten (OBS-001) |
 | Resilienz | Ein 20s-Timeout pro Anfrage begrenzt jeden Upstream-Aufruf; Obergrenzen pro Abfrage limitieren die Antwortgrösse (SCALE-001/002) |
 
-Der Audit (`audit/audit-report.md`) und sein Re-Run — 2 High, 5 Medium und 1 Low —
+Der Audit (`audits/2026-05-27-swiss-culture-mcp-rerun-2/audit-report.md`) und sein Re-Run — 2 High, 5 Medium und 1 Low —
 sind per `v1.1.0` **vollständig geschlossen**, jeweils durch einen
 Regression-Test abgesichert (54 Tests, CI-Matrix 3.11/3.12/3.13). Die
 Hardening-Historie steht in `CHANGELOG.md`.

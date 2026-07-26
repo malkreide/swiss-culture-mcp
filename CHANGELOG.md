@@ -44,7 +44,7 @@ Findings. HTTP-Deployment-Pfad ist nicht mehr Production-blockiert.
 | HTTP-Deployment auf Render.com / Docker | Env-Vars setzen: `MCP_HOST=0.0.0.0` + `MCP_ALLOW_PUBLIC_BIND=true` (nur hinter Auth-Reverse-Proxy!) |
 | pip/uvx | `uvx swiss-culture-mcp@1.1.0` oder `pip install -U swiss-culture-mcp` |
 
-Vollständige Audit-Berichte unter `audit/audit-report.md` (Run-2).
+Vollständige Audit-Berichte unter `audits/2026-05-27-swiss-culture-mcp-rerun-2/audit-report.md` (Run-2).
 
 ## [1.0.0] - 2026-03-11
 
