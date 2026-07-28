@@ -295,15 +295,15 @@ Siehe [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-## Sicherheit
-
-Sicherheits-Posture, Hardening-Details und der Prozess für verantwortungsvolle Offenlegung sind in [SECURITY.de.md](SECURITY.de.md) dokumentiert.
-
----
-
 ## Beitragen
 
 Beiträge sind willkommen – siehe [CONTRIBUTING.de.md](CONTRIBUTING.de.md).
+
+---
+
+## Sicherheit
+
+Sicherheits-Posture, Hardening-Details und der Prozess für verantwortungsvolle Offenlegung sind in [SECURITY.de.md](SECURITY.de.md) dokumentiert.
 
 ---
 

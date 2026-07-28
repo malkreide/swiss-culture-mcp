@@ -294,15 +294,15 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-## Security
-
-Security posture, hardening details and the responsible-disclosure process are documented in [SECURITY.md](SECURITY.md).
-
----
-
 ## Contributing
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Security
+
+Security posture, hardening details and the responsible-disclosure process are documented in [SECURITY.md](SECURITY.md).
 
 ---
 
