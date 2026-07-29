@@ -10,6 +10,7 @@ import sys
 
 import httpx
 
+from . import __version__
 from .constants import TIMEOUT
 
 # ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ if not logger.handlers:
 # Host-Allowlist + Pool
 # ---------------------------------------------------------------------------
 
-USER_AGENT = "swiss-culture-mcp/1.0 (https://github.com/malkreide/swiss-culture-mcp)"
+USER_AGENT = f"swiss-culture-mcp/{__version__} (https://github.com/malkreide/swiss-culture-mcp)"
 
 # Whitelist erlaubter Upstream-Hosts. Nach Redirect-Auflösung wird gegen diese
 # Liste geprüft, um SSRF via Open-Redirect (z. B. wenn ein Upstream auf einen
