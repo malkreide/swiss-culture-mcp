@@ -41,6 +41,9 @@ jobs:
         run: PYTHONPATH=src pytest tests/ -m "not live"
         timeout-minutes: 5
 
+      - name: Versions-Sync (pyproject ↔ server.json / README / src)
+        run: python scripts/check_version_sync.py
+
   lint:
     runs-on: ubuntu-latest
     steps:
