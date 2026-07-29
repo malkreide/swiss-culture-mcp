@@ -50,7 +50,7 @@ ALLOWED_HOSTS = frozenset(
 )
 
 # Modulweiter HTTP-Client (Connection-Pooling). Lazy initialisiert beim ersten
-# Tool-Call; in async-Loops via FastMCP-Stdio/HTTP-Lifespan wiederverwendet.
+# Tool-Call; in async-Loops via MCPServer-Stdio/HTTP-Lifespan wiederverwendet.
 _http_client: httpx.AsyncClient | None = None
 
 

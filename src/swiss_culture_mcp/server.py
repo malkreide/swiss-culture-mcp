@@ -16,7 +16,7 @@ import os
 import re
 
 import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .constants import (
     BAK_ORG,
@@ -89,7 +89,7 @@ __all__ = [
 # Server-Initialisierung
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP(
+mcp = MCPServer(
     "swiss_culture_mcp",
     instructions=(
         "MCP-Server für Schweizer Kulturdaten des Bundesamts für Kultur (BAK). "
