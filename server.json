@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.malkreide/swiss-culture-mcp",
   "description": "BAK cultural heritage, ISOS, living traditions, RSS",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "repository": {
     "url": "https://github.com/malkreide/swiss-culture-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "swiss-culture-mcp",
-      "version": "1.1.3",
+      "version": "1.1.4",
       "transport": {
         "type": "stdio"
       },
