@@ -116,10 +116,20 @@ MOCK_CKAN_RESPONSE = {
             {
                 "name": "bundesinventar-der-schutzenswerten-ortsbilder-isos",
                 "title": {"de": "ISOS – Bundesinventar der schützenswerten Ortsbilder"},
-                "description": {"de": "Bundesinventar der schützenswerten Ortsbilder der Schweiz von nationaler Bedeutung."},
+                "description": {
+                    "de": "Bundesinventar der schützenswerten Ortsbilder der Schweiz von nationaler Bedeutung."
+                },
                 "resources": [
-                    {"format": "WMS", "url": "https://wms.geo.admin.ch/", "name": {"de": "WMS-Dienst"}},
-                    {"format": "API", "url": "https://api3.geo.admin.ch/", "name": {"de": "REST API"}},
+                    {
+                        "format": "WMS",
+                        "url": "https://wms.geo.admin.ch/",
+                        "name": {"de": "WMS-Dienst"},
+                    },
+                    {
+                        "format": "API",
+                        "url": "https://api3.geo.admin.ch/",
+                        "name": {"de": "REST API"},
+                    },
                 ],
                 "metadata_modified": "2024-01-15",
                 "organization": {"name": "bundesamt-fur-kultur-bak"},
@@ -139,6 +149,7 @@ MOCK_TRADITION_LIST_HTML = (
 # ---------------------------------------------------------------------------
 # Unit-Tests: Hilfsfunktionen
 # ---------------------------------------------------------------------------
+
 
 class TestHelperFunctions:
     def test_format_isos_entry_complete(self):
@@ -182,12 +193,14 @@ class TestHelperFunctions:
 
     def test_handle_error_timeout(self):
         import httpx
+
         err = httpx.TimeoutException("timeout")
         result = _handle_error(err)
         assert "Zeitüberschreitung" in result
 
     def test_handle_error_404(self):
         import httpx
+
         request = httpx.Request("GET", "https://example.com")
         response = httpx.Response(404, request=request)
         err = httpx.HTTPStatusError("not found", request=request, response=response)
@@ -196,6 +209,7 @@ class TestHelperFunctions:
 
     def test_handle_error_429(self):
         import httpx
+
         request = httpx.Request("GET", "https://example.com")
         response = httpx.Response(429, request=request)
         err = httpx.HTTPStatusError("rate limit", request=request, response=response)
@@ -208,6 +222,7 @@ class TestHelperFunctions:
 
     def test_handle_error_no_upstream_body_leak(self):
         import httpx
+
         request = httpx.Request("GET", "https://example.com")
         response = httpx.Response(418, request=request, text="SECRET_TEAPOT_INTERNALS")
         err = httpx.HTTPStatusError("teapot", request=request, response=response)
@@ -311,6 +326,7 @@ class TestConnectionPool:
 # Unit-Tests: Input-Validierung
 # ---------------------------------------------------------------------------
 
+
 class TestInputValidation:
     def test_isos_kanton_valid(self):
         inp = IsosKantonInput(kanton="zh")
@@ -362,6 +378,7 @@ class TestInputValidation:
 # Unit-Tests: Tools (mit Mocks)
 # ---------------------------------------------------------------------------
 
+
 class TestBakSearchIsos:
     @pytest.mark.asyncio
     async def test_search_returns_results(self):
@@ -399,6 +416,7 @@ class TestBakSearchIsos:
     @pytest.mark.asyncio
     async def test_search_error_handling(self):
         import httpx
+
         with patch("swiss_culture_mcp.server._get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.TimeoutException("timeout")
             result = await bak_search_isos(IsosSearchInput(query="Bern"))
@@ -481,12 +499,15 @@ class TestBakGetKulturpreise:
             mock_get.return_value = MOCK_RSS_XML
             result = await bak_get_kulturpreise(KulturpreiseInput(sparte="Design"))
             data = json.loads(result)
-            assert all("design" in p["name"].lower() or "design" in p["sparte"].lower()
-                       for p in data["preisuebersicht"])
+            assert all(
+                "design" in p["name"].lower() or "design" in p["sparte"].lower()
+                for p in data["preisuebersicht"]
+            )
 
     @pytest.mark.asyncio
     async def test_fallback_on_rss_error(self):
         import httpx
+
         with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.ConnectError("no connection")
             result = await bak_get_kulturpreise(KulturpreiseInput())
@@ -632,6 +653,7 @@ class TestHtmlFixtures:
 # ---------------------------------------------------------------------------
 # Integrationstests (Live)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def run_live(request):
