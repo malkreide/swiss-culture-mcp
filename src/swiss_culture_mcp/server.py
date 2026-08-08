@@ -21,6 +21,7 @@ from mcp.server.mcpserver import MCPServer
 from .constants import (
     BAK_ORG,
     BAK_ORG_NR,
+    BAK_WEBSITE,
     CKAN_BASE,
     GEO_ADMIN_BASE,
     GISOS_BASE,
@@ -487,7 +488,7 @@ async def bak_isos_statistics() -> str:
                 "links": {
                     "isos_website": "https://www.isos.ch",
                     "gisos_portal": "https://www.gisos.bak.admin.ch",
-                    "bak_website": "https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html",
+                    "bak_website": BAK_WEBSITE,
                     "opendata_swiss": f"https://opendata.swiss/de/organization/{BAK_ORG}",
                 },
             },
