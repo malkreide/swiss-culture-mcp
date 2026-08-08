@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Behoben
+
+- **Eine ausgegebene Quelle war tot.** `bak_isos_overview` gab
+  `https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html` als
+  BAK-Website aus. Am 2026-08-08 gemessen: HTTP 404, Titel «404 - Seite nicht
+  gefunden» — und nicht nur diese Seite, der ganze Zweig
+  `.../home/kulturerbe.html` antwortet ebenfalls mit 404.
+
+  Belegt mit einer Kontrolle: Ein frei erfundener Pfad unter demselben
+  Praefix liefert denselben 404 mit demselben Titel und praktisch derselben
+  Groesse (490 266 B gegen 490 250 B). Ohne sie hiesse der Befund nur «ich
+  habe eine 404 bekommen».
+
+  **Eine Ersatzadresse ist bewusst nicht geraten.** Die BAK-Navigation liegt
+  hinter JavaScript, und die Wurzel verlinkt im Rohtext keine
+  Baukultur-Seite. Ausgegeben wird jetzt die BAK-Wurzel, die nachweislich mit
+  200 antwortet.
+
+### Hinzugefuegt
+
+- **`scripts/record_fixtures.py`, `tests/fixtures/` und `PROVENANCE.md`.**
+  Dieser Server braucht keine Zugangsdaten — seine gesamte Adressliste ist
+  pruefbar, und war es nie. Aufgezeichnet ist jetzt, ob jede Adresse, die er
+  baut oder als Quelle ausgibt, etwas liefert.
+
+  **Vier Kontrollen**: ein erfundener geo.admin.ch-Dienst (404), ein
+  erfundener BAK-Pfad (404), eine erfundene News-Organisationsnummer (200,
+  aber 367 B statt 344 962 B — die Nummer filtert also wirklich) und ein
+  erfundener Tradition-Slug (404).
+
+- **Ein Beinahe-Fehlbefund, mit aufgezeichnet.** `TRADITIONS_BASE` allein
+  antwortet mit 404; dem Stamm fehlt ein `.html`. Daraus folgt **nichts**:
+  Der Server ruft den Stamm nie allein auf, sondern nur
+  `{TRADITIONS_BASE}/liste/liste.html` und
+  `{TRADITIONS_BASE}/traditionen/<slug>.html` — beide antworten mit 200.
+
+  Mein erster Abruf schlug fehl, weil ich einen Slug geraten hatte. Der
+  Recorder zieht sie deshalb aus der Listenseite, statt sie sich auszudenken,
+  und `tests/test_adressen.py` haelt den Fall fest.
+
+- **`tests/test_adressen.py`** — 9 Tests, die **in** der CI laufen.
+  Gegengeprueft mit einer Rueckmutation (toter Link zurueck in die Ausgabe):
+  Die Suite wird rot.
+
+
 ## [1.1.4] - 2026-07-30
 
 ### Behoben

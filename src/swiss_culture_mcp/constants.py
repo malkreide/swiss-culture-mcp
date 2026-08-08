@@ -19,6 +19,27 @@ TRADITIONS_BASE = "https://www.lebendige-traditionen.ch/tradition/de/home"
 
 GISOS_BASE = "https://www.gisos.bak.admin.ch/sites"
 
+# Die BAK-Seite, die `bak_isos_overview` als Quelle ausgibt.
+#
+# Hier stand `.../home/kulturerbe/baukultur.html`. Am 2026-08-08 gemessen:
+# HTTP 404, Titel «404 - Seite nicht gefunden». Und nicht nur diese Seite —
+# der ganze Zweig `.../home/kulturerbe.html` antwortet ebenfalls mit 404.
+#
+# Belegt mit einer Kontrolle: Ein frei erfundener Pfad unter
+# `www.bak.admin.ch/bak/de/home/kulturerbe/` liefert denselben 404 mit
+# demselben Titel und praktisch derselben Groesse (490 266 B gegen 490 250 B).
+# Ohne sie hiesse der Befund nur «ich habe eine 404 bekommen».
+#
+# Eine Ersatzadresse ist bewusst NICHT geraten: Die BAK-Navigation liegt
+# hinter JavaScript, die Wurzel verlinkt im Rohtext keine Baukultur-Seite, und
+# eine plausibel gebaute URL waere genau der Fehler, den dieser Commit behebt.
+# Ausgegeben wird die Wurzel, die nachweislich mit 200 antwortet («Kultur
+# foerdern. Vielfalt staerken.»).
+BAK_WEBSITE = "https://www.bak.admin.ch/bak/de/home.html"
+# Bleibt als Konstante stehen, damit der Recorder sie weiter prueft und ihre
+# Rueckkehr auffaellt.
+BAK_WEBSITE_TOT = "https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html"
+
 TIMEOUT = 20.0
 
 # Clark-Notation für `nsb:id`-Attribut im News-Service-Bund-RSS

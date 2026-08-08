@@ -1,0 +1,100 @@
+{
+  "recorded_at": "2026-08-08",
+  "adressen": {
+    "geo_mapserver": {
+      "url": "https://api3.geo.admin.ch/rest/services/all/MapServer",
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 2690215,
+      "warum": "die Ebenenliste, aus der ISOS gelesen wird"
+    },
+    "geo_searchserver": {
+      "url": "https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=Bern&type=locations",
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 28944,
+      "warum": "die Ortssuche"
+    },
+    "kontrolle_geo_erfunden": {
+      "url": "https://api3.geo.admin.ch/rest/services/all/DiesenDienstGibtEsNicht",
+      "status": 404,
+      "content_type": "application/json",
+      "bytes": 83,
+      "warum": "KONTROLLE: erfundener Dienst"
+    },
+    "ckan": {
+      "url": "https://opendata.swiss/api/3/action/package_search?q=kultur&rows=1",
+      "status": 200,
+      "content_type": "application/json;charset=utf-8",
+      "bytes": 7486,
+      "warum": "die CKAN-Suche"
+    },
+    "gisos": {
+      "url": "https://www.gisos.bak.admin.ch",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 42239,
+      "warum": "das GIS-Portal, auf das verwiesen wird"
+    },
+    "bak_wurzel": {
+      "url": "https://www.bak.admin.ch/bak/de/home.html",
+      "status": 200,
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 500682,
+      "warum": "die BAK-Website, die ausgegeben wird"
+    },
+    "bak_baukultur_tot": {
+      "url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html",
+      "status": 404,
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 490250,
+      "warum": "die frueher ausgegebene BAK-Seite"
+    },
+    "kontrolle_bak_erfunden": {
+      "url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/diesen-pfad-gibt-es-nicht.html",
+      "status": 404,
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 490266,
+      "warum": "KONTROLLE: erfundener BAK-Pfad"
+    },
+    "rss": {
+      "url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=314",
+      "status": 200,
+      "content_type": "",
+      "bytes": 344962,
+      "warum": "der News-Feed mit org-nr=314"
+    },
+    "kontrolle_rss_erfunden": {
+      "url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=999999",
+      "status": 200,
+      "content_type": "",
+      "bytes": 367,
+      "warum": "KONTROLLE: erfundene Organisationsnummer"
+    },
+    "traditionen_liste": {
+      "url": "https://www.lebendige-traditionen.ch/tradition/de/home/liste/liste.html",
+      "status": 200,
+      "content_type": "text/html;charset=utf-8",
+      "bytes": 42525,
+      "warum": "die Traditionsliste"
+    }
+  },
+  "traditionen": {
+    "aarauer-bachfischet": {
+      "status": 200,
+      "bytes": 53049
+    },
+    "aareschwimmen-in-bern": {
+      "status": 200,
+      "bytes": 54414
+    },
+    "aargauer-und-solothurner-jugendfeste": {
+      "status": 200,
+      "bytes": 53813
+    },
+    "KONTROLLE_erfundener_slug": {
+      "status": 404,
+      "bytes": 4440
+    }
+  }
+}

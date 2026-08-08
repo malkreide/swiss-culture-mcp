@@ -272,6 +272,8 @@ PYTHONPATH=src pytest tests/ -m "live"
 - **Lebendige Traditionen:** HTML-Scraping – kann brechen, wenn lebendige-traditionen.ch seine Struktur ändert
 - **BAK-Neuigkeiten/Preise:** RSS-Feed auf die neuesten Einträge beschränkt
 - **opendata.swiss CKAN:** Volltextsuche kann Resultate anderer Publisher einschliessen
+- **Die Adressen, die dieser Server ausgibt, sind gemessen und nicht angenommen.** `scripts/record_fixtures.py` prüft jede bei jedem Lauf neu, samt vier Kontrollen (ein erfundener geo.admin.ch-Dienst, ein erfundener BAK-Pfad, eine erfundene News-Organisationsnummer, ein erfundener Tradition-Slug). Am 2026-08-08 war eine tot: `bak_isos_overview` gab `.../home/kulturerbe/baukultur.html` als BAK-Quelle aus — HTTP 404, ebenso wie der ganze `kulturerbe`-Zweig. Ersetzt wurde sie durch die BAK-Wurzel, die nachweislich mit 200 antwortet — nicht durch eine geratene Adresse.
+- **Alles andere trug.** geo.admin.ch, opendata.swiss, gisos, isos, der News-Feed mit `org-nr=314` und die Traditionsseiten liefern echte Inhalte. Dieser Nullbefund ist mit aufgezeichnet: Ohne ihn fängt der nächste Durchgang bei null an.
 
 ---
 
