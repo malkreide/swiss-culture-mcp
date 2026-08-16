@@ -62,14 +62,21 @@ PYTHONPATH=src pytest tests/ -m "not live"   # nur Python 3.11
 python scripts/check_version_sync.py
 ```
 
-**Live-Tests — DRIFT-005 erfüllt.** `.github/workflows/live-tests.yml`
-läuft geplant (`cron: "53 4 * * 1"`, wöchentlich Mo) plus
-`workflow_dispatch`, gegen `api3.geo.admin.ch`; die Einordnung macht
-`scripts/classify_live_run.py` (`clear` / `finding` / `unknown`), ein Fund
-öffnet bzw. schliesst ein `upstream`-Issue. Die PR-CI schliesst die Suite
-per `-m "not live"` aus — das ist hier korrekt, weil der geplante Lauf
-existiert. `schedule` greift nur auf dem Default-Branch: Änderungen an der
-Datei wirken erst nach dem Merge, vorher von Hand auslösen.
+**Live-Tests — geplant, aber leer laufend (offener Befund).**
+`.github/workflows/live-tests.yml` läuft geplant (`cron: "53 4 * * 1"`,
+wöchentlich Mo) plus `workflow_dispatch`, gegen `api3.geo.admin.ch`
+(die Suite fasst zusätzlich `opendata.swiss` und den BAK-News-Feed an);
+die Einordnung macht `scripts/classify_live_run.py`
+(`clear` / `finding` / `unknown`), ein Fund öffnet bzw. schliesst ein
+`upstream`-Issue. `schedule` greift nur auf dem Default-Branch: Änderungen
+an der Datei wirken erst nach dem Merge, vorher von Hand auslösen.
+Der Lauf ruft aber `pytest tests/ -m live` **ohne `--run-live`** auf, und
+ohne diese Option überspringt sich jeder Live-Test selbst: 4 gesammelt,
+4 übersprungen, Exit 0 — `classify_live_run.py` sagt dazu korrekt
+`unknown`. Der Job wird also wöchentlich rot, ohne die Quelle je abgefragt
+zu haben; DRIFT-005 ist bis dahin nicht erfüllt. Fix ist `--run-live` am
+pytest-Aufruf. Bis das steht, trägt der `-m "not live"`-Ausschluss der
+PR-CI nichts: es prüft niemand.
 
 Fixtures liegen unter `tests/fixtures/`, erzeugt von
 `scripts/record_fixtures.py`, Aufnahmedatum in `PROVENANCE.md` — nicht von
