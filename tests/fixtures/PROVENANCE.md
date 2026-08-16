@@ -2,7 +2,7 @@
 
 **Erzeugt von `scripts/record_fixtures.py`. Nicht von Hand pflegen.**
 
-Aufgezeichnet am **2026-08-08**.
+Aufgezeichnet am **2026-08-16**.
 
 Ohne Datum ist «gemessen» nach zwei Jahren von «angenommen» nicht mehr
 zu unterscheiden — die Datei sieht gleich aus.
@@ -37,7 +37,7 @@ lebende Adresse stirbt oder wenn die tote zurueckkehrt.
 ## `adressen.json`
 
 - **Quelle:** `api3.geo.admin.ch, opendata.swiss, bak.admin.ch, lebendige-traditionen.ch`
-- **Aufgezeichnet:** 2026-08-08
+- **Aufgezeichnet:** 2026-08-16
 - **Auswahl:** Statuscode, Content-Type und Groesse je Adresse, die dieser Server baut oder ausgibt — samt vier Kontrollen mit erfundenen Werten (Dienst, Pfad, Organisationsnummer, Tradition-Slug). Die Traditions-Slugs stammen aus der Listenseite und nicht aus einem Einfall: Ein geratener Slug erzeugte beim ersten Versuch einen 404, der wie ein Befund aussah und keiner war
-- **Groesse:** 3090 B
-- **SHA-256:** `2890a4042cb38a7ab9feadc708ada05c7b0fac6c95751179eab9817443e6909c`
+- **Groesse:** 4777 B
+- **SHA-256:** `5b2cf8c72d7487b83e3acbae37da6298b4d68215853f7ae3df43b463c4528552`

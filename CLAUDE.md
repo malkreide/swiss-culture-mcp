@@ -95,15 +95,20 @@ sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt
 ihn je Live-Test zurück — ohne sie meldet der Job einen gebrochenen Vertrag,
 wo nur zwei Tests hintereinander liefen.
 
-**Offen: `bak_get_opendata` ist produktiv kaputt.** `opendata.swiss`
-antwortet auf die CKAN-Aufrufe mit 302 auf `ckan.opendata.swiss`; der Host
-steht nicht in `ALLOWED_HOSTS` (`http_client.py`), also endet jeder Aufruf
-in `Host nicht erlaubt`. Die Fixture `adressen.json` hält für diese Adresse
-200 fest — sie folgt der Umleitung und schreibt den Ausgangs-Host auf, kann
-den Bruch also nicht sehen. Gefunden hat ihn der erste Live-Lauf, den es je
-gab. Die Liste ist ein SSRF-Schutz: Sie zu erweitern ist eine Entscheidung,
-kein Nebenbei-Fix.
+**Die Allowlist prüft das Ziel, die Fixture muss es aufschreiben.**
+`_assert_host_allowed()` prüft den Host NACH der Umleitung. `opendata.swiss`
+beantwortet die CKAN-Aufrufe mit 302 auf `ckan.opendata.swiss` — der Host
+fehlte in `ALLOWED_HOSTS`, also scheiterte jeder `bak_get_opendata`-Aufruf
+produktiv, während alle Unit-Tests grün blieben. `adressen.json` notierte
+brav 200: Der Recorder folgte der Umleitung und schrieb den Ausgangs-Host
+auf. Er schreibt jetzt `final_host` mit, `test_umleitungsziele.py` prüft für
+jede abgerufene Adresse Start- und Zielhost gegen die Allowlist. Nur die
+abgerufenen — `gisos` und `bak_wurzel` gibt der Server als Link aus, ohne sie
+zu holen; deren Ziel `www.bak.admin.ch` gehört nicht in die Liste.
 
 Fixtures liegen unter `tests/fixtures/`, erzeugt von
 `scripts/record_fixtures.py`, Aufnahmedatum in `PROVENANCE.md` — nicht von
-Hand pflegen. Alles Weitere: `README.md`, `CONTRIBUTING.md`.
+Hand pflegen. Der Recorder bricht bei einem vorübergehenden 502 der Quelle
+ab; die Ausgabe endet dann an einer Stelle, die wegen der Pipe-Pufferung
+nicht die fehlerhafte Sonde ist. Einfach nochmal laufen lassen.
+Alles Weitere: `README.md`, `CONTRIBUTING.md`.

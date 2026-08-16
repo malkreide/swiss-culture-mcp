@@ -43,6 +43,14 @@ ALLOWED_HOSTS = frozenset(
     {
         "api3.geo.admin.ch",
         "opendata.swiss",
+        # opendata.swiss beantwortet die CKAN-Aufrufe mit 302 auf diesen Host
+        # (`{"help": "https://ckan.opendata.swiss/api/3/action/help_show..."}`).
+        # Ohne ihn scheiterte JEDER `bak_get_opendata`-Aufruf an der Pruefung
+        # unten — produktiv, waehrend die Unit-Tests gruen blieben. Gefunden hat
+        # das der erste Live-Lauf, den es je gab (16.8.2026).
+        # `test_umleitungsziele.py` haelt fest, dass das Ziel, auf dem wir
+        # tatsaechlich landen, in dieser Liste steht.
+        "ckan.opendata.swiss",
         "www.newsd.admin.ch",
         "www.lebendige-traditionen.ch",
         "www.gisos.bak.admin.ch",
