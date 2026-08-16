@@ -16,7 +16,8 @@ Vielen Dank für Ihr Interesse an diesem Projekt! Beiträge sind willkommen.
 2. Erstellen Sie einen Feature-Branch: `git checkout -b feature/mein-feature`
 3. Installieren Sie die Dev-Abhängigkeiten: `pip install -e ".[dev]"`
 4. Schreiben Sie Tests für Ihre Änderungen
-5. Lint prüfen: `ruff check src/ tests/`
+5. Lint-Gate genau so fahren wie die CI — inklusive `scripts/` und Formatprüfung:
+   `ruff check src/ tests/ scripts/ && ruff format --check src/ tests/ scripts/`
 6. Commit mit aussagekräftiger Nachricht: `git commit -m "feat: Tradition-Suche nach Kanton hinzufügen"`
 7. Pull Request erstellen
 

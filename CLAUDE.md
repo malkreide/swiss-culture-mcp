@@ -39,13 +39,12 @@ Ein Codex-Review auf einem PR wird beantwortet oder behoben, nie ignoriert.
 
 ## Dieses Repo
 
-**ruff — Befund: keine gemeinsame Quelle.** Die CI pinnt `ruff==0.16.1`
-(`.github/workflows/ci.yml:33` und `:64`). Eine `.pre-commit-config.yaml`
-existiert nicht; `pyproject.toml:45` erlaubt `ruff>=0.4.0` ungepinnt. Wer
-`uv pip install -e ".[dev]"` fährt, bekommt also *nicht* die CI-Version.
-Lokal deshalb immer explizit: `pip install ruff==0.16.1`.
-(Ebenfalls schief: `CONTRIBUTING.md:19` nennt `ruff check src/ tests/` —
-ohne `scripts/`, das die CI mitprüft.)
+**ruff ist `0.16.1` — an drei Stellen.** Das dev-Extra in `pyproject.toml`
+und die beiden `pip install ruff==` in `.github/workflows/ci.yml` (`:33`,
+`:64`) müssen dieselbe Version nennen. `uv pip install -e ".[dev]"` liefert
+damit die CI-Version. Eine `.pre-commit-config.yaml` gibt es nicht, und kein
+Skript prüft den Gleichstand — beim Bump alle drei Stellen zusammen anfassen,
+sonst lintet lokal eine andere Version als das Gate.
 
 **Gates, wörtlich aus `ci.yml`** (Matrix: Python 3.11 / 3.12 / 3.13):
 
