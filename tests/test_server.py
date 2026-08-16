@@ -677,7 +677,15 @@ class TestLiveApis:
             pytest.skip("Live-Test übersprungen")
         result = await bak_isos_by_kanton(IsosKantonInput(kanton="ZH"))
         data = json.loads(result)
-        assert data["total_in_kanton"] > 100  # ZH hat viele ISOS-Objekte
+        # Gemessen am 16.8.2026: Die Quelle liefert fuer ZH 219 Treffer, die auf
+        # 73 ISOS-Objekte entfallen — drei Features je Objekt. `total_in_kanton`
+        # weist die deduplizierten aus, also 73. Die fruehere Schranke `> 100`
+        # passt zur Zahl der rohen Treffer, nicht zu der, die hier steht; sie
+        # war nie erfuellbar. Gesehen hat das niemand, weil dieser Test bis
+        # jetzt nie gelaufen ist.
+        # Die Schranke faengt «die Quelle liefert fuer ZH nichts mehr», nicht
+        # eine Verschiebung um ein paar Objekte.
+        assert data["total_in_kanton"] >= 50
 
     @pytest.mark.asyncio
     async def test_live_bak_news(self, run_live):
