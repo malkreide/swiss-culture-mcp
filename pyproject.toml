@@ -42,7 +42,11 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "ruff>=0.4.0",
+    # Pinned to the exact version the CI gate runs (.github/workflows/ci.yml).
+    # A range here means a fresh dev install lints against a different ruff than
+    # the gate, and reports diffs on untouched code that nobody introduced.
+    # Bump this and both `pip install ruff==` lines in ci.yml together.
+    "ruff==0.16.1",
 ]
 
 [project.scripts]

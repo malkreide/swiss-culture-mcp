@@ -16,7 +16,8 @@ Thank you for your interest in this project! Contributions are welcome.
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Install dev dependencies: `pip install -e ".[dev]"`
 4. Write tests for your changes
-5. Run linter: `ruff check src/ tests/`
+5. Run the lint gate exactly as the CI does — `scripts/` included, formatting checked:
+   `ruff check src/ tests/ scripts/ && ruff format --check src/ tests/ scripts/`
 6. Commit with clear message: `git commit -m "feat: add tradition search by canton"`
 7. Create a Pull Request
 
