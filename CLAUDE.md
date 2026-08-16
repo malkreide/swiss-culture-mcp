@@ -39,23 +39,17 @@ Ein Codex-Review auf einem PR wird beantwortet oder behoben, nie ignoriert.
 
 ## Dieses Repo
 
-**ruff: eine Quelle.** Der Pin `0.16.1` steht in `pyproject.toml` — und
-**nicht** mehr als eigener Install-Schritt in der CI.
+**ruff: genau eine Quelle** — `ruff==0.16.1` im dev-Extra von
+`pyproject.toml`. Der dev-Install liefert damit die CI-Version, lokal wie
+dort. Keine zweite Version in die Workflows schreiben: ein solcher Schritt
+läuft nach dem Install und überstimmt den Pin still. `ci.yml` hatte zwei
+solche Schritte (Jobs `test` und `lint`); `test_werkzeug_versionen.py` hält
+beides fest. Eine `.pre-commit-config.yaml` gibt es nicht.
 
-Im `test`-Job lief der entfernte CI-Schritt nach dem Install der
-Abhängigkeiten und überschrieb sie. Eine Abweichung im Pin konnte deshalb in
-der CI gar nicht auffallen, sondern nur lokal — wo niemand sie erwartet. Ein
-manuelles Nachinstallieren von ruff vor den Gates ist damit nicht mehr nötig
-und wäre schädlich: Es würde eine spätere Anhebung hier stillschweigend
-überstimmen.
-
-Im `lint`-Job lag der Fall anders: Dort war der ruff-Pin die **einzige**
-Installation. An seiner Stelle steht jetzt `pip install -e ".[dev]"`, und
-dieser Schritt ist nicht redundant — ohne ihn hat der Job überhaupt kein ruff
-(`ruff: command not found`). Er sieht nur so aus wie der Install im `test`-Job.
-
-Kein Skript prüft den Gleichstand — beim Bump die eine Stelle anfassen und
-`ruff format` einmal mitlaufen lassen.
+**Der `lint`-Job muss das Projekt installieren.** Er hatte als einzige
+ruff-Quelle den eigenen Pin-Schritt — den ersatzlos zu streichen nahm ihm
+das Werkzeug (`ruff: command not found`). Er trägt deshalb ein
+`pip install -e ".[dev]"`, anders als der `test`-Job, der ohnehin installiert.
 
 **Gates, wörtlich aus `ci.yml`** (Matrix: Python 3.11 / 3.12 / 3.13):
 
