@@ -1,15 +1,21 @@
 {
-  "recorded_at": "2026-08-08",
+  "recorded_at": "2026-08-16",
   "adressen": {
     "geo_mapserver": {
       "url": "https://api3.geo.admin.ch/rest/services/all/MapServer",
+      "final_url": "https://api3.geo.admin.ch/rest/services/all/MapServer",
+      "final_host": "api3.geo.admin.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "application/json",
-      "bytes": 2690215,
+      "bytes": 2690209,
       "warum": "die Ebenenliste, aus der ISOS gelesen wird"
     },
     "geo_searchserver": {
       "url": "https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=Bern&type=locations",
+      "final_url": "https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=Bern&type=locations",
+      "final_host": "api3.geo.admin.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "application/json",
       "bytes": 28944,
@@ -17,6 +23,9 @@
     },
     "kontrolle_geo_erfunden": {
       "url": "https://api3.geo.admin.ch/rest/services/all/DiesenDienstGibtEsNicht",
+      "final_url": "https://api3.geo.admin.ch/rest/services/all/DiesenDienstGibtEsNicht",
+      "final_host": "api3.geo.admin.ch",
+      "umgeleitet": false,
       "status": 404,
       "content_type": "application/json",
       "bytes": 83,
@@ -24,6 +33,9 @@
     },
     "ckan": {
       "url": "https://opendata.swiss/api/3/action/package_search?q=kultur&rows=1",
+      "final_url": "https://ckan.opendata.swiss/api/3/action/package_search?q=kultur&rows=1",
+      "final_host": "ckan.opendata.swiss",
+      "umgeleitet": true,
       "status": 200,
       "content_type": "application/json;charset=utf-8",
       "bytes": 7486,
@@ -31,6 +43,9 @@
     },
     "gisos": {
       "url": "https://www.gisos.bak.admin.ch",
+      "final_url": "https://www.gisos.bak.admin.ch",
+      "final_host": "www.gisos.bak.admin.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "text/html; charset=utf-8",
       "bytes": 42239,
@@ -38,34 +53,49 @@
     },
     "bak_wurzel": {
       "url": "https://www.bak.admin.ch/bak/de/home.html",
+      "final_url": "https://www.bak.admin.ch/de",
+      "final_host": "www.bak.admin.ch",
+      "umgeleitet": true,
       "status": 200,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 500682,
+      "bytes": 502267,
       "warum": "die BAK-Website, die ausgegeben wird"
     },
     "bak_baukultur_tot": {
       "url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html",
+      "final_url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html",
+      "final_host": "www.bak.admin.ch",
+      "umgeleitet": false,
       "status": 404,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 490250,
+      "bytes": 491560,
       "warum": "die frueher ausgegebene BAK-Seite"
     },
     "kontrolle_bak_erfunden": {
       "url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/diesen-pfad-gibt-es-nicht.html",
+      "final_url": "https://www.bak.admin.ch/bak/de/home/kulturerbe/diesen-pfad-gibt-es-nicht.html",
+      "final_host": "www.bak.admin.ch",
+      "umgeleitet": false,
       "status": 404,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 490266,
+      "bytes": 491576,
       "warum": "KONTROLLE: erfundener BAK-Pfad"
     },
     "rss": {
       "url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=314",
+      "final_url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=314",
+      "final_host": "www.newsd.admin.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "",
-      "bytes": 344962,
+      "bytes": 345000,
       "warum": "der News-Feed mit org-nr=314"
     },
     "kontrolle_rss_erfunden": {
       "url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=999999",
+      "final_url": "https://www.newsd.admin.ch/newsd/feeds/rss?lang=de&org-nr=999999",
+      "final_host": "www.newsd.admin.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "",
       "bytes": 367,
@@ -73,28 +103,31 @@
     },
     "traditionen_liste": {
       "url": "https://www.lebendige-traditionen.ch/tradition/de/home/liste/liste.html",
+      "final_url": "https://www.lebendige-traditionen.ch/tradition/de/home/liste/liste.html",
+      "final_host": "www.lebendige-traditionen.ch",
+      "umgeleitet": false,
       "status": 200,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 42525,
+      "bytes": 41329,
       "warum": "die Traditionsliste"
     }
   },
   "traditionen": {
     "aarauer-bachfischet": {
       "status": 200,
-      "bytes": 53049
+      "bytes": 52682
     },
     "aareschwimmen-in-bern": {
       "status": 200,
-      "bytes": 54414
+      "bytes": 55154
     },
     "aargauer-und-solothurner-jugendfeste": {
       "status": 200,
-      "bytes": 53813
+      "bytes": 53170
     },
     "KONTROLLE_erfundener_slug": {
       "status": 404,
-      "bytes": 4440
+      "bytes": 4349
     }
   }
 }

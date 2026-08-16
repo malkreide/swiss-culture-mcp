@@ -130,14 +130,24 @@ def record() -> int:
         adressen: dict[str, dict] = {}
         for label, url, warum in sonden:
             r = c.get(url)
+            # Auch festhalten, WO die Anfrage geendet hat. Nur den Status
+            # aufzuschreiben machte die Aufzeichnung blind fuer genau den Bruch,
+            # den sie sehen soll: `opendata.swiss` lenkte auf
+            # `ckan.opendata.swiss` um, der Client folgte, die Fixture notierte
+            # brav 200 unter dem Ausgangs-Host — waehrend die Allowlist des
+            # Servers das Ziel abwies und jeder Aufruf produktiv scheiterte.
             adressen[label] = {
                 "url": url,
+                "final_url": str(r.url),
+                "final_host": r.url.host,
+                "umgeleitet": str(r.url) != url,
                 "status": r.status_code,
                 "content_type": r.headers.get("content-type", ""),
                 "bytes": len(r.content),
                 "warum": warum,
             }
-            print(f"    {r.status_code}  {label:<24} {len(r.content):>8} B")
+            pfeil = f"  -> {r.url.host}" if r.url.host != httpx.URL(url).host else ""
+            print(f"    {r.status_code}  {label:<24} {len(r.content):>8} B{pfeil}")
 
         st = {k: v["status"] for k, v in adressen.items()}
 
