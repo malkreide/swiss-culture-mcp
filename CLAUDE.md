@@ -76,21 +76,30 @@ PYTHONPATH=src pytest tests/ -m "not live"   # nur Python 3.11
 python scripts/check_version_sync.py
 ```
 
-**Live-Tests — geplant, aber leer laufend (offener Befund).**
-`.github/workflows/live-tests.yml` läuft geplant (`cron: "53 4 * * 1"`,
-wöchentlich Mo) plus `workflow_dispatch`, gegen `api3.geo.admin.ch`
-(die Suite fasst zusätzlich `opendata.swiss` und den BAK-News-Feed an);
-die Einordnung macht `scripts/classify_live_run.py`
+**Live-Tests.** `.github/workflows/live-tests.yml` läuft geplant
+(`cron: "53 4 * * 1"`, wöchentlich Mo) plus `workflow_dispatch`, gegen
+`api3.geo.admin.ch`, `opendata.swiss` und den BAK-News-Feed; die
+Einordnung macht `scripts/classify_live_run.py`
 (`clear` / `finding` / `unknown`), ein Fund öffnet bzw. schliesst ein
 `upstream`-Issue. `schedule` greift nur auf dem Default-Branch: Änderungen
 an der Datei wirken erst nach dem Merge, vorher von Hand auslösen.
-Der Lauf ruft aber `pytest tests/ -m live` **ohne `--run-live`** auf, und
-ohne diese Option überspringt sich jeder Live-Test selbst: 4 gesammelt,
-4 übersprungen, Exit 0 — `classify_live_run.py` sagt dazu korrekt
-`unknown`. Der Job wird also wöchentlich rot, ohne die Quelle je abgefragt
-zu haben; DRIFT-005 ist bis dahin nicht erfüllt. Fix ist `--run-live` am
-pytest-Aufruf. Bis das steht, trägt der `-m "not live"`-Ausschluss der
-PR-CI nichts: es prüft niemand.
+Der pytest-Aufruf braucht **`--run-live`**; ohne die Option überspringt
+sich jeder Live-Test selbst und der Lauf endet mit 4 übersprungen /
+Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
+Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
+den Event-Loop des vorherigen Tests (`RuntimeError: Event loop is closed`,
+sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt
+ihn je Live-Test zurück — ohne sie meldet der Job einen gebrochenen Vertrag,
+wo nur zwei Tests hintereinander liefen.
+
+**Offen: `bak_get_opendata` ist produktiv kaputt.** `opendata.swiss`
+antwortet auf die CKAN-Aufrufe mit 302 auf `ckan.opendata.swiss`; der Host
+steht nicht in `ALLOWED_HOSTS` (`http_client.py`), also endet jeder Aufruf
+in `Host nicht erlaubt`. Die Fixture `adressen.json` hält für diese Adresse
+200 fest — sie folgt der Umleitung und schreibt den Ausgangs-Host auf, kann
+den Bruch also nicht sehen. Gefunden hat ihn der erste Live-Lauf, den es je
+gab. Die Liste ist ein SSRF-Schutz: Sie zu erweitern ist eine Entscheidung,
+kein Nebenbei-Fix.
 
 Fixtures liegen unter `tests/fixtures/`, erzeugt von
 `scripts/record_fixtures.py`, Aufnahmedatum in `PROVENANCE.md` — nicht von
