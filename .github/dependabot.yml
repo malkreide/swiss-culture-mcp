@@ -1,0 +1,23 @@
+# Haelt die SHA-Pins der Actions in Bewegung.
+#
+# Ein Commit-SHA ist nachpruefbar, aber er altert. Ohne diese Datei bleibt der
+# Pin stehen, bis jemand von Hand nachsieht — und die Sicherheitsluecke, wegen
+# der man gepinnt hat, bleibt gleich mit stehen. Dependabot kennt die Form
+# `uses: owner/repo@<sha> # v1.2.3` und hebt SHA und Kommentar zusammen an.
+#
+# Monatlich, nicht woechentlich: Vier PRs im Jahr fuer drei Actions liest man,
+# zwoelf ignoriert man.
+#
+# `pip` steht hier bewusst NICHT: Die ruff-Version ist ein Gate
+# (`scripts/check_ruff_pin.py`, `tests/test_werkzeug_versionen.py`), und ein
+# automatischer Bump wuerde sie gegen die CI verschieben.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
