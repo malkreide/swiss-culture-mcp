@@ -89,6 +89,11 @@ an der Datei wirken erst nach dem Merge, vorher von Hand auslösen.
 Der pytest-Aufruf braucht **`--run-live`**; ohne die Option überspringt
 sich jeder Live-Test selbst und der Lauf endet mit 4 übersprungen /
 Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
+Die Sollwerte der ISOS-Zahlen stehen nicht in der API, sondern im Anhang 1
+der VISOS (SR 451.12, Fassung 1.6.2026): 1253 Ortsbilder, ZH 73, GR 105,
+alle 26 Kantone deckungsgleich mit `api3.geo.admin.ch`. Fällt der Test, erst
+die Verordnung nachzählen. Gezählt wird nach ISOS-`nummer`, nie nach
+Feature-`id`: Die Quelle liefert je Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
 den Event-Loop des vorherigen Tests (`RuntimeError: Event loop is closed`,
 sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt

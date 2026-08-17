@@ -122,6 +122,34 @@ def _format_isos_entry(attrs: dict, feature_id: str = "") -> dict:
     }
 
 
+def _dedup_objekte(results: list[dict]) -> list[dict]:
+    """Ein ISOS-Objekt je ISOS-Nummer, nicht je Feature.
+
+    Der `find`-Endpunkt liefert je Ortsbild mehrere Features — in ZH genau
+    eines je Objekt, in GR bis zu 51. Wer nach `id` dedupliziert, zaehlt
+    deshalb Features und nennt sie Objekte: `bak_isos_by_kanton` meldete fuer
+    GR 507 statt der 105, die der VISOS-Anhang festsetzt. Fuer ZH (73) fielen
+    beide Zaehlweisen zusammen, weshalb es lange niemandem auffiel.
+
+    Massgebend ist die `nummer` — die Objektnummer des Bundesinventars.
+    `id` bleibt als Rueckfall, falls ein Datensatz keine Nummer traegt; sonst
+    fielen solche Eintraege zu einem einzigen zusammen.
+    """
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for r in results:
+        nummer = (r.get("attributes") or {}).get("nummer")
+        schluessel = (
+            f"nummer:{nummer}"
+            if nummer is not None
+            else f"id:{r.get('id') or r.get('featureId', '')}"
+        )
+        if schluessel not in seen:
+            seen.add(schluessel)
+            unique.append(r)
+    return unique
+
+
 def _parse_rss_items(xml_text: str, max_items: int = 20) -> list[dict]:
     """Parst BAK RSS-Feed und gibt strukturierte Items zurück."""
     root = ET.fromstring(xml_text)
@@ -188,14 +216,7 @@ async def bak_search_isos(params: IsosSearchInput) -> str:
             },
         )
         results = data.get("results", [])
-        # Deduplizieren nach feature_id
-        seen = set()
-        unique = []
-        for r in results:
-            fid = r.get("id") or r.get("featureId", "")
-            if fid not in seen:
-                seen.add(fid)
-                unique.append(r)
+        unique = _dedup_objekte(results)
 
         unique = unique[: params.limit]
         formatted = [_format_isos_entry(r.get("attributes", {}), r.get("id", "")) for r in unique]
@@ -244,7 +265,10 @@ async def bak_isos_by_kanton(params: IsosKantonInput) -> str:
     Returns:
         str: JSON mit ISOS-Objekten des Kantons, sortiert nach Name, mit:
             - kanton_name: Vollständiger Kantonsname
-            - count: Anzahl gefundener Objekte
+            - count: Anzahl zurückgegebener Objekte (durch `limit` begrenzt)
+            - total_in_kanton: Ortsbilder des Kantons im Bundesinventar,
+              gezählt nach ISOS-Nummer. Nicht nach Features: Die Quelle
+              liefert je Ortsbild mehrere, in GR bis zu 51.
             - results: Liste mit feature_id, isos_nummer, name, siedlungskategorie
     """
     try:
@@ -259,14 +283,7 @@ async def bak_isos_by_kanton(params: IsosKantonInput) -> str:
             },
         )
         results = data.get("results", [])
-        # Deduplizieren
-        seen = set()
-        unique = []
-        for r in results:
-            fid = r.get("id") or r.get("featureId", "")
-            if fid not in seen:
-                seen.add(fid)
-                unique.append(r)
+        unique = _dedup_objekte(results)
 
         unique_sorted = sorted(unique, key=lambda r: r.get("attributes", {}).get("name", ""))[
             : params.limit
@@ -390,14 +407,7 @@ async def bak_isos_by_kategorie(params: IsosKategorieInput) -> str:
         )
         results = data.get("results", [])
 
-        # Deduplizieren
-        seen = set()
-        unique = []
-        for r in results:
-            fid = r.get("id") or r.get("featureId", "")
-            if fid not in seen:
-                seen.add(fid)
-                unique.append(r)
+        unique = _dedup_objekte(results)
 
         # Optional: Kanton-Filter
         if params.kanton:
@@ -467,8 +477,10 @@ async def bak_isos_statistics() -> str:
                 },
             )
             results = data.get("results", [])
-            seen = {r.get("id") or r.get("featureId", "") for r in results}
-            return kanton, {"kanton_name": KANTONE[kanton], "objekte": len(seen)}
+            return kanton, {
+                "kanton_name": KANTONE[kanton],
+                "objekte": len(_dedup_objekte(results)),
+            }
         except Exception:
             return kanton, {"kanton_name": KANTONE[kanton], "objekte": None}
 

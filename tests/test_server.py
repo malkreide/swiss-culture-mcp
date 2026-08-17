@@ -672,20 +672,33 @@ class TestLiveApis:
         assert any(r["name"] == "Zürich" for r in data["results"])
 
     @pytest.mark.asyncio
-    async def test_live_isos_by_kanton_zh(self, run_live):
+    @pytest.mark.parametrize(("kanton", "amtlich"), [("ZH", 73), ("GR", 105)])
+    async def test_live_isos_anzahl_je_kanton(self, run_live, kanton, amtlich):
+        """Exakte Zahlen — sie stehen in einer Verordnung, nicht in einem Index.
+
+        Grundlage ist der Anhang 1 der VISOS (SR 451.12) in der Fassung vom
+        1.6.2026, ausgezaehlt: 1253 Ortsbilder, davon ZH 73 und GR 105. Alle
+        26 Kantone stimmen mit dem, was `api3.geo.admin.ch` liefert.
+
+        Sonst waere hier eine Untergrenze richtig. Diese Liste aendert sich
+        aber nur, wenn der Bundesrat die Verordnung aendert — kein laufender
+        Bestand, der um ein paar Eintraege schwankt. Faellt der Test, ist die
+        erste Frage nicht «ist die Quelle kaputt», sondern «wurde die VISOS
+        revidiert»: Anhang 1 auf fedlex.admin.ch nachzaehlen und die Zahl hier
+        mit dem Datum der neuen Fassung anpassen.
+
+        GR steht hier, weil ZH allein nichts unterscheidet: Dort traegt jedes
+        Objekt genau eine Feature-ID, die alte Zaehlung nach `id` kam also auf
+        dieselben 73. In GR kamen 507 heraus.
+        """
         if not run_live:
             pytest.skip("Live-Test übersprungen")
-        result = await bak_isos_by_kanton(IsosKantonInput(kanton="ZH"))
+        result = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton))
         data = json.loads(result)
-        # Gemessen am 16.8.2026: Die Quelle liefert fuer ZH 219 Treffer, die auf
-        # 73 ISOS-Objekte entfallen — drei Features je Objekt. `total_in_kanton`
-        # weist die deduplizierten aus, also 73. Die fruehere Schranke `> 100`
-        # passt zur Zahl der rohen Treffer, nicht zu der, die hier steht; sie
-        # war nie erfuellbar. Gesehen hat das niemand, weil dieser Test bis
-        # jetzt nie gelaufen ist.
-        # Die Schranke faengt «die Quelle liefert fuer ZH nichts mehr», nicht
-        # eine Verschiebung um ein paar Objekte.
-        assert data["total_in_kanton"] >= 50
+        assert data["total_in_kanton"] == amtlich, (
+            f"{kanton}: {data['total_in_kanton']} statt {amtlich} laut VISOS-Anhang "
+            "(SR 451.12, Stand 1.6.2026). Erst die Verordnung pruefen, dann die Quelle."
+        )
 
     @pytest.mark.asyncio
     async def test_live_bak_news(self, run_live):
