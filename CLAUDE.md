@@ -71,6 +71,7 @@ schlägt den Pin, ohne dass der Install etwas meldet.
 **Gates, wörtlich aus `ci.yml`** (Matrix: Python 3.11 / 3.12 / 3.13):
 
 ```bash
+python scripts/check_ruff_pin.py
 ruff check src/ tests/ scripts/
 ruff format --check src/ tests/ scripts/
 python -m py_compile src/swiss_culture_mcp/server.py
