@@ -101,6 +101,17 @@ sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt
 ihn je Live-Test zurück — ohne sie meldet der Job einen gebrochenen Vertrag,
 wo nur zwei Tests hintereinander liefen.
 
+**Wer den Cron überwacht, braucht selbst Werkzeug.** Am 17.8.2026 feuerte
+`schedule` zum ersten fälligen Termin nicht; beide bisherigen Live-Läufe
+liefen von Hand. Ein Check-in dafür als Routine (`create_trigger`) hilft nur
+mit Vorsicht: Die gefeuerte Session erbt **keine** MCP-Tools — die Warnung
+steht im Rückgabewert des Aufrufs. GitHub ist hier kein claude.ai-Connector
+(`ListConnectors` liefert leer), sondern hängt an der Session und dem Repo,
+das ihr angehängt ist; `curl` und `WebFetch` auf `api.github.com` enden bei
+«GitHub access is not enabled for this session» bzw. 403. Eine solche
+Routine muss den Fall «keine Tools» darum ausdrücklich behandeln und dem
+Menschen die URL nennen, statt etwas zu melden, das sie nicht geprüft hat.
+
 **Die Allowlist prüft das Ziel, die Fixture muss es aufschreiben.**
 `_assert_host_allowed()` prüft den Host NACH der Umleitung. `opendata.swiss`
 beantwortet die CKAN-Aufrufe mit 302 auf `ckan.opendata.swiss` — der Host
