@@ -139,7 +139,7 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 ## Dieses Repo
 
-**ruff: genau eine Quelle** — `ruff==0.16.1` im dev-Extra von
+**ruff: genau eine Quelle** — `ruff==0.16.3` im dev-Extra von
 `pyproject.toml`. Der dev-Install liefert damit die CI-Version, lokal wie
 dort. Keine zweite Version in die Workflows schreiben: ein solcher Schritt
 läuft nach dem Install und überstimmt den Pin still. `ci.yml` hatte zwei

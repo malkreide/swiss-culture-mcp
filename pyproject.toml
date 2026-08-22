@@ -48,7 +48,7 @@ dev = [
     # Keine zweite Angabe in die Workflows schreiben; ein solcher Schritt
     # laeuft nach diesem Install und ueberstimmt ihn still.
     # `tests/test_werkzeug_versionen.py` faellt bei beidem.
-    "ruff==0.16.1",
+    "ruff==0.16.3",
 ]
 
 [project.scripts]
