@@ -19,5 +19,3 @@ updates:
       interval: "monthly"
     commit-message:
       prefix: "ci"
-    labels:
-      - "dependencies"
