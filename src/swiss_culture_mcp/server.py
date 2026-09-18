@@ -19,6 +19,7 @@ import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
 from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import MCPServer
 
+from . import __version__
 from .constants import (
     BAK_ORG,
     BAK_ORG_NR,
@@ -29,6 +30,7 @@ from .constants import (
     ISOS_LAYER,
     KANTONE,
     NSB_ID,
+    PROJECT_URL,
     RSS_BASE,
     SIEDLUNGSKATEGORIEN,
     TRADITIONS_BASE,
@@ -84,6 +86,7 @@ __all__ = [
     "bak_list_traditions",
     "bak_search_isos",
     "main",
+    "SDK_HTTP_TRANSPORT",
     "mcp",
 ]
 
@@ -114,11 +117,45 @@ CACHE_HINTS: dict[CacheableMethod, CacheHint] = {
     "tools/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
     "resources/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
     "resources/templates/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    # `prompts/list` ist hier permanent leer — dieser Server registriert keinen
+    # Prompt. Am Draht gemessen antwortete es dennoch `ttlMs=0`,
+    # `cacheScope=private`: jeder Client fragt bei jeder Verbindung eine Liste
+    # neu ab, die garantiert leer zurueckkommt. Das ist dieselbe Verschwendung,
+    # gegen die der Absatz oben argumentiert, und faellt unter dieselbe Regel
+    # («die auflistenden Methoden»). Kommt je ein Prompt hinzu, gilt weiterhin
+    # dasselbe wie fuer die Werkzeuge: solange die Liste nicht vom Aufrufer
+    # abhaengt, bleibt `public` richtig.
+    "prompts/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
     "server/discover": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
 }
 
+# Spec `2026-07-28` fuehrt `serverInfo` in `_meta` JEDER Antwort mit, nicht nur
+# in der einen `initialize`-Antwort der Handshake-Aera. Was hier fehlt, fehlt
+# also nicht einmal, sondern bei jedem Aufruf.
+#
+# Am Draht gemessen, bevor das hier stand — `tools/list`, `resources/list`,
+# `server/discover` und `tools/call` gaben alle dasselbe aus:
+#
+#     "_meta": {"io.modelcontextprotocol/serverInfo":
+#               {"name": "swiss_culture_mcp", "version": ""}}
+#
+# Der leere String ist kein SDK-Default, den man erben muesste: `MCPServer`
+# nimmt `version=""` nur an, weil niemand etwas uebergab. Der `User-Agent`
+# gegenueber den Upstreams trug die Nummer die ganze Zeit korrekt — dieselbe
+# `__version__` aus den Paket-Metadaten. Nur die MCP-Seite blieb blank.
+#
+# `__version__` und nicht ein Literal: `scripts/check_version_sync.py` weist
+# jede von Hand gepflegte Versionsnummer in `src/` zurueck, und genau diese
+# Drift hat im Portfolio schon falsche User-Agents erzeugt.
 mcp = MCPServer(
     "swiss_culture_mcp",
+    title="Swiss Culture (BAK)",
+    version=__version__,
+    website_url=PROJECT_URL,
+    description=(
+        "Schweizer Kulturdaten des Bundesamts fuer Kultur (BAK): ISOS, "
+        "Kulturpreise, Medienmitteilungen, Open Data, lebendige Traditionen."
+    ),
     cache_hints=CACHE_HINTS,
     instructions=(
         "MCP-Server für Schweizer Kulturdaten des Bundesamts für Kultur (BAK). "
@@ -1077,11 +1114,42 @@ async def resource_kulturpreise() -> str:
 # ---------------------------------------------------------------------------
 
 
+# Der Name, den `MCPServer.run()` fuer den HTTP-Transport annimmt — mit
+# BINDESTRICH. Das SDK prueft ihn gegen ein `Literal` und wirft sonst
+# `ValueError: Unknown transport: ...`.
+#
+# Hier stand `"streamable_http"`, mit Unterstrich. Gemessen, nicht geschlossen:
+#
+#     >>> mcp.run(transport="streamable_http", host="127.0.0.1", port=8000)
+#     ValueError: Unknown transport: streamable_http
+#
+# Der HTTP-Transport startete damit nie — und mit ihm nichts von Spec
+# `2026-07-28`: die moderne Aera wird ausschliesslich ueber den
+# Streamable-HTTP-Einstieg bedient (`StreamableHTTPSessionManager` routet einen
+# Request mit fremdem `mcp-protocol-version`-Header auf den modernen Pfad).
+# stdio kennt nur den `initialize`-Handshake. Ein Server, dessen HTTP-Transport
+# beim Start abbricht, spricht die Spec also gar nicht, so vollstaendig die
+# Handler auch sein moegen.
+#
+# Warum es niemandem auffiel: `tests/test_server.py` patchte `mcp.run` und hielt
+# den uebergebenen String gegen eine handgeschriebene Erwartung — denselben
+# Tippfehler. Ein Mock nimmt jeden Namen an. Die Pruefung haengt jetzt am
+# `Literal` des SDK.
+SDK_HTTP_TRANSPORT = "streamable-http"
+
+# Was `MCP_TRANSPORT` beim Operator heissen darf. Beide READMEs dokumentieren
+# `streamable_http` mit Unterstrich, und so steht es in bestehenden
+# Deployments; der Bindestrich ist die Schreibweise des SDK. Beide werden
+# angenommen, statt eine funktionierende Konfiguration umzubenennen.
+_HTTP_TRANSPORT_ALIASES = frozenset({"streamable_http", "streamable-http"})
+
+
 def main() -> None:
     """Startet den MCP-Server. Transport via Umgebungsvariable konfigurierbar.
 
     Env-Vars:
       MCP_TRANSPORT       'stdio' (Default) oder 'streamable_http'
+                          ('streamable-http' wird ebenso angenommen)
       MCP_HOST            Bind-Host für HTTP-Transport (Default: 127.0.0.1)
       MCP_PORT            Port für HTTP-Transport (Default: 8000)
       MCP_ALLOW_PUBLIC_BIND  Wenn 'true', erlaubt Bindings auf 0.0.0.0 ohne Auth
@@ -1093,7 +1161,7 @@ def main() -> None:
     port = int(os.getenv("MCP_PORT", "8000"))
     allow_public = os.getenv("MCP_ALLOW_PUBLIC_BIND", "false").lower() == "true"
 
-    if transport == "streamable_http":
+    if transport in _HTTP_TRANSPORT_ALIASES:
         if host == "0.0.0.0" and not allow_public:
             logger.error(
                 "refuse_public_bind host=0.0.0.0 without auth; set MCP_ALLOW_PUBLIC_BIND=true "
@@ -1104,8 +1172,8 @@ def main() -> None:
                 "Set MCP_ALLOW_PUBLIC_BIND=true to override (do this only behind an "
                 "authenticating reverse proxy)."
             )
-        logger.info("server_start transport=streamable_http host=%s port=%s", host, port)
-        mcp.run(transport="streamable_http", host=host, port=port)
+        logger.info("server_start transport=%s host=%s port=%s", SDK_HTTP_TRANSPORT, host, port)
+        mcp.run(transport=SDK_HTTP_TRANSPORT, host=host, port=port)
     else:
         logger.info("server_start transport=stdio")
         mcp.run(transport="stdio")

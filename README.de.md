@@ -109,7 +109,7 @@ Sofort in Claude Desktop ausprobieren:
 
 | Umgebungsvariable | Standard | Beschreibung |
 |---|---|---|
-| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` oder `streamable_http` |
+| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` oder `streamable_http` (`streamable-http` wird ebenso angenommen). Die Aera `2026-07-28` ist nur ueber den HTTP-Transport erreichbar. |
 | `MCP_HOST` | `127.0.0.1` | Bind-Host für HTTP-Transport (per Default loopback) |
 | `MCP_PORT` | `8000` | Port für HTTP-Transport |
 | `MCP_ALLOW_PUBLIC_BIND` | `false` | Wenn `true`, erlaubt Binding auf `0.0.0.0` ohne Auth. **Nur** hinter authentifizierendem Reverse-Proxy setzen (z. B. Cloudflare Access, oauth2-proxy). |
@@ -219,13 +219,39 @@ aus der jeweils anderen Aera wird abgewiesen.
 Beide Revisionen sind in
 [`tests/test_protocol_version.py`](tests/test_protocol_version.py) gepinnt und
 werden gegen das installierte SDK geprueft; ein Dependabot-Bump von `mcp` kann
-also keine der beiden still verschieben. Dieser Server baut keine ASGI-App, durch die sich ein `initialize`
-schicken liesse; das Gate sichert deshalb die SDK-Konstanten statt einer
-gemessenen Antwort — die schwaechere Form, benannt statt verschwiegen.
+also keine der beiden still verschieben.
 
 Zu beachten: `LATEST_PROTOCOL_VERSION` im SDK ist ein Alias auf die **moderne**
 Aera, nicht auf die Handshake-Aera — wer nur dagegen pinnt, laesst genau die
 Aera frei wandern, die heutige Clients tatsaechlich aushandeln.
+
+**Die moderne Aera ist gemessen, nicht geschlossen.**
+[`tests/test_modern_era.py`](tests/test_modern_era.py) baut die echte ASGI-App
+dieses Servers und schickt Anfragen durch: einen `2026-07-28`-Envelope, einen
+`initialize`-Handshake und jede der fehlerhaften Varianten. Geprueft wird, dass
+eine moderne Anfrage beantwortet wird, dass die beiden Aeren getrennt bleiben
+(`initialize` ist auf dem modernen Draht keine Methode; der Handshake deckelt
+bei `2025-11-25` statt `2026-07-28` herauszugeben), dass `server/discover`
+genau die gepinnte Revision nennt, dass eine fremde Revision mit `-32022`
+abgewiesen wird und dabei die angefragte UND die unterstuetzte benennt, und
+dass `ttlMs`/`cacheScope` sowie `serverInfo` als Drahtfelder ankommen.
+
+Das ist nicht dasselbe wie ein Test ueber einen In-Process-Client: Die moderne
+Aera existiert **nur** auf dem Streamable-HTTP-Einstieg — stdio und die
+In-Process-Clients sprechen den `initialize`-Handshake und sonst nichts. Wer
+die Spec durch einen In-Process-Client prueft, prueft die Handler und nicht die
+Aera. Diese Luecke verbarg einen Fehler von einem Zeichen: `main()` startete
+den HTTP-Transport als `streamable_http`, wo `run()` im SDK `streamable-http`
+verlangt. Der Transport brach mit `ValueError` ab, der Server bediente die Spec
+also gar nicht — und alles blieb gruen, weil die Tests `mcp.run` patchten und
+den String gegen eine handgeschriebene Kopie desselben Tippfehlers hielten.
+
+**Identitaet des Servers.** Spec `2026-07-28` fuehrt `serverInfo` im `_meta`
+**jeder** Antwort mit, nicht einmal pro Sitzung wie die Handshake-Aera. Dieser
+Server fuellt es mit Name, Titel, Beschreibung, Projektadresse und der Version
+aus den Paket-Metadaten (`importlib.metadata` — dieselbe Quelle wie der
+ausgehende `User-Agent`); eine von Hand gepflegte Nummer weist
+`scripts/check_version_sync.py` zurueck.
 
 **Update-Politik.** Faellt das Gate, die Konstante nicht blind nachziehen: erst
 das Spec-Changelog zwischen den beiden Revisionen lesen, pruefen, ob sich der
