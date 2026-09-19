@@ -692,12 +692,24 @@ in seinem Infokasten nennt.
 `running`-Erkennung — ohne sie wäre der Job um 14:20:14 in seine kurze Frist
 gelaufen, 91 Sekunden bevor Codex fertig war.
 
-**Er wurde grün, WEIL Codex etwas gefunden hat.** Der Zustand `reviewed`
-zählt zu `PROVEN`: Ein Review-Objekt belegt, dass hingesehen wurde. Das ist
-so gewollt und im Kopf des Workflows benannt — geprüft wird, ob Codex den
-Commit angesehen hat, nicht ob Befunde behoben wurden. Wer mehr erwartet,
-liest das Gate falsch; wer mehr will, muss `reviewed` rot machen und in Kauf
-nehmen, dass nur ein befundloser Lauf den PR freigibt.
+**Er wurde grün, WEIL Codex etwas gefunden hat** — und das war die Lücke,
+die den Vertrag des Gates gekostet hat. `reviewed` zählte zu `PROVEN`, weil
+das Gate nur belegen sollte, DASS hingesehen wurde. In der Praxis hiess das:
+Ein PR mit zwei offenen P1-Befunden ging grün durch.
+
+**Seit dem 19.9.2026 gibt nur `clear` frei.** `PROVEN == {clear}`; ein
+Review-Objekt zum Head färbt rot. Der PR wird erst frei, wenn ein Lauf zum
+dann aktuellen Head nichts mehr findet.
+
+Der Preis ist real und gehört genannt: Jede Befundrunde kostet einen
+weiteren Codex-Lauf (36 bis 220 s) und, ohne `CODEX_ANSTOSS_TOKEN`, je ein
+`@codex review` von Hand.
+
+Und was auch die neue Fassung **nicht** leistet: Sie prüft nicht, ob ein
+Befund *sachlich* erledigt wurde, sondern nur, ob ein späterer Lauf nichts
+mehr findet. Wer einen Befund verdeckt statt behebt, kommt durch. Das Urteil
+bleibt bei der Reviewerin — das Gate nimmt ihr nur den Fall ab, in dem gar
+niemand hingesehen hat.
 
 **Der erste Live-Lauf überhaupt lief auf PR #62 am 19.9.2026.** Der Job startete
 um 09:15:08 (zwei Sekunden nach «ready»), pollte, sah um 09:16:08 die Tabelle
@@ -705,18 +717,32 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
 09:16:14 mit `conclusion: success`. Die Mechanik trägt also — für den Weg
 über `ready_for_review`.
 
-**Drei Dinge fehlen ihm, und alle drei gehören benannt:**
+**Drei Punkte, die zum Gate gehören und benannt sein wollen** — der erste
+ist inzwischen erledigt, die beiden anderen nicht:
 
 - ~~**Er ist kein required check.**~~ **Seit dem 19.9.2026 ist er einer** —
   eingetragen von Hand unter Settings → Branches, Name: `codex-gate`. Der
   Agent-Proxy sperrt diese Einstellung mit HTTP 403, sie konnte also nur ein
   Mensch vornehmen, und aus demselben Grund lässt sie sich von hier aus auch
-  nicht nachlesen. **Belegt ist sie erst durch den ersten PR, der nicht
-  mergbar ist, solange das Gate offen steht** — bis dahin ist «eingetragen»
-  eine Angabe, keine Messung. Was das Fehlen gekostet hat, steht als Mass
-  daneben: #62 war um 09:15:08 gemergt, das Gate wurde um 09:16:14 grün, und
-  #63 war um 09:23:27 gemergt, das Gate grün um 09:25:04. Zweimal recht
-  gehabt, 66 und 97 Sekunden zu spät.
+  nicht nachlesen. Belegt ist sie erst durch den ersten PR, der nicht
+  mergbar ist, solange das Gate offen steht.
+
+  **Zwei Messungen desselben Tages sprechen dagegen, dass sie greift.** Auf
+  PR #64 stand `mergeable_state` auf `unstable`, während `codex-gate` rot
+  war — bei einem fehlgeschlagenen *required* Check wäre `blocked` zu
+  erwarten. Und PR #65 ging um 14:28:33 auf ready und war um 14:28:35
+  gemergt, mit laufendem, urteilslosem Gate. Eine aktive Regel hätte das
+  verweigert.
+
+  Beides sind Indizien, keine Einsicht in die Einstellung; von hier aus ist
+  sie nicht lesbar. Zu prüfen wäre, ob die Regel wirklich für `main` gilt
+  und ob der Name **exakt** `codex-gate` lautet —
+  `test_der_job_heisst_wie_der_required_check` hält die Workflow-Seite fest,
+  die Branch-Protection-Seite kann kein Test erreichen.
+
+  Was das Fehlen gekostet hat, steht als Mass daneben: #62 war um 09:15:08
+  gemergt, das Gate wurde um 09:16:14 grün; #63 war um 09:23:27 gemergt, das
+  Gate grün um 09:25:04. Zweimal recht gehabt, 66 und 97 Sekunden zu spät.
 - **Der Weg über `synchronize` ist am 19.9.2026 auf PR #64 gefahren worden.
   Er scheitert, und zwar an einer Repo-Einstellung, nicht an Codex.** Der
   POST auf `issues/{n}/comments` mit dem `GITHUB_TOKEN` antwortet:

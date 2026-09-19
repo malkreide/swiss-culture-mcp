@@ -136,16 +136,35 @@ def test_die_fixture_traegt_echte_aufgezeichnete_koerper() -> None:
     assert "codex-pull-request-review-summary" not in ENVIRONMENT_MELDUNG
 
 
-# ─────────────────────────── Die belegenden Faelle ─────────────────────────────
+# ─────────────────────── Was den PR freigibt — und was nicht ──────────────────
 
 
-def test_ein_review_objekt_zum_head_belegt_die_pruefung() -> None:
-    state, _ = classify([review(HEAD)], [], HEAD)
+def test_nur_ein_befundloser_lauf_gibt_den_pr_frei() -> None:
+    """Die Zusicherung, die den Vertrag des Gates traegt.
+
+    Bis zum 19.09.2026 stand `REVIEWED` in `PROVEN`, mit der Begruendung, das
+    Gate belege nur, DASS hingesehen wurde. An PR #64 ging daraufhin ein Lauf
+    mit zwei P1-Befunden gruen durch — die Luecke, gegen die das Gate gebaut
+    ist, eine Ebene hoeher.
+
+    Seither gibt nur `clear` frei. Das ist eine Vertragsaenderung und kein
+    Detail: Sie steht hier als eigene Zusicherung, damit sie nicht
+    versehentlich zurueckwandert.
+    """
+    assert PROVEN == frozenset({CLEAR}), (
+        "PROVEN ist nicht mehr {clear} — damit gibt das Gate etwas frei, das nicht befundlos ist"
+    )
+
+
+def test_ein_review_objekt_zum_head_faerbt_rot() -> None:
+    """Ein Befund ist ein Befund, auch wenn er belegt, dass geprueft wurde."""
+    state, reason = classify([review(HEAD)], [], HEAD)
     assert state == REVIEWED
-    assert state in PROVEN
+    assert state not in PROVEN
+    assert "Befunde" in reason
 
 
-def test_die_befundlos_meldung_belegt_die_pruefung_ebenso() -> None:
+def test_die_befundlos_meldung_gibt_frei() -> None:
     """Der Fall, den ein Gate am leichtesten falsch zaehlt.
 
     Ein befundloser Lauf erzeugt KEIN Review-Objekt, sondern einen

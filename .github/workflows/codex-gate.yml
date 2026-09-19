@@ -29,12 +29,21 @@ name: Codex Review Gate
 # Solange das nicht geschehen ist, ist dieser Job ein Hinweis und keine
 # Schranke.
 #
-# WAS ER NICHT LEISTET
-# --------------------
-# Er belegt, dass Codex DIESEN Commit angesehen hat. Ob gemeldete Befunde
-# auch behoben oder beantwortet wurden, prueft er nicht — das bleibt Sache
-# der Reviewerin. Ein Gate, das mehr behauptet, als es misst, ist genau der
-# Haken, gegen den es gebaut ist.
+# WAS ER LEISTET UND WAS NICHT
+# ----------------------------
+# Gruen wird er nur bei einem Lauf OHNE Befund. Ein Review-Objekt zum Head
+# (`reviewed`) faerbt ihn rot — bis zum 19.09.2026 war das umgekehrt, und an
+# PR #64 ging daraufhin ein Lauf mit zwei P1-Befunden gruen durch.
+#
+# Was er damit NICHT leistet: Er prueft nicht, ob ein Befund SACHLICH
+# erledigt wurde, sondern nur, ob ein spaeterer Lauf nichts mehr findet. Wer
+# einen Befund durch eine Aenderung verdeckt statt behebt, kommt durch. Das
+# Urteil bleibt bei der Reviewerin; das Gate nimmt ihr nur den Fall ab, in
+# dem gar niemand hingesehen hat.
+#
+# Der Preis ist real und gehoert benannt: Jede Befundrunde kostet einen
+# weiteren Codex-Lauf (36 bis 220 s, gemessen), und ohne
+# `CODEX_ANSTOSS_TOKEN` je einen `@codex review` von Hand.
 
 on:
   pull_request:
@@ -357,12 +366,19 @@ jobs:
             echo
             echo "### Was jetzt zu tun ist"
             echo
-            echo "- \`pending\` — Codex ist nicht rechtzeitig fertig geworden."
+            echo "- \`pending\` — es liegt gar kein Lauf zu diesem Commit vor."
             echo "  \`@codex review\` auf dem PR kommentieren und diesen Job neu starten."
+            echo "- \`running\` — ein Lauf war beim Fristablauf noch unterwegs."
+            echo "  Nichts zu beheben: Den Job neu starten, das Urteil liegt"
+            echo "  inzwischen vor."
             echo "- \`quota\` — Kontingent aufgebraucht. Es wurde **nichts** geprueft."
             echo "  Das Kontingent haengt am Konto, nicht am Repo."
             echo "- \`environment\` — fuer dieses Repo fehlt eine Codex-Environment."
             echo "  Sie wird **je Repo** angelegt; eine fuers Konto genuegt nicht."
+            echo "- \`reviewed\` — **Codex hat Befunde gemeldet.** Sie stehen als"
+            echo "  Review-Kommentare am Diff. Beheben oder beantworten, pushen,"
+            echo "  und einen neuen Lauf ausloesen; gruen wird das Gate erst,"
+            echo "  wenn einer zum dann aktuellen Head nichts mehr findet."
             echo "- \`unknown\` — Codex hat etwas Unbekanntes geschrieben. Der Text"
             echo "  steht oben woertlich. Einordnen und die Marker in"
             echo "  \`scripts/classify_codex_review.py\` ergaenzen."
