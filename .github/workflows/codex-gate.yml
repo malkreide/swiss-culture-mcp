@@ -89,10 +89,6 @@ jobs:
       # fuer eine Frage zu verbrennen, die nie gestellt wurde.
       WARTE_OHNE_ANSTOSS_SEKUNDEN: "180"
       ABSTAND_SEKUNDEN: "30"
-      # Optional. Ein Personal Access Token eines Menschen MIT Codex-Konto,
-      # Scope `public_repo` bzw. `repo`. Fehlt es, unterbleibt der Anstoss
-      # nach einem Push — mit dem `GITHUB_TOKEN` geht es nachweislich nicht.
-      ANSTOSS_TOKEN: ${{ secrets.CODEX_ANSTOSS_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -156,6 +152,20 @@ jobs:
       - name: Nach einem Push einen Review anstossen
         id: anstoss
         if: github.event.action == 'synchronize'
+        # DAS TOKEN STEHT NUR HIER, nicht job-weit. Es ist ein PAT eines
+        # MENSCHEN und handelt repo-uebergreifend in dessen Namen. Job-weit
+        # gesetzt laege es auch in der Umgebung der Schritte, die
+        # `scripts/classify_codex_review.py` AUS DEM AUSGECHECKTEN PR-STAND
+        # ausfuehren — auf einem PR aus demselben Repo koennte eine Aenderung
+        # an diesem Skript das Token also auslesen und wegschicken.
+        #
+        # Befund eines Codex-Reviews auf PR #64 (P1), 19.09.2026. Er war
+        # richtig: Die erste Fassung hatte es job-weit deklariert.
+        env:
+          # Optional. PAT eines Menschen MIT Codex-Konto, Scope `public_repo`
+          # bzw. `repo`. Fehlt es, unterbleibt der Anstoss — mit dem
+          # `GITHUB_TOKEN` geht es nachweislich nicht.
+          ANSTOSS_TOKEN: ${{ secrets.CODEX_ANSTOSS_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${ANSTOSS_TOKEN:-}" ]; then
@@ -216,13 +226,17 @@ jobs:
           start=$(date +%s)
           ende=$(( start + frist ))
           bestaetigt=0
-          while :; do
+          hole() {
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "$GH_API/pulls/$PR/reviews?per_page=100" -o reviews.json
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "$GH_API/issues/$PR/comments?per_page=100" -o comments.json
+          }
+
+          while :; do
+            hole
 
             # `env -u GITHUB_OUTPUT`: Das Skript schreibt dorthin, sobald die
             # Variable gesetzt ist. In der Schleife waere das je Runde ein
@@ -277,6 +291,26 @@ jobs:
             [ "$(date +%s)" -ge "$ende" ] && break
             sleep "$ABSTAND_SEKUNDEN"
           done
+
+          # DIE BESTAETIGUNG DARF DIE FRIST UEBERLEBEN.
+          # Wird `clear` zum ersten Mal genau in der letzten Runde gesehen,
+          # bricht die Fristpruefung darunter die Schleife ab — mit
+          # `bestaetigt=1`. Die Endauswertung laese dieselben Dateien noch
+          # einmal, faende `clear` und meldete `proven=true`: gruen aus genau
+          # der einen, moeglicherweise veralteten Beobachtung, gegen die die
+          # Bestaetigungsrunde gebaut ist.
+          #
+          # Befund eines Codex-Reviews auf PR #64 (P1), 19.09.2026. Er war
+          # richtig — die Luecke war da, seit die Bestaetigungsrunde
+          # existierte, und zwar genau in dem Zweig, der sie tragen soll.
+          #
+          # Die Runde wird deshalb nachgeholt, auch nach Fristablauf. Sie
+          # kostet einmalig ABSTAND_SEKUNDEN und nur im Grenzfall.
+          if [ "$bestaetigt" -eq 1 ]; then
+            echo "clear war beim Fristablauf unbestaetigt — eine Runde wird nachgeholt."
+            sleep "$ABSTAND_SEKUNDEN"
+            hole
+          fi
 
           # Dieselben Dateien, dieselbe Einordnung — nur diesmal mit
           # `GITHUB_OUTPUT`, damit `state`, `reason` und `proven` je genau

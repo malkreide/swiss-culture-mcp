@@ -287,6 +287,62 @@ def test_ein_laufender_review_verlaengert_die_kurze_frist() -> None:
     )
 
 
+def test_ein_unbestaetigtes_clear_ueberlebt_den_fristablauf_nicht() -> None:
+    """Die Luecke sass genau in dem Zweig, der sie schliessen soll.
+
+    Wird `clear` zum ersten Mal in der letzten Runde gesehen, bricht die
+    Fristpruefung die Schleife mit `bestaetigt=1` ab. Die Endauswertung
+    laese dieselben Dateien noch einmal, faende `clear` und meldete
+    `proven=true` — gruen aus genau der einen, moeglicherweise veralteten
+    Beobachtung, gegen die die Bestaetigungsrunde gebaut ist.
+
+    Befund eines Codex-Reviews auf PR #64 (P1) vom 19.09.2026, und er war
+    richtig. Die Runde wird deshalb nachgeholt, auch nach Fristablauf.
+    """
+    zeilen = _befehlszeilen()
+    assert 'if [ "$bestaetigt" -eq 1 ]; then' in zeilen, (
+        "ein `clear`, das beim Fristablauf unbestaetigt war, geht ungeprueft in die Endauswertung"
+    )
+    text = _text()
+    nachlauf = text.split('if [ "$bestaetigt" -eq 1 ]; then', 1)[1]
+    nachlauf = nachlauf.split("python scripts/classify_codex_review.py", 1)[0]
+    assert "hole" in nachlauf, (
+        "die nachgeholte Runde liest die Dateien nicht neu — dann bestaetigt "
+        "sie nur dieselbe Momentaufnahme"
+    )
+
+
+def test_das_personliche_token_steht_nur_im_anstoss_schritt() -> None:
+    """Ein PAT eines Menschen darf nicht neben ausgechecktem Code liegen.
+
+    Job-weit gesetzt laege `CODEX_ANSTOSS_TOKEN` auch in der Umgebung der
+    Schritte, die `scripts/classify_codex_review.py` AUS DEM AUSGECHECKTEN
+    PR-STAND ausfuehren. Auf einem PR aus demselben Repo koennte eine
+    Aenderung an diesem Skript das Token auslesen und wegschicken — es
+    handelt repo-uebergreifend im Namen des Menschen.
+
+    Befund eines Codex-Reviews auf PR #64 (P1) vom 19.09.2026.
+    """
+    text = _text()
+    vor_den_steps, _, ab_den_steps = text.partition("    steps:")
+    assert "CODEX_ANSTOSS_TOKEN" not in vor_den_steps, (
+        "das PAT ist job-weit deklariert und liegt damit in der Umgebung "
+        "jedes Schritts, auch der ausgecheckten Skripte"
+    )
+    anstoss = ab_den_steps.split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "CODEX_ANSTOSS_TOKEN" in anstoss, (
+        "das Token fehlt im Anstoss-Schritt — dann kann er nichts setzen"
+    )
+    # Und es muss unter einem echten `env:` stehen. Ohne diese Zeile fiel die
+    # Gegenprobe nicht, als `env:` zu `env2:` verbogen wurde: Der Name des
+    # Secrets stand weiter da, wirkungslos. Ein Test, der die Anwesenheit
+    # einer Zeile prueft, prueft nicht ihre Wirkung.
+    assert "\n        env:\n" in anstoss, (
+        "das Token haengt an keinem `env:`-Block des Schritts und wird deshalb nicht gesetzt"
+    )
+
+
 def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
     """Sonst liest sich `pending` wie «Codex hat nicht geantwortet».
 
