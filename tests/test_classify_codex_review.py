@@ -126,7 +126,7 @@ def test_die_fixture_traegt_echte_aufgezeichnete_koerper() -> None:
     """
     daten = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     assert daten["_herkunft"]["aufgezeichnet_am"] == "2026-09-19"
-    assert len(daten["kommentare"]) == 5
+    assert len(daten["kommentare"]) == 6
     for koerper in (FERTIG, FERTIG_61, FERTIG_62, LAEUFT):
         assert "<!-- codex-pull-request-review-summary -->" in koerper
         assert "| Review | Status | Commit | Review trigger |" in koerper
@@ -385,6 +385,32 @@ def test_die_kopfzeile_der_tabelle_ist_keine_statuszeile() -> None:
 
 
 # ─────────────────────────── Unbekanntes und Stille ───────────────────────────
+
+
+def test_die_konto_absage_wird_zitiert_statt_einsortiert() -> None:
+    """Der fuenfte Meldungstext, woertlich aufgezeichnet — und der Beleg,
+    dass der Entwurf «unbekanntes zitieren» im Feld getragen hat.
+
+    Am 19.09.2026 auf PR #64 setzte der Gate-Job den `@codex review`-Anstoss
+    mit HTTP 201 ab. Codex antwortete vier Sekunden spaeter:
+
+        To use Codex here, create a Codex account and connect to github.
+
+    Der Anstoss ERREICHT Codex also; abgelehnt wird das Konto des Absenders,
+    `github-actions[bot]`. Das ist weder Kontingent noch Environment noch
+    Befundlosigkeit — und der Klassifizierer hat es im Lauf korrekt als
+    `unknown` gemeldet und woertlich zitiert, statt es in die naechstbeste
+    Schublade zu zwingen.
+
+    Er bekommt bewusst KEINEN eigenen Marker: Ein Zustand mehr hiesse, das
+    Gate koenne dann gruen werden, wenn es ihn erkennt — kann es nicht, es
+    wurde nichts geprueft. `unknown` mit Zitat ist die richtige Antwort.
+    """
+    body = _ROH["malkreide/swiss-culture-mcp PR #64 (Konto)"]["body"]
+    state, reason = classify([], [kommentar(body)], HEAD)
+    assert state == UNKNOWN
+    assert state not in PROVEN
+    assert "create a Codex account" in reason
 
 
 def test_ein_fuenfter_text_wird_zitiert_statt_einsortiert() -> None:

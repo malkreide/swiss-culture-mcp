@@ -40,15 +40,19 @@ on:
   pull_request:
     types: [opened, ready_for_review, reopened, synchronize]
 
+# Nur Lesen. Der Anstoss laeuft ueber ein separates Token (siehe unten) und
+# braucht die Rechte des `GITHUB_TOKEN` nicht.
+#
+# Beiseite, weil es Zeit kostet, es noch einmal herauszufinden: Wollte man
+# mit dem `GITHUB_TOKEN` auf einem PR kommentieren, braucht es
+# `pull-requests: write`, nicht `issues: write` — der Endpunkt heisst zwar
+# `issues/{n}/comments`, das Ziel ist aber ein Pull Request. Mit
+# `pull-requests: read` antwortet er 403 «Resource not accessible by
+# integration». Am 19.09.2026 auf PR #64 gemessen. Nuetzt hier trotzdem
+# nichts, siehe den Anstoss-Schritt.
 permissions:
   contents: read
-  # `pull-requests: write` und nicht `read`: Der Anstoss kommentiert ueber
-  # `issues/{n}/comments`, aber das Ziel ist ein PULL REQUEST. GitHub verlangt
-  # dafuer die Pull-request-Berechtigung, nicht die Issue-Berechtigung — mit
-  # `pull-requests: read` antwortet der Endpunkt mit 403 «Resource not
-  # accessible by integration». Am 19.09.2026 auf PR #64 genau so gemessen.
-  pull-requests: write
-  issues: write   # fuer den Fall, dass der Endpunkt auf ein Issue zeigt
+  pull-requests: read
 
 concurrency:
   # Ein neuer Push macht das Warten auf den alten Head gegenstandslos.
@@ -85,6 +89,10 @@ jobs:
       # fuer eine Frage zu verbrennen, die nie gestellt wurde.
       WARTE_OHNE_ANSTOSS_SEKUNDEN: "180"
       ABSTAND_SEKUNDEN: "30"
+      # Optional. Ein Personal Access Token eines Menschen MIT Codex-Konto,
+      # Scope `public_repo` bzw. `repo`. Fehlt es, unterbleibt der Anstoss
+      # nach einem Push — mit dem `GITHUB_TOKEN` geht es nachweislich nicht.
+      ANSTOSS_TOKEN: ${{ secrets.CODEX_ANSTOSS_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -125,20 +133,43 @@ jobs:
       # war eine Behauptung ueber etwas, das nicht geprueft wurde. Das Gate
       # wartete anschliessend 20 Minuten auf eine Antwort auf eine Frage,
       # die nie gestellt worden war.
-      # DER SCHRITT BRICHT DEN JOB NICHT AB — auch das ist gemessen.
-      # Die zweite Fassung endete hier mit `exit 1`. Das war der Ausschlag in
-      # die Gegenrichtung: Kann der Anstoss nicht gesetzt werden, koennte
-      # trotzdem ein Mensch `@codex review` kommentiert haben — am 19.09.2026
-      # auf PR #64 genau so geschehen. Ein harter Abbruch haette das Urteil,
-      # das danach vorlag, nie gelesen. Gewarnt wird laut, gewartet wird
-      # kuerzer, und der Grund steht am Ende im Klartext.
+      # WARUM HIER EIN EIGENES TOKEN STEHT — gemessen, nicht vermutet.
+      # Am 19.09.2026 auf PR #64 setzte der Job den Kommentar mit dem
+      # `GITHUB_TOKEN` erfolgreich (HTTP 201). Codex antwortete vier Sekunden
+      # spaeter:
+      #
+      #     To use Codex here, create a Codex account and connect to github.
+      #
+      # Der Anstoss ERREICHT Codex also; er wird abgelehnt, weil
+      # `github-actions[bot]` kein Codex-Konto hat. Codex bindet die Anfrage
+      # an das kommentierende Konto. Mit dem `GITHUB_TOKEN` ist dieser Weg
+      # damit nicht zu haben, gleich welche Berechtigung er traegt.
+      #
+      # Fehlt das Token, unterbleibt der Anstoss — statt einen Kommentar zu
+      # setzen, der nur eine Absage provoziert.
+      #
+      # DER SCHRITT BRICHT DEN JOB NICHT AB. Die zweite Fassung endete mit
+      # `exit 1`. Das war der Ausschlag in die Gegenrichtung: Kann der
+      # Anstoss nicht gesetzt werden, koennte trotzdem ein Mensch
+      # `@codex review` kommentiert haben — am selben Tag genau so geschehen.
+      # Ein harter Abbruch haette das Urteil, das danach vorlag, nie gelesen.
       - name: Nach einem Push einen Review anstossen
         id: anstoss
         if: github.event.action == 'synchronize'
         run: |
           set -euo pipefail
+          if [ -z "${ANSTOSS_TOKEN:-}" ]; then
+            echo "gesetzt=uebersprungen" >> "$GITHUB_OUTPUT"
+            echo "::notice::Kein CODEX_ANSTOSS_TOKEN hinterlegt — kein Anstoss."
+            echo 'Der GITHUB_TOKEN taugt dafuer nicht: Codex lehnt einen'
+            echo 'Anstoss von github-actions[bot] ab, weil das Konto kein'
+            echo 'Codex-Konto hat (gemessen 19.09.2026, PR #64). Wer den'
+            echo 'Anstoss automatisch will, hinterlegt ein PAT eines Menschen'
+            echo 'MIT Codex-Konto als Secret CODEX_ANSTOSS_TOKEN.'
+            exit 0
+          fi
           code=$(curl -sS -o anstoss.json -w '%{http_code}' -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Authorization: Bearer $ANSTOSS_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "$GH_API/issues/$PR/comments" \
             -d '{"body":"@codex review"}')
@@ -178,7 +209,9 @@ jobs:
           # ausser auf einen Menschen, der von Hand kommentiert. Zwanzig
           # Minuten dafuer zu blockieren, kostet Laufzeit ohne Ertrag.
           frist="$WARTE_SEKUNDEN"
-          [ "$ANSTOSS" = "false" ] && frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN"
+          case "$ANSTOSS" in
+            false|uebersprungen) frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN" ;;
+          esac
           echo "Frist: ${frist}s"
           ende=$(( $(date +%s) + frist ))
           bestaetigt=0
@@ -276,19 +309,22 @@ jobs:
             echo "  \`scripts/classify_codex_review.py\` ergaenzen."
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$ANSTOSS" = "false" ]; then
+          if [ "$ANSTOSS" = "false" ] || [ "$ANSTOSS" = "uebersprungen" ]; then
             {
               echo
               echo "### Achtung: der Anstoss ist gar nicht gesetzt worden"
               echo
-              echo "Der \`@codex review\`-Kommentar konnte nicht geschrieben"
-              echo "werden (HTTP-Fehler, siehe Schritt oben). Codex wurde also"
-              echo "nichts gefragt — \`pending\` heisst hier **nicht**, dass er"
-              echo "nicht geantwortet hat."
+              echo "Codex wurde nichts gefragt — \`pending\` heisst hier"
+              echo "**nicht**, dass er nicht geantwortet hat."
               echo
-              echo "Abhilfe: Settings → Actions → General → Workflow permissions"
-              echo "auf \"Read and write permissions\" stellen. Bis dahin hilft"
-              echo "ein \`@codex review\` von Hand."
+              echo "**Ein Mensch muss \`@codex review\` auf diesem PR"
+              echo "kommentieren.** Ein Push allein ist kein Codex-Ausloeser,"
+              echo "und der \`GITHUB_TOKEN\` taugt als Absender nicht: Codex"
+              echo "bindet die Anfrage an das kommentierende Konto, und"
+              echo "\`github-actions[bot]\` hat keines (gemessen 19.09.2026)."
+              echo
+              echo "Automatisch geht es nur mit einem PAT eines Menschen mit"
+              echo "Codex-Konto, hinterlegt als Secret \`CODEX_ANSTOSS_TOKEN\`."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 

@@ -193,7 +193,7 @@ def test_ein_gescheiterter_anstoss_beendet_den_job_nicht() -> None:
 def test_ohne_anstoss_wird_kuerzer_gewartet() -> None:
     """Zwanzig Minuten auf eine Frage warten, die nie gestellt wurde."""
     zeilen = _befehlszeilen()
-    assert 'frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN"' in " ".join(zeilen), (
+    assert 'false|uebersprungen) frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN" ;;' in zeilen, (
         "die Frist haengt nicht davon ab, ob der Anstoss ueberhaupt gesetzt wurde"
     )
     assert any(z.startswith("WARTE_OHNE_ANSTOSS_SEKUNDEN:") for z in zeilen)
@@ -223,17 +223,47 @@ def test_clear_muss_eine_zweite_abfrage_ueberleben() -> None:
     assert "bestaetigt=0" in zeilen, "der Zaehler wird nie zurueckgesetzt"
 
 
-def test_der_anstoss_darf_auf_einem_pr_kommentieren() -> None:
-    """`issues/{n}/comments` auf einem PR verlangt pull-requests: write.
+def test_der_anstoss_nimmt_nicht_den_github_token() -> None:
+    """Der GITHUB_TOKEN taugt als Absender nicht — gemessen, nicht vermutet.
 
-    Mit `pull-requests: read` antwortet der Endpunkt mit 403 «Resource not
-    accessible by integration» — am 19.09.2026 auf PR #64 gemessen. Die
-    Issue-Berechtigung genuegt nicht, weil das Ziel ein Pull Request ist.
+    Am 19.09.2026 auf PR #64 setzte der Job den Kommentar mit dem
+    `GITHUB_TOKEN` erfolgreich (HTTP 201, nachdem `pull-requests: write`
+    gesetzt war). Codex antwortete vier Sekunden spaeter:
+
+        To use Codex here, create a Codex account and connect to github.
+
+    Der Anstoss erreicht Codex also und wird abgelehnt, weil
+    `github-actions[bot]` kein Codex-Konto hat. Ein Anstoss mit diesem Token
+    setzt damit nur einen Kommentar, der eine Absage provoziert.
+    """
+    posts = [z for z in _befehlszeilen() if "-X POST" in z]
+    assert len(posts) == 1, f"erwartet wird genau ein POST, gefunden: {posts}"
+    anstoss = _text().split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "$GH_TOKEN" not in anstoss, (
+        "der Anstoss nimmt den GITHUB_TOKEN — Codex lehnt dessen Konto ab"
+    )
+    assert "$ANSTOSS_TOKEN" in anstoss
+
+
+def test_ohne_eigenes_token_unterbleibt_der_anstoss() -> None:
+    """Lieber gar kein Kommentar als einer, der nur eine Absage provoziert."""
+    anstoss = _text().split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert 'if [ -z "${ANSTOSS_TOKEN:-}" ]; then' in anstoss
+    assert "gesetzt=uebersprungen" in anstoss
+
+
+def test_der_job_liest_nur() -> None:
+    """Der Anstoss laeuft ueber ein eigenes Token; Schreibrechte sind unnoetig.
+
+    Ein Token, das mehr darf als noetig, ist die teuerste Art, eine
+    Zusicherung zu verlieren, die niemand vermisst.
     """
     zeilen = _befehlszeilen()
-    assert "pull-requests: write" in zeilen, (
-        "mit `pull-requests: read` kann der Job auf einem PR nicht kommentieren"
-    )
+    assert "pull-requests: read" in zeilen
+    for schreibend in ("contents: write", "issues: write", "pull-requests: write"):
+        assert schreibend not in zeilen, f"unnoetige Berechtigung: {schreibend}"
 
 
 def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
@@ -244,8 +274,12 @@ def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
     """
     text = _text()
     assert "ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}" in text
-    assert 'if [ "$ANSTOSS" = "false" ]; then' in _befehlszeilen(), (
+    zeilen = _befehlszeilen()
+    assert any(z.startswith('if [ "$ANSTOSS" = "false" ]') for z in zeilen), (
         "der Endbericht unterscheidet nicht zwischen «keine Antwort» und «nie gefragt»"
+    )
+    assert "uebersprungen" in " ".join(zeilen), (
+        "der uebersprungene Anstoss faellt im Endbericht unter den Tisch"
     )
 
 

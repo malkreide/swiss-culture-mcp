@@ -245,7 +245,9 @@ Meldung liefen ganz ohne Codex-Auslöser, dort hat niemand gemessen.
 In der Zwischenzeit sind 32 PRs mit formal erfülltem Häkchen gemergt worden,
 ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
 
-**Vier** Gründe, warum Codex schweigt, und nur einer davon ist harmlos:
+**Fünf** Gründe, warum Codex schweigt, und nur einer davon ist harmlos.
+Dieser Abschnitt hat mit drei angefangen; jedes Mal war die Liste
+vollständig, bis sie es nicht mehr war:
 
 - **Kein Befund** — dann schreibt er einen gewöhnlichen Issue-Kommentar:
 
@@ -268,6 +270,18 @@ ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
   ```
   To use Codex here, create an environment for this repo.
   ```
+- **Das anstossende Konto hat keinen Codex-Zugang** — dann schreibt er:
+
+  ```
+  To use Codex here, create a Codex account and connect to github.
+  ```
+
+  Der fünfte Text, gemessen am 19.9.2026. Er sieht der Environment-Meldung
+  zum Verwechseln ähnlich und meint etwas anderes: nicht das Repo fehlt,
+  sondern das **Konto des Absenders**. Aufgetreten, als der Gate-Job
+  `@codex review` mit dem `GITHUB_TOKEN` kommentierte (HTTP 201, also
+  zugestellt) — vier Sekunden später kam diese Absage. `github-actions[bot]`
+  hat kein Codex-Konto.
 
 Der vierte kam erst zum Vorschein, als der dritte wegfiel, und das ist kein
 Zufall: Die Prüfungen liegen hintereinander. Dass es diese Reihenfolge ist und
@@ -674,11 +688,36 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
   `permissions:`-Block kann nur einschränken, nie erweitern. Umstellen auf
   «Read and write permissions», dann trägt der Weg.
 
-  **Dass Codex auf `@codex review` reagiert, ist getrennt davon belegt.** Der
-  Anstoss von Hand (Nutzerkonto statt Bot) löste sechs Sekunden später einen
-  Lauf aus. Die Tabelle nennt dafür eine **dritte** Auslöser-Bezeichnung:
+  **Nach dem Fix kam der Kommentar durch — und Codex lehnte ihn ab.** Mit
+  `pull-requests: write` antwortete der Endpunkt mit HTTP 201, der Kommentar
+  stand da, und vier Sekunden später schrieb Codex:
+
+  ```
+  To use Codex here, create a Codex account and connect to github.
+  ```
+
+  **Das ist die Antwort auf die Frage, und sie ist ein Nein:** Der Anstoss
+  *erreicht* Codex, aber Codex bindet die Anfrage an das kommentierende
+  Konto, und `github-actions[bot]` hat keines. Mit dem `GITHUB_TOKEN` ist
+  dieser Weg nicht zu haben, gleich welche Berechtigung er trägt.
+
+  Der Schritt nimmt deshalb jetzt ein optionales eigenes Token
+  (`secrets.CODEX_ANSTOSS_TOKEN`, ein PAT eines Menschen **mit** Codex-Konto)
+  und unterbleibt ohne dieses — ein Kommentar, der nur eine Absage
+  provoziert, ist schlechter als keiner. Der Job selbst liest seither nur
+  noch (`contents: read`, `pull-requests: read`).
+
+  **Dass Codex auf `@codex review` von einem Menschen reagiert, ist getrennt
+  davon belegt.** Der Anstoss von Hand löste sechs Sekunden später einen Lauf
+  aus. Die Tabelle nennt dafür eine **dritte** Auslöser-Bezeichnung:
   `Manual request`, neben `Draft marked ready` und dem nie beobachteten
   Öffnen.
+
+  **Und der Klassifizierer hat sich dabei im Feld bewährt:** Er hat den
+  fünften Text als `unknown` gemeldet und wörtlich zitiert, statt ihn in die
+  Environment-Schublade zu zwingen, der er zum Verwechseln ähnlich sieht.
+  Einen eigenen Zustand bekommt er bewusst nicht — erkannt oder nicht,
+  geprüft wurde nichts.
 
   **Der Schritt selbst war zweimal falsch, in entgegengesetzte Richtungen** —
   ein Lehrstück über Fehlbefunde:
