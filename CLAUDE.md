@@ -324,8 +324,39 @@ Laufs behauptet. Der Kasten bleibt keine Quelle.
 
 Der Marker ist der verlässliche Teil, nicht die Überschrift: Er steht im
 Rohtext des Kommentarkörpers und trennt diese Form von jedem anderen Text,
-ohne dass man auf Emoji oder Wortlaut angewiesen wäre. Wie die Tabelle im
-**Endzustand** aussieht, steht hier nicht — beobachtet ist nur `Running`.
+ohne dass man auf Emoji oder Wortlaut angewiesen wäre.
+
+**Der Endzustand steht in DEMSELBEN Kommentar — er wird bearbeitet, nicht
+ergänzt.** Um 06:38:03 las dieselbe Tabelle:
+
+```
+| 📝 Code Review | ✅ Completed 2026-09-19T06:38:03Z | b503b48 | Draft marked ready |
+```
+
+Gleiche Kommentar-ID, `created_at` unverändert 06:36:00, `updated_at` auf
+06:38:04 gewandert. Daraus zwei Handgriffe:
+
+- **Den Kommentarkörper neu holen, nicht erinnern.** Wer ihn einmal gelesen und
+  behalten hat, hält einen fertigen Lauf für einen laufenden — der Text unter
+  derselben ID ist inzwischen ein anderer.
+- **Der Zähler bewegt sich über den ganzen Lebenszyklus nicht.** `comments: 1`
+  beim Start, `comments: 1` am Ende. Was oben über die Zahl steht, gilt hier
+  also nicht bloss abgeschwächt, sondern ganz: Sie kann den Unterschied
+  zwischen «läuft» und «fertig» gar nicht anzeigen.
+
+**`✅ Completed` heisst «Lauf zu Ende», nicht «nichts gefunden».** Die
+Unterscheidung ist nicht zu ersparen: In der einzigen Beobachtung kamen kein
+Review-Objekt (`get_reviews` → `[]`), keine Review-Threads
+(`get_review_comments` → `totalCount: 0`), keine Befundlos-Meldung und keine
+Reaktion (`reactions.total_count: 0`) — der Status in der Tabelle war das
+einzige Artefakt. Das sieht nach «sauber» aus, belegt es aber nicht: Der PR war
+zu diesem Zeitpunkt schon gemergt, und ob ein Befund auf einem gemergten PR
+überhaupt noch irgendwohin geschrieben wird, ist damit nicht geprüft. Die oben
+dokumentierte «Swish!»-Meldung blieb ebenfalls aus — ob Codex das Format
+gewechselt hat oder der Merge den Weg abschnitt, entscheidet diese eine
+Beobachtung nicht. Ein `Completed` auf einem **offenen** PR ist noch nicht
+danebengelegt worden; bis dahin gilt weiter, was oben steht: Belegt ist eine
+Prüfung durch ein Review-Objekt oder eine Befundlos-Meldung.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -364,16 +395,30 @@ Am 19.9.2026 ist er trotzdem passiert, in diesem Repo, an PR #56:
 
 **51 Sekunden** nach dem Start des Reviews. Die Tabelle stand in diesem Moment
 auf `Running` und war abrufbar — der Beleg, dass noch niemand hingesehen hatte,
-lag also vor und wurde nicht gelesen. Beim letzten Blick danach war weiterhin
-kein Review-Objekt und keine Befundlos-Meldung da; der Status las unverändert
-`Running`.
+lag also vor und wurde nicht gelesen.
 
-**Was daraus NICHT folgt:** dass der Merge den Lauf abbricht. Beobachtet ist
-eine Spanne von rund einer Minute nach dem Merge, in der sich nichts geändert
-hatte — Codex braucht regulär länger. Wer daraus «der Merge killt den Review»
-macht, hat aus einer einzigen kurzen Beobachtung eine Kausalität erfunden. Ob
-ein Lauf nach dem Merge zu Ende geht und wohin er dann schreibt, ist offen.
-Gemessen ist nur: Zum Zeitpunkt des Merges lag kein Ergebnis vor.
+**Der Merge bricht den Lauf nicht ab.** Um 06:38:03, also **73 Sekunden nach
+dem Merge**, stand die Tabelle auf `✅ Completed`. Diese Zeile stand hier eine
+Fassung lang als offene Frage, weil zwischen Merge und erstem Nachsehen nur
+gut eine Minute lag; der nächste Blick hatte die Antwort. Der Reflex, eine
+Beobachtungslücke nicht zur Aussage zu machen, war richtig — die Lücke war
+bloss kleiner als gedacht.
+
+Was der zu frühe Merge also kostet, ist nicht der Lauf, sondern das
+**Zeitfenster zum Reagieren**: Wer 51 Sekunden nach dem Start mergt, hat die
+Entscheidung getroffen, bevor das Ergebnis existierte. Kommt ein Befund, kommt
+er auf einen PR, der nicht mehr zu ändern ist — er wäre in einem eigenen PR zu
+beheben, was hier niemand tun kann, der den Befund nicht sucht.
+
+**Was weiterhin NICHT belegt ist:** ob ein Befund auf einem bereits gemergten
+PR überhaupt noch geschrieben wird. Hier kam keiner, und das ist zweideutig —
+siehe den Absatz zu `✅ Completed` weiter oben. Ein sauber aussehender
+Endzustand auf einem gemergten PR ist deshalb kein Freispruch, sondern eine
+nicht durchgeführte Messung.
+
+Die Grössenordnung fürs Warten, aus dieser einen Messung: Start 06:35:59,
+Ende 06:38:03 — **rund zwei Minuten**. Eine Zahl, keine Regel; die nächste
+kann länger brauchen. Den Status lesen, nicht die Uhr.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
