@@ -396,9 +396,9 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es inzwischen **sieben** sind — #56 bis #62 —, macht die Sache nicht
-sicherer, sondern nur die Lücke sichtbarer: Siebenmal dasselbe unter denselben
-Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung siebenmal.
+Dass es inzwischen **acht** sind — #56 bis #63 —, macht die Sache nicht
+sicherer, sondern nur die Lücke sichtbarer: Achtmal dasselbe unter denselben
+Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung achtmal.
 **Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
 OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
 was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
@@ -407,8 +407,10 @@ Befundlos-Meldung, nicht durch den Status in der Tabelle.
 Warum sie fehlt und wohl vorerst fehlen wird, steht weiter unten unter «Der
 Review wird nicht abgewartet». Zwei Versuche, sie über einen Ablauf zu
 beschaffen, sind gescheitert, und der dritte — ein Check-Run, der neben dem
-Merge herläuft — hat sie am 19.9.2026 auf #62 ebenfalls nicht geliefert. Sie
-käme erst mit einer Sperre, die das Mergen bis zum Urteil verhindert.
+Merge herläuft — hat sie am 19.9.2026 auf #62 und #63 ebenfalls nicht
+geliefert. Sie käme erst mit einer Sperre, die das Mergen bis zum Urteil
+verhindert. Seit demselben Tag steht sie; ob sie hält, entscheidet der
+erste PR, der es versucht.
 
 Eine parallele Session an `lindas-mcp` meldet, die Tabelle sei bei Befund und
 ohne Befund **zeichengleich** und beweise nur, DASS geprüft wurde. Das deckt
@@ -490,6 +492,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #58 | 07:02:29 | 07:03:49 | **80 s** |
 | #59 | 07:07:11 | 07:08:08 | **57 s** |
 | #62 | 09:15:12 | 09:16:08 | **56 s** |
+| #63 | 09:23:35 | 09:24:32 | **57 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -497,9 +500,11 @@ ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
 einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
 Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
 
-Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus fünf Läufen. Der
-fünfte (#62, 56 s) hat die Spanne nicht verschoben — das macht sie nicht zur
-Regel, nur zu einer Spanne, die einmal gehalten hat. Was
+Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus sechs Läufen. Die
+letzten beiden (#62 mit 56 s, #63 mit 57 s) haben sie nicht verschoben — das
+macht sie nicht zur Regel, nur zu einer Spanne, die zweimal gehalten hat.
+Beide lagen nahe beieinander; aus zwei benachbarten Werten eine Typik zu
+machen, wäre derselbe Kurzschluss wie oben aus einem einzigen. Was
 daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
 Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
@@ -520,8 +525,9 @@ review» und Merge:
 | #59 | **2 s** | startete erst 8 s danach |
 | #60 | 63 s | lief (`Running`) |
 | #62 | **2 s** | startete erst 4 s danach |
+| #63 | **2 s** | startete erst 8 s danach |
 
-Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der sechs Fälle lag beim
+Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der sieben Fälle lag beim
 Merge ein Ergebnis vor.
 
 Es lag nicht an fehlendem Wissen: #58 trug die Wartebedingung in der eigenen
