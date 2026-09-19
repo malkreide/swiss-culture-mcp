@@ -458,9 +458,11 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Acht solche Beobachtungen — #56 bis #63 — machten die Sache nicht sicherer,
-sondern nur die Lücke sichtbarer: Achtmal dasselbe unter denselben
-Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung achtmal.
+Neun solche Beobachtungen — #56 bis #63 und, am selben Tag um 17:08, der
+Release-PR #67 — machten die Sache nicht sicherer, sondern nur die Lücke
+sichtbarer: Neunmal dasselbe unter denselben Bedingungen zu sehen ist keine
+Gegenprobe, sondern dieselbe Messung neunmal. Auch #67 war beim Start des
+Laufs schon gemergt, drei Sekunden vorher.
 
 **DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR — UND SIE SAGT DAS GEGENTEIL
 DESSEN, WAS HIER ZUERST STAND.** Auf PR #64 lief Codex von 13:51:27 bis
@@ -597,6 +599,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #64 | 13:51:27 | 13:54:34 | **187 s** |
 | #64 (2.) | 14:08:38 | 14:11:32 | **174 s** |
 | #64 (3.) | 14:18:05 | 14:21:45 | **220 s** |
+| #67 | 17:06:56 | 17:08:08 | **72 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -609,7 +612,7 @@ daneben die Warnung, ein Timer auf der längsten bekannten Dauer gehe beim
 ersten längeren Lauf falsch. **Der kam am selben Tag: #64 brauchte 187
 Sekunden**, ein Drittel mehr als der bisherige Höchstwert.
 
-Bekannt ist damit **36 bis 220 Sekunden**, aus neun Läufen — und das ist
+Bekannt ist damit **36 bis 220 Sekunden**, aus zehn Läufen — und das ist
 keine Spanne, auf die man sich verlassen sollte, sondern der Beleg, dass es
 keine gibt. Zwischen #63 (57 s) und dem dritten Lauf auf #64 (220 s) liegt
 Faktor vier, ohne dass sich am Repo etwas geändert hätte. Die Obergrenze ist
@@ -629,7 +632,7 @@ und ist jetzt ein Befund.
 Hier stand ein Verfahren. Es ist entfernt, weil es fünfmal nicht stattgefunden
 hat. Was bleibt, ist die Tatsache und ihre Folge fürs Lesen.
 
-**Gemessen am 19.9.2026, fünf PRs dieses Repos**, Zeit zwischen «ready for
+**Gemessen am 19.9.2026, acht PRs dieses Repos**, Zeit zwischen «ready for
 review» und Merge:
 
 | PR | ready → Merge | Stand des Laufs beim Merge |
@@ -641,9 +644,18 @@ review» und Merge:
 | #60 | 63 s | lief (`Running`) |
 | #62 | **2 s** | startete erst 4 s danach |
 | #63 | **2 s** | startete erst 8 s danach |
+| #67 | **2 s** | startete erst 3 s danach |
 
-Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der sieben Fälle lag beim
+Ein Codex-Lauf braucht 36 bis 220 Sekunden. In keinem der acht Fälle lag beim
 Merge ein Ergebnis vor.
+
+**#67 ist der teuerste der acht, und er kam zuletzt.** Es war der Release-PR
+für 1.2.0: Was dort gemergt wird, bekommt danach einen Tag und geht auf PyPI,
+und ein PyPI-Upload ist nicht zurückzunehmen. Der Lauf war 72 Sekunden nach
+dem Merge fertig und meldete nichts — gut ausgegangen, aber gewusst hat es
+beim Merge niemand. Gerade bei einem Release ist «den Status lesen, nicht die
+Uhr» keine Stilfrage: Es ist der letzte Punkt, an dem Umkehren noch gratis
+ist.
 
 Es lag nicht an fehlendem Wissen: #58 trug die Wartebedingung in der eigenen
 Checkliste, #59 war der PR, der das Verfahren einführte, und bei #60 hatte ein
@@ -727,16 +739,28 @@ ist inzwischen erledigt, die beiden anderen nicht:
   nicht nachlesen. Belegt ist sie erst durch den ersten PR, der nicht
   mergbar ist, solange das Gate offen steht.
 
-  **Zwei Messungen desselben Tages sprechen dagegen, dass sie greift.** Auf
+  **Drei Messungen desselben Tages sprechen dagegen, dass sie greift.** Auf
   PR #64 stand `mergeable_state` auf `unstable`, während `codex-gate` rot
   war — bei einem fehlgeschlagenen *required* Check wäre `blocked` zu
-  erwarten. Und PR #65 ging um 14:28:33 auf ready und war um 14:28:35
-  gemergt, mit laufendem, urteilslosem Gate. Eine aktive Regel hätte das
-  verweigert.
+  erwarten. PR #65 ging um 14:28:33 auf ready und war um 14:28:35 gemergt,
+  mit laufendem, urteilslosem Gate. Und PR #67, der Release-PR für 1.2.0,
+  ging um 17:06:51 auf ready und war um **17:06:53** gemergt — der
+  Gate-Lauf hatte um 17:06:52 begonnen und stand ohne Urteil. Eine aktive
+  Regel hätte jedes Mal verweigert.
 
-  Beides sind Indizien, keine Einsicht in die Einstellung; von hier aus ist
-  sie nicht lesbar. Zu prüfen wäre, ob die Regel wirklich für `main` gilt
-  und ob der Name **exakt** `codex-gate` lautet —
+  **Eine zweite Erklärung passt aber auf alle drei, und sie ist hier nicht
+  ausgeschlossen:** Gemergt hat jedes Mal der Repo-Eigentümer, und «Allow
+  administrators to bypass branch protections» erzeugt genau dasselbe Bild —
+  Regel aktiv, Merge trotzdem zugelassen. Drei Beobachtungen in dieselbe
+  Richtung sind damit kein Beleg, dass die Regel fehlt, sondern nur einer,
+  dass sie **diese** Merges nicht aufgehalten hat. Das ist der Fehler von
+  weiter oben in klein: Wer aus zwei möglichen Ursachen die erste nimmt,
+  weil sie zuerst einfiel, hat nicht gemessen, sondern geraten.
+
+  Nichts davon ist Einsicht in die Einstellung; von hier aus ist sie nicht
+  lesbar. Zu prüfen wären drei Dinge, und der Bypass gehört dazu: ob die
+  Regel wirklich für `main` gilt, ob der Name **exakt** `codex-gate` lautet
+  und ob Administratoren ausgenommen sind.
   `test_der_job_heisst_wie_der_required_check` hält die Workflow-Seite fest,
   die Branch-Protection-Seite kann kein Test erreichen.
 
