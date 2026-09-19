@@ -1,6 +1,20 @@
 """Konstanten und Referenzdaten für swiss-culture-mcp."""
 
 # ---------------------------------------------------------------------------
+# Identitaet dieses Servers
+# ---------------------------------------------------------------------------
+
+# Die Adresse dieser Implementierung — NICHT die einer Datenquelle.
+#
+# Sie steht an zwei Stellen auf der Leitung: im `User-Agent` gegenueber den
+# Upstreams und, seit Spec `2026-07-28`, im `serverInfo.websiteUrl`, das jede
+# moderne Antwort in `_meta` mitfuehrt. Als Literal in `http_client.py`
+# geschrieben war sie schon einmal die einzige Stelle; eine zweite Kopie waere
+# der Beginn genau der Drift, die `scripts/check_version_sync.py` fuer die
+# Versionsnummer verhindert.
+PROJECT_URL = "https://github.com/malkreide/swiss-culture-mcp"
+
+# ---------------------------------------------------------------------------
 # Upstream-Endpunkte
 # ---------------------------------------------------------------------------
 

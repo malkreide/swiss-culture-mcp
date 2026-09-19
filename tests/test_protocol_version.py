@@ -28,10 +28,20 @@ Nachgemessen statt aus Konstantennamen geschlossen: die Aushandlung steht in
 
 — sie haengt an keinem Transport, gilt also fuer stdio ebenso wie fuer HTTP.
 
-Ohne gemessenen Teil: dieses Repo baut keine ASGI-App, durch die sich ein
-`initialize` schicken liesse. Die Zusicherungen unten haengen deshalb an den
-SDK-Konstanten. Das ist die schwaechere Form, und sie steht hier benannt statt
-unausgesprochen.
+Die Zusicherungen unten haengen an den SDK-Konstanten — das ist die schwaechere
+Form, und sie steht hier benannt statt unausgesprochen. Den gemessenen Teil
+liefert `tests/test_modern_era.py`: Es baut die ASGI-App dieses Servers und
+schickt beide Aeren wirklich durch sie hindurch, gegen dieselben zwei
+Konstanten, die es von hier importiert.
+
+Die Arbeitsteilung ist Absicht und keine Doppelung. Ein Bump von `mcp`, der
+eine Revision verschiebt, faellt hier auf — an der Konstante, ohne Netz und
+ohne App, also auch in einem schlanken Job. Ein Server, der eine Revision
+NENNT und sie nicht bedient, faellt dort auf. Vor der Messung war genau das der
+Fall: `main()` startete den HTTP-Transport unter einem Namen, den das SDK nicht
+annimmt, und die moderne Aera war ueberhaupt nicht erreichbar, waehrend die
+Zusicherungen unten gruen blieben. Sie koennen das nicht sehen — sie lesen
+Konstanten, keine Antworten.
 """
 
 from __future__ import annotations

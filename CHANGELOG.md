@@ -28,15 +28,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   aushandeln. Beide sind jetzt einzeln gepinnt, ein Dependabot-Bump von
   `mcp` kann keine davon still verschieben.
 
-  Ohne gemessenen Teil: dieser Server baut keine ASGI-App, durch die sich ein
-  `initialize` schicken liesse. Das Gate haengt deshalb an den SDK-Konstanten —
-  die schwaechere Form, im Docstring benannt statt verschwiegen.
+  Dieses Gate haengt an den SDK-Konstanten — die schwaechere Form, im Docstring
+  benannt statt verschwiegen. Den gemessenen Teil liefert inzwischen
+  `tests/test_modern_era.py` (siehe unten); die beiden Konstanten stehen weiter
+  nur einmal da und werden von dort importiert.
 
   Beide READMEs beschreiben die Aeren; ein Test haelt jede Sprache einzeln
   dagegen — im Portfolio sind EN und DE desselben Repos schon dreimal
   auseinandergelaufen, weil nur eine Fassung nachgezogen wurde.
 
+- **Spec `2026-07-28` am Draht gemessen** (`tests/test_modern_era.py`, 25
+  Zusicherungen). Der Test baut die echte ASGI-App des Servers
+  (`streamable_http_app()`), fährt ihren Lifespan und schickt Anfragen durch
+  sie hindurch — den Pro-Request-Envelope der modernen Ära ebenso wie den
+  `initialize`-Handshake.
+
+  Warum nicht über einen In-Process-Client: Die moderne Ära existiert **nur**
+  auf dem Streamable-HTTP-Einstieg. `StreamableHTTPSessionManager` routet einen
+  Request, dessen `mcp-protocol-version`-Header keine Handshake-Revision nennt,
+  auf den Pro-Request-Pfad; stdio und `Client(mcp)` kennen ausschliesslich den
+  Handshake. Wer die Spec durch einen In-Process-Client prüft, prüft die
+  Handler und nicht die Ära — und übersieht genau den Fehler unter «Behoben».
+
+  Gemessen und nicht angenommen wurde auch, was eine moderne Anfrage
+  mitbringen muss. `mcp-name` spiegelt je Methode ein anderes Feld (`name` bei
+  `tools/call`, `uri` bei `resources/read`); die Zuordnung kommt aus
+  `NAME_BEARING_METHODS` des SDK statt aus einer zweiten Tabelle. Ein
+  unbekanntes Werkzeug antwortet `200` mit `isError: true` und nicht 4xx — ein
+  fehlgeschlagener Werkzeugaufruf ist nach Spec ein Resultat, damit das Modell
+  die Meldung sieht. Beide Erwartungen standen zuerst falsch im Test.
+
+  Der Frischehinweis-Test parametrisiert über `CACHEABLE_METHODS` des SDK und
+  NICHT über `CACHE_HINTS`. Die erste Fassung tat Letzteres, und die
+  Gegenprobe zeigte, warum das zu wenig ist: einen Eintrag aus `CACHE_HINTS`
+  zu löschen liess die Suite grün, weil mit dem Eintrag auch der Testfall
+  verschwand. Ein Test, der über sein Prüfobjekt parametrisiert, kann dessen
+  Entfernung nicht bemerken.
+
+- **`serverInfo` trägt jetzt eine Identität.** Spec `2026-07-28` führt
+  `serverInfo` im `_meta` **jeder** Antwort mit, nicht einmal pro Sitzung wie
+  die Handshake-Ära. Am Draht gemessen stand dort — in `tools/list`,
+  `resources/list`, `server/discover` und `tools/call` gleichermassen —
+  `{"name": "swiss_culture_mcp", "version": ""}`. Was fehlte, fehlte also bei
+  jedem Aufruf.
+
+  Der leere String war kein unvermeidlicher SDK-Default: `MCPServer` nimmt
+  `version=""` nur an, weil niemand etwas übergab. Der `User-Agent` gegenüber
+  den Upstreams trug die Nummer die ganze Zeit korrekt, aus derselben
+  `__version__` der Paket-Metadaten. Nur die MCP-Seite blieb blank. Ergänzt
+  sind `version` (aus `importlib.metadata`, kein Literal —
+  `scripts/check_version_sync.py` weist eines zurück), `title`, `description`
+  und `website_url`. Beide Ären geben es jetzt aus.
+
+  Die Projektadresse steht dafür als `PROJECT_URL` in `constants.py`, statt
+  als Literal ein zweites Mal neben dem `User-Agent`.
+
+- **Frischehinweis auch auf `prompts/list`** (SEP-2549). Die Liste ist hier
+  permanent leer — dieser Server registriert keinen Prompt — und antwortete am
+  Draht dennoch `ttlMs=0`, `cacheScope=private`: jeder Client fragt bei jeder
+  Verbindung eine Liste neu ab, die garantiert leer zurückkommt. Dieselbe
+  Verschwendung, gegen die der Eintrag oben argumentiert, unter derselben Regel
+  («die auflistenden Methoden»).
+
 ### Behoben
+
+- **Der HTTP-Transport startete nie — und mit ihm nichts von Spec
+  `2026-07-28`.** `main()` rief `mcp.run(transport="streamable_http")`, mit
+  Unterstrich. `MCPServer.run()` prüft den Namen gegen ein `Literal` und nimmt
+  nur `streamable-http` an; gemessen:
+
+  ```
+  ValueError: Unknown transport: streamable_http
+  ```
+
+  Die Folge reicht weiter als ein Transport: Die moderne Ära wird
+  ausschliesslich über den Streamable-HTTP-Einstieg bedient, stdio kennt nur
+  den `initialize`-Handshake. Ein Server, dessen HTTP-Transport beim Start
+  abbricht, spricht die Spec also gar nicht — so vollständig die Handler und so
+  korrekt die gepinnten Revisionen auch sein mögen.
+
+  Warum es niemandem auffiel: `tests/test_server.py` patchte `mcp.run` und
+  hielt den übergebenen String gegen eine handgeschriebene Erwartung —
+  denselben Tippfehler. Ein Mock nimmt jeden Namen an. Dieselbe Klasse wie der
+  handgeschriebene Stub, der denselben Feldnamen annahm wie der Code: Nichts
+  ist rot, weil nichts geprüft wird, worauf es ankommt. Die Prüfung hängt jetzt
+  am `Literal` des SDK, und `tests/test_modern_era.py` führt den Namen
+  zusätzlich wirklich durch `mcp.run()`.
+
+  `MCP_TRANSPORT=streamable_http` bleibt gültig: Beide READMEs dokumentieren
+  die Schreibweise mit Unterstrich, und so steht sie in bestehenden
+  Deployments. Angenommen werden beide, umbenannt wird nichts.
 
 - **Eine ausgegebene Quelle war tot.** `bak_isos_overview` gab
   `https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html` als

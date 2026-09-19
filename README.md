@@ -109,7 +109,7 @@ Try it immediately in Claude Desktop:
 
 | Variable | Default | Description |
 |---|---|---|
-| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` or `streamable_http` |
+| `MCP_TRANSPORT` | `stdio` | Transport: `stdio` or `streamable_http` (`streamable-http` is accepted too). The `2026-07-28` era is reachable only over the HTTP transport. |
 | `MCP_HOST` | `127.0.0.1` | Bind host for HTTP transport (loopback by default) |
 | `MCP_PORT` | `8000` | Port for HTTP transport |
 | `MCP_ALLOW_PUBLIC_BIND` | `false` | If `true`, permits binding `0.0.0.0` without auth. Set this **only** behind an authenticating reverse proxy (e.g. Cloudflare Access, oauth2-proxy). |
@@ -218,13 +218,39 @@ other era is refused.
 Both revisions are pinned in
 [`tests/test_protocol_version.py`](tests/test_protocol_version.py) and asserted
 against the installed SDK, so a Dependabot bump of `mcp` cannot move either one
-silently. This server builds no ASGI app to send an `initialize` through, so
-the gate asserts the SDK constants rather than a measured response — the
-weaker form, named rather than left unsaid.
+silently.
 
 Note that the SDK's `LATEST_PROTOCOL_VERSION` is an alias for the **modern**
 era, not for the handshake era — pinning against it alone would leave the era
 that current clients actually negotiate free to drift.
+
+**The modern era is measured, not inferred.**
+[`tests/test_modern_era.py`](tests/test_modern_era.py) builds the server's real
+ASGI app and sends requests through it: a `2026-07-28` envelope, an
+`initialize` handshake, and each of the malformed variants. It asserts that a
+modern request is answered, that the two eras stay separate (`initialize` is
+not a method on the modern wire; the handshake caps at `2025-11-25` instead of
+handing out `2026-07-28`), that `server/discover` names exactly the pinned
+revision, that a foreign revision is refused with `-32022` naming both the
+requested and the supported one, and that `ttlMs`/`cacheScope` and
+`serverInfo` arrive as wire fields.
+
+This matters because the modern era exists **only** on the streamable-HTTP
+entry — stdio and the in-process clients speak the `initialize` handshake and
+nothing else. Testing the spec through an in-process client tests the handlers,
+not the era. That gap hid a one-character defect: `main()` started the HTTP
+transport as `streamable_http`, where the SDK's `run()` takes
+`streamable-http`, so the transport aborted with `ValueError` and the server
+did not serve the spec at all. Every test stayed green, because they mocked
+`mcp.run` and compared the string against a hand-written copy of the same
+typo.
+
+**Server identity.** Spec `2026-07-28` carries `serverInfo` in the `_meta` of
+**every** response, not once per session as the handshake era does. This server
+fills it with name, title, description, website URL and the version from the
+package metadata (`importlib.metadata`, the same source as the outbound
+`User-Agent`); a hand-maintained literal is rejected by
+`scripts/check_version_sync.py`.
 
 **Update policy.** When the gate fails, do not edit the constant blindly: read
 the spec changelog between the two revisions, verify the server still behaves,

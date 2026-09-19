@@ -12,6 +12,7 @@ import pytest
 
 from swiss_culture_mcp.server import (
     KANTONE,
+    SDK_HTTP_TRANSPORT,
     IsosDetailInput,
     IsosKantonInput,
     IsosSearchInput,
@@ -32,6 +33,7 @@ from swiss_culture_mcp.server import (
     bak_list_traditions,
     bak_search_isos,
     main,
+    mcp,
 )
 
 # ---------------------------------------------------------------------------
@@ -250,7 +252,70 @@ class TestMainHardening:
         monkeypatch.setenv("MCP_ALLOW_PUBLIC_BIND", "true")
         with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
             main()
-            mock_run.assert_called_once_with(transport="streamable_http", host="0.0.0.0", port=8000)
+            mock_run.assert_called_once_with(
+                transport=SDK_HTTP_TRANSPORT, host="0.0.0.0", port=8000
+            )
+
+    def test_main_uebergibt_einen_transportnamen_den_das_sdk_kennt(self, monkeypatch):
+        """Hier stand die Erwartung `transport="streamable_http"` — als Literal.
+
+        Das SDK nimmt nur `streamable-http` an, mit Bindestrich; `mcp.run()`
+        prueft gegen ein `Literal` und wirft sonst `ValueError: Unknown
+        transport`. Der HTTP-Transport startete deshalb nie, und der Test
+        blieb gruen: Er patchte `mcp.run` und hielt den uebergebenen String
+        gegen eine handgeschriebene Erwartung — denselben Tippfehler. Ein Mock
+        nimmt jeden Namen an.
+
+        Geprueft wird jetzt gegen die Signatur des SDK statt gegen ein
+        Literal. `tests/test_modern_era.py` fuehrt denselben Namen zusaetzlich
+        wirklich durch `mcp.run()`; diese Zeile faengt ihn schon hier, wo die
+        uebrigen `main()`-Tests stehen.
+        """
+        from typing import get_args, get_type_hints
+
+        erlaubt = get_args(get_type_hints(type(mcp).run)["transport"])
+        assert erlaubt, "die Signatur von run() nennt keine Transportnamen mehr"
+
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.delenv("MCP_HOST", raising=False)
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            main()
+
+        uebergeben = mock_run.call_args.kwargs["transport"]
+        assert uebergeben in erlaubt, (
+            f"main() uebergibt transport={uebergeben!r}; mcp.run() nimmt nur "
+            f"{erlaubt} an und wirft sonst ValueError"
+        )
+
+    def test_beide_schreibweisen_der_env_var_waehlen_den_http_transport(self, monkeypatch):
+        """Die READMEs dokumentieren `streamable_http`, das SDK heisst anders.
+
+        Beide Schreibweisen muessen den HTTP-Transport waehlen, sonst benennt
+        dieser Commit eine funktionierende Deployment-Konfiguration um. Faellt
+        dieser Test fuer den Unterstrich, faellt er fuer bestehende Betreiber.
+        """
+        for wert in ("streamable_http", "streamable-http"):
+            monkeypatch.setenv("MCP_TRANSPORT", wert)
+            monkeypatch.delenv("MCP_HOST", raising=False)
+            monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+            with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+                main()
+            assert mock_run.call_args.kwargs["transport"] == SDK_HTTP_TRANSPORT, (
+                f"MCP_TRANSPORT={wert} waehlte nicht den HTTP-Transport"
+            )
+
+    def test_ein_unbekannter_transportname_faellt_auf_stdio_zurueck(self, monkeypatch):
+        """Gegenprobe zur Alias-Liste: sie nimmt nicht einfach alles an.
+
+        Ohne diese Zeile waere der Test darueber auch gruen, wenn die
+        Bedingung jeden Wert als HTTP einordnete — dann waere `stdio` selbst
+        HTTP.
+        """
+        monkeypatch.setenv("MCP_TRANSPORT", "streamablehttp")
+        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            main()
+        mock_run.assert_called_once_with(transport="stdio")
 
     def test_main_default_loopback_bind(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
