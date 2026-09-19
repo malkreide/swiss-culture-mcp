@@ -41,6 +41,28 @@ echte Zeit nicht widerlegen.
 - monkeypatch.setattr(modul.asyncio, "sleep", ...) greift ins Modul
 asyncio selbst und entschärft die Mechanik im ganzen Prozess. Patche
 einen Modul-Alias (_sleep = asyncio.sleep), nicht das fremde Modul.
+- **Den Bytecode-Cache leeren, sonst prüft die Gegenprobe den alten Stand.**
+Am 19.9.2026 überlebte eine Mutation im Klassifizierer alle Tests. Der Test
+war in Ordnung; die Mutation war nie angekommen. Python hält eine `.pyc` für
+gültig, wenn **Grösse und mtime** der Quelldatei passen — und `RUNNING` durch
+`PENDING` zu ersetzen ändert die Grösse nicht (beide sieben Zeichen), während
+das `cp` zum Zurücksetzen unmittelbar davor die mtime in dieselbe Sekunde
+legte. Beide Prüfgrössen gleich, alter Bytecode, grüner Lauf.
+
+  Das ist die Gegenprobe, die sich selbst aushebelt: Sie meldet «die
+  Zusicherung trägt», wo sie gar nichts gemessen hat. Verräterisch ist
+  gerade das erfreuliche Ergebnis — eine Mutation, die nichts kaputt macht,
+  ist zuerst als **nicht angekommen** zu verdächtigen, nicht als harmlos.
+  Deshalb in jeder Gegenprobe:
+
+  ```bash
+  find . -name __pycache__ -type d -prune -exec rm -rf {} +
+  ```
+
+  oder `PYTHONDONTWRITEBYTECODE=1`. Und wenn eine Mutation überlebt: erst
+  nachsehen, ob sie im Quelltext steht und ob das frisch geladene Modul sich
+  anders verhält, bevor man den Test für schwach hält.
+
 Handgeschriebene Fixtures kodieren die Annahme des Autors und können sie
 nicht widerlegen. Mindestens eine aufgezeichnete Antwort pro externem
 Endpunkt, mit Aufnahmedatum.
@@ -573,6 +595,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #62 | 09:15:12 | 09:16:08 | **56 s** |
 | #63 | 09:23:35 | 09:24:32 | **57 s** |
 | #64 | 13:51:27 | 13:54:34 | **187 s** |
+| #64 (2.) | 14:08:38 | noch offen bei 14:11:30 | **> 172 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte

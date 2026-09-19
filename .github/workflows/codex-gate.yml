@@ -213,7 +213,8 @@ jobs:
             false|uebersprungen) frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN" ;;
           esac
           echo "Frist: ${frist}s"
-          ende=$(( $(date +%s) + frist ))
+          start=$(date +%s)
+          ende=$(( start + frist ))
           bestaetigt=0
           while :; do
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
@@ -253,6 +254,19 @@ jobs:
                 break
               fi
               echo "clear zum ersten Mal — Bestaetigungsrunde."
+            elif [ "$state" = "running" ]; then
+              # Ein Lauf ist in der Luft. Dann gilt die LANGE Frist, auch
+              # wenn der Anstoss nicht von hier kam — die kurze Frist ist
+              # dafuer da, nicht auf etwas zu warten, das nie kommt, nicht
+              # dafuer, etwas abzuschneiden, das schon laeuft.
+              #
+              # Am 19.09.2026 auf PR #64 genau so passiert: Die kurze Frist
+              # von 180 s lief um 14:10:54 ab, der Lauf hatte um 14:08:38
+              # begonnen und war noch nicht fertig. Ein Codex-Lauf braucht
+              # bis 187 s; eine Frist, die kuerzer ist als der Lauf, meldet
+              # «kein Urteil» ueber ein Urteil, das gerade entsteht.
+              bestaetigt=0
+              ende=$(( start + WARTE_SEKUNDEN ))
             else
               bestaetigt=0
               # Alles andere ausser `pending` ist sofort ein Ergebnis, auch

@@ -266,6 +266,27 @@ def test_der_job_liest_nur() -> None:
         assert schreibend not in zeilen, f"unnoetige Berechtigung: {schreibend}"
 
 
+def test_ein_laufender_review_verlaengert_die_kurze_frist() -> None:
+    """Die kurze Frist darf nichts abschneiden, das schon laeuft.
+
+    Sie ist dafuer da, nicht auf etwas zu warten, das nie kommt. Am
+    19.09.2026 auf PR #64 lief sie nach 180 s ab, waehrend ein Codex-Lauf
+    seit 136 s arbeitete — und ein Lauf braucht bis 187 s. Der Job meldete
+    «kein Urteil» ueber ein Urteil, das gerade entstand.
+
+    Sobald die Statustabelle zum Head einen laufenden Review nennt, gilt
+    deshalb wieder die lange Frist.
+    """
+    zeilen = _befehlszeilen()
+    assert 'elif [ "$state" = "running" ]; then' in zeilen, (
+        "`running` wird nicht von `pending` unterschieden — dann kann die "
+        "Frist nicht auf einen laufenden Review reagieren"
+    )
+    assert "ende=$(( start + WARTE_SEKUNDEN ))" in zeilen, (
+        "die Frist wird bei einem laufenden Review nicht verlaengert"
+    )
+
+
 def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
     """Sonst liest sich `pending` wie «Codex hat nicht geantwortet».
 

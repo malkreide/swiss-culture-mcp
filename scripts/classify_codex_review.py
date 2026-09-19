@@ -114,6 +114,13 @@ QUOTA = "quota"
 ENVIRONMENT = "environment"
 UNKNOWN = "unknown"
 PENDING = "pending"
+#: Die Statustabelle nennt zum Head einen Lauf, der noch nicht fertig ist.
+#: Von PENDING getrennt, weil beides «noch nichts» heisst und Verschiedenes
+#: bedeutet: Bei RUNNING ist ein Urteil unterwegs und Warten lohnt; bei
+#: PENDING ist nichts in der Luft, und Warten kostet nur Laufzeit. Am
+#: 19.09.2026 auf PR #64 fiel der Unterschied auf, als der Gate-Job seine
+#: kurze Frist ausschoepfte, waehrend ein Lauf noch arbeitete.
+RUNNING = "running"
 
 #: Zustaende, die belegen, dass Codex diesen Commit angesehen hat.
 PROVEN = frozenset({REVIEWED, CLEAR})
@@ -219,7 +226,7 @@ def classify(
             f"Woertlich: «{fremder_status}» — einordnen statt durchwinken.",
         )
     if laeuft:
-        return PENDING, f"Codex-Review zu {kurz} laeuft noch."
+        return RUNNING, f"Codex-Review zu {kurz} laeuft noch."
     if fertig:
         return (
             CLEAR,
