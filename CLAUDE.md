@@ -357,9 +357,9 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es inzwischen **drei** sind — #56, #57 und #58 —, macht die Sache nicht
-sicherer, sondern nur die Lücke sichtbarer: Dreimal dasselbe unter denselben
-Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung dreimal.
+Dass es inzwischen **vier** sind — #56 bis #59 —, macht die Sache nicht
+sicherer, sondern nur die Lücke sichtbarer: Viermal dasselbe unter denselben
+Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung viermal.
 **Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
 OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
 was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
@@ -443,6 +443,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #56 | 06:35:59 | 06:38:03 | **124 s** |
 | #57 | 06:56:06 | 06:56:42 | **36 s** |
 | #58 | 07:02:29 | 07:03:49 | **80 s** |
+| #59 | 07:07:11 | 07:08:08 | **57 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -450,37 +451,66 @@ ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
 einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
 Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
 
-Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus drei Läufen. Was
+Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus vier Läufen. Was
 daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
 Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
 
 ### Den Lauf abwarten — das Verfahren
 
-Am 19.9.2026 ist die Kontrolle dreimal hintereinander nicht zustande gekommen,
-an #56, #57 und #58 dieses Repos. Nicht aus Unkenntnis: Der dritte PR trug die
-Wartebedingung in der eigenen Checkliste. Gefehlt haben jedes Mal unter zwei
-Minuten. Damit das nicht vom Erinnern abhängt, steht es hier als Ablauf:
+Am 19.9.2026 ist die Kontrolle **viermal** hintereinander nicht zustande
+gekommen, an #56, #57, #58 und #59 dieses Repos:
 
-1. **Auf «ready» stellen.** Vorher läuft Codex nicht an, ein kommentarloser
-   Draft ist kein Beleg.
-2. **Rund 60 Sekunden warten, dann `get_comments` abfragen.** Den Kommentar mit
+| PR | ready → Merge | Stand beim Merge |
+|---|---|---|
+| #56 | 57 s | Lauf lief (`Running`) |
+| #57 | 4 s | Lauf startete 1 s danach |
+| #58 | 20 s | Lauf lief (`Running`) |
+| #59 | **2 s** | Lauf startete **8 s danach** |
+
+Nicht aus Unkenntnis. #58 trug die Wartebedingung in der eigenen Checkliste,
+und #59 war der PR, der dieses Verfahren einführte.
+
+**Die erste Fassung dieses Abschnitts war darum falsch gebaut**, und zwar auf
+eine Art, die sich an den Zahlen ablesen lässt. Sie begann mit «Auf ready
+stellen» als Aufgabe des Menschen und bat ihn danach um eine Pause. «Ready» und
+«Merge» liegen in GitHubs Oberfläche aber nebeneinander und sind eine einzige
+Bewegung. Ein Verfahren, das gegen diese Bewegung Selbstbeherrschung verlangt,
+gewinnt nicht — bei #59 lag der Merge sogar **vor** dem Start des Laufs, das
+Fenster existierte also gar nicht.
+
+Die Reihenfolge muss das Fenster erzeugen, nicht die Disziplin. Deshalb
+schaltet **der Agent** auf ready, nicht der Mensch:
+
+1. **Der Agent eröffnet den PR als Draft.** Solange er Draft ist, läuft Codex
+   nicht an; ein kommentarloser Draft ist kein Beleg, sondern ein nicht
+   durchgeführter Test.
+2. **Der Agent schaltet selbst auf «ready»** (`update_pull_request`,
+   `draft: false`), sobald die Gates grün sind. Damit beginnt die Uhr zu einem
+   Zeitpunkt, den er kennt.
+3. **Rund 60 Sekunden warten, dann `get_comments` abfragen.** Den Kommentar mit
    `<!-- codex-pull-request-review-summary -->` heraussuchen und darin ZWEI
    Spalten lesen: **Status** und **Commit**. Der Commit muss der Head des PR
    sein — eine Tabelle zu einem älteren Stand sagt nichts über den jetzigen.
-3. **Bei `🔄 Running` erneut abfragen**, nicht weiterrechnen. Bei `✅ Completed`
+4. **Bei `🔄 Running` erneut abfragen**, nicht weiterrechnen. Bei `✅ Completed`
    ist der Lauf durch.
-4. **Dann erst `get_reviews` und `get_review_comments`** für die Befunde. Der
+5. **Dann erst `get_reviews` und `get_review_comments`** für die Befunde. Der
    Status in der Tabelle ist kein Befundbericht.
-5. **Erst danach mergen.**
+6. **Der Agent meldet den Endzustand.** Erst danach mergt der Mensch — in einer
+   einzigen Bewegung, ohne Pause, die er einhalten müsste.
 
-Wer das automatisieren will, stösst auf eine Wand, die in dieser Datei schon
-zweimal beschrieben ist: Die GitHub-Werkzeuge hängen an der Session, nicht am
-Konto. Ein Shell-Skript hat keinen Zugang (`curl` auf `api.github.com` endet
-bei «GitHub access is not enabled for this session»), und eine gefeuerte
-Routine erbt **keine** MCP-Werkzeuge. Das Warten ist deshalb Sache dessen, der
-die Session fährt — Mensch oder Agent —, und kein Cron-Job. Wer eine Routine
-dafür baut, baut etwas, das nichts prüfen kann und «geprüft» meldet.
+Der Unterschied zur ersten Fassung ist eine Zeile und trägt alles: Wer auf
+ready schaltet, bestimmt, wann das Fenster aufgeht. Liegt beides beim Menschen,
+schliesst es sich in Sekunden; liegt das Schalten beim Agenten, ist die
+Wartezeit schon vorbei, bevor der Mensch an den Merge-Knopf kommt.
+
+Wer das darüber hinaus automatisieren will, stösst auf eine Wand, die in dieser
+Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen an der
+Session, nicht am Konto. Ein Shell-Skript hat keinen Zugang (`curl` auf
+`api.github.com` endet bei «GitHub access is not enabled for this session»),
+und eine gefeuerte Routine erbt **keine** MCP-Werkzeuge. Das Warten ist deshalb
+Sache der laufenden Session und kein Cron-Job. Wer eine Routine dafür baut,
+baut etwas, das nichts prüfen kann und «geprüft» meldet.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
