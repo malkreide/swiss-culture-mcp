@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-19
+
 ### Hinzugefuegt
 
 - **Frischehinweise auf den auflistenden Methoden** (SEP-2549, Spec
@@ -90,6 +92,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Verschwendung, gegen die der Eintrag oben argumentiert, unter derselben Regel
   («die auflistenden Methoden»).
 
+- **`scripts/record_fixtures.py`, `tests/fixtures/` und `PROVENANCE.md`.**
+  Dieser Server braucht keine Zugangsdaten — seine gesamte Adressliste ist
+  pruefbar, und war es nie. Aufgezeichnet ist jetzt, ob jede Adresse, die er
+  baut oder als Quelle ausgibt, etwas liefert.
+
+  **Vier Kontrollen**: ein erfundener geo.admin.ch-Dienst (404), ein
+  erfundener BAK-Pfad (404), eine erfundene News-Organisationsnummer (200,
+  aber 367 B statt 344 962 B — die Nummer filtert also wirklich) und ein
+  erfundener Tradition-Slug (404).
+
+- **Ein Beinahe-Fehlbefund, mit aufgezeichnet.** `TRADITIONS_BASE` allein
+  antwortet mit 404; dem Stamm fehlt ein `.html`. Daraus folgt **nichts**:
+  Der Server ruft den Stamm nie allein auf, sondern nur
+  `{TRADITIONS_BASE}/liste/liste.html` und
+  `{TRADITIONS_BASE}/traditionen/<slug>.html` — beide antworten mit 200.
+
+  Mein erster Abruf schlug fehl, weil ich einen Slug geraten hatte. Der
+  Recorder zieht sie deshalb aus der Listenseite, statt sie sich auszudenken,
+  und `tests/test_adressen.py` haelt den Fall fest.
+
+- **`tests/test_adressen.py`** — 9 Tests, die **in** der CI laufen.
+  Gegengeprueft mit einer Rueckmutation (toter Link zurueck in die Ausgabe):
+  Die Suite wird rot.
+
+- **Zwei Gates mehr in der CI.** `live-tests.yml` faehrt die Live-Suite
+  woechentlich gegen die echten Quellen — `--run-live` ist dabei Pflicht, ohne
+  die Option ueberspringt sich jeder Live-Test selbst und der Lauf endet gruen,
+  ohne etwas abgefragt zu haben. `scripts/classify_live_run.py` ordnet das
+  Ergebnis ein und oeffnet bzw. schliesst dazu ein `upstream`-Issue.
+  `codex-gate.yml` macht das Codex-Urteil zu einem Check-Run; freigegeben wird
+  nur ein Lauf, der **nichts** findet.
+
+  Am Server aendert das nichts. Es steht hier, weil es aendert, was ein gruener
+  Lauf behauptet: vorher «die Mocks stimmen».
+
+### Geaendert
+
+- **Lieferkette und Werkzeugversionen festgenagelt.** Alle GitHub Actions
+  haengen an einem Commit-SHA statt an einem beweglichen Tag. `ruff==0.16.3`
+  steht nur noch an einer Stelle, im dev-Extra von `pyproject.toml`;
+  `scripts/check_ruff_pin.py` weist eine zweite Version in den Workflows
+  zurueck, weil ein solcher Schritt nach dem Install laeuft und den Pin still
+  ueberstimmt.
+
 ### Behoben
 
 - **Der HTTP-Transport startete nie — und mit ihm nichts von Spec
@@ -119,6 +165,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   die Schreibweise mit Unterstrich, und so steht sie in bestehenden
   Deployments. Angenommen werden beide, umbenannt wird nichts.
 
+- **`bak_get_opendata` scheiterte produktiv an der eigenen Allowlist.**
+  `opendata.swiss` beantwortet die CKAN-Aufrufe mit `302` auf
+  `ckan.opendata.swiss`. `_assert_host_allowed()` prueft den Host **nach** der
+  Umleitung, und das Ziel stand nicht in `ALLOWED_HOSTS` — jeder Aufruf endete
+  in «Host nicht erlaubt», waehrend saemtliche Unit-Tests gruen blieben.
+
+  Warum es monatelang unsichtbar war: Die aufgezeichnete Antwort hielt fuer
+  diese Adresse `200` fest. Der Recorder folgte der Umleitung und schrieb den
+  **Ausgangs**-Host auf — eine Aufzeichnung, die den Bruch, den sie sehen soll,
+  gar nicht sehen kann. Sie fuehrt jetzt `final_host` mit, und
+  `tests/test_umleitungsziele.py` prueft fuer jede abgerufene Adresse Start-
+  und Zielhost gegen die Allowlist. Gefunden hat den Fehler der erste
+  Live-Lauf, den es je gab.
+
+- **Die ISOS-Zahlen zaehlten Features statt Ortsbilder.** `bak_isos_by_kanton`
+  meldete fuer GR `total_in_kanton: 507`; Anhang 1 der VISOS (SR 451.12,
+  Fassung vom 1.6.2026) setzt 105 fest. Der `find`-Endpunkt liefert je
+  Ortsbild mehrere Features, und die Deduplizierung lief ueber die
+  Feature-`id` — sie zaehlte Features und nannte sie Objekte.
+
+  Fuer ZH kam dieselbe Zahl heraus wie richtig gerechnet (73), weil dort jedes
+  Objekt genau eine Feature-ID traegt. Genau deshalb blieb es unentdeckt: Der
+  Fall, an dem man es sieht, ist GR mit bis zu 51 IDs je Objekt. Betroffen
+  waren vier Werkzeuge mit derselben kopierten Schleife (`bak_search_isos`,
+  `bak_isos_by_kanton`, `bak_isos_by_kategorie`, `bak_isos_statistics`); alle
+  vier laufen jetzt ueber `_dedup_objekte()`. Gegengeprueft gegen die
+  Verordnung statt gegen die API: 1253 Ortsbilder, alle 26 Kantone nach der
+  Korrektur deckungsgleich.
+
 - **Eine ausgegebene Quelle war tot.** `bak_isos_overview` gab
   `https://www.bak.admin.ch/bak/de/home/kulturerbe/baukultur.html` als
   BAK-Website aus. Am 2026-08-08 gemessen: HTTP 404, Titel «404 - Seite nicht
@@ -135,34 +210,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Baukultur-Seite. Ausgegeben wird jetzt die BAK-Wurzel, die nachweislich mit
   200 antwortet.
 
-### Hinzugefuegt
-
-- **`scripts/record_fixtures.py`, `tests/fixtures/` und `PROVENANCE.md`.**
-  Dieser Server braucht keine Zugangsdaten — seine gesamte Adressliste ist
-  pruefbar, und war es nie. Aufgezeichnet ist jetzt, ob jede Adresse, die er
-  baut oder als Quelle ausgibt, etwas liefert.
-
-  **Vier Kontrollen**: ein erfundener geo.admin.ch-Dienst (404), ein
-  erfundener BAK-Pfad (404), eine erfundene News-Organisationsnummer (200,
-  aber 367 B statt 344 962 B — die Nummer filtert also wirklich) und ein
-  erfundener Tradition-Slug (404).
-
-- **Ein Beinahe-Fehlbefund, mit aufgezeichnet.** `TRADITIONS_BASE` allein
-  antwortet mit 404; dem Stamm fehlt ein `.html`. Daraus folgt **nichts**:
-  Der Server ruft den Stamm nie allein auf, sondern nur
-  `{TRADITIONS_BASE}/liste/liste.html` und
-  `{TRADITIONS_BASE}/traditionen/<slug>.html` — beide antworten mit 200.
-
-  Mein erster Abruf schlug fehl, weil ich einen Slug geraten hatte. Der
-  Recorder zieht sie deshalb aus der Listenseite, statt sie sich auszudenken,
-  und `tests/test_adressen.py` haelt den Fall fest.
-
-- **`tests/test_adressen.py`** — 9 Tests, die **in** der CI laufen.
-  Gegengeprueft mit einer Rueckmutation (toter Link zurueck in die Ausgabe):
-  Die Suite wird rot.
-
 
 ## [1.1.4] - 2026-07-30
+
+> **Nachtrag vom 2026-09-19.** Dieser Abschnitt ist unvollstaendig und in einem
+> Punkt irrefuehrend. `v1.1.4` enthaelt bereits die Migration auf die 2.x-API —
+> `mcp.server.fastmcp` → `mcp.server.mcpserver`, `FastMCP` → `MCPServer`,
+> Abhaengigkeit `mcp[cli]>=2.0.0,<3`. Der Satz unten, sie bleibe «eine eigene,
+> bewusste Aufgabe», beschreibt einen Zwischenstand, der nie veroeffentlicht
+> wurde: Auf PyPI traegt `1.1.4` `mcp[cli]<3,>=2.0.0`. Am Drahtformat aendert
+> die Migration nichts, die Umbenennungen in `mcp_types` 2.x sind
+> Pydantic-Aliasse.
 
 ### Behoben
 
