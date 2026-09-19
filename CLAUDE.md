@@ -426,33 +426,56 @@ Acht solche Beobachtungen — #56 bis #63 — machten die Sache nicht sicherer,
 sondern nur die Lücke sichtbarer: Achtmal dasselbe unter denselben
 Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung achtmal.
 
-**DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR, UND SIE ENTLASTET DIE ACHT.**
-Auf PR #64 lief Codex von 13:51:27 bis 13:54:34 auf `f913ecd`, während der
-PR **offen und nicht gemergt** war. Hinterlassen hat er: die Tabelle auf
-`✅ Completed` — und sonst nichts. `get_reviews` → `[]`,
-`get_review_comments` → `totalCount: 0`, keine Befundlos-Meldung.
+**DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR — UND SIE SAGT DAS GEGENTEIL
+DESSEN, WAS HIER ZUERST STAND.** Auf PR #64 lief Codex von 13:51:27 bis
+13:54:34 auf `f913ecd`, während der PR **offen und nicht gemergt** war.
+Hinterlassen hat er: ein **Review-Objekt** (eingereicht 13:54:32,
+«💡 Codex Review», `commit_id: f913ecd18a`) und einen **Review-Kommentar**
+mit einem P2-Befund an einer konkreten Zeile.
 
-Das ist zeichengleich mit den acht Läufen auf gemergten PRs. Damit ist die
-Befürchtung ausgeräumt, der Merge schneide die Ausgabe ab: Ein sauberer Lauf
-sieht hier so aus, offen wie gemergt.
+Auf einem offenen PR schreibt Codex einen Befund also dorthin, wo er
+hingehört. Die acht Läufe auf gemergten PRs hinterliessen nichts dergleichen.
+Das ist **kein** Freispruch für sie, sondern der Gegensatz, der bisher
+fehlte — und die Frage, ob der Merge die Ausgabe abschneidet, ist damit
+**offener als vorher**, nicht erledigt.
 
-**Zwei Dinge folgen daraus, und ein drittes ausdrücklich nicht:**
+Was der Fall nicht entscheidet: Dieser Lauf HATTE einen Befund, jene acht
+hatten vielleicht keinen. «Befund auf offenem PR» gegen «nichts auf gemergten
+PRs» vergleicht zwei Dinge, die sich in zwei Merkmalen unterscheiden. Die
+saubere Gegenprobe wäre ein Lauf MIT Befund auf einem gemergten PR — die gibt
+es weiterhin nicht.
 
-- Die «Swish!»-Befundlos-Meldung ist **weg**. Oben steht noch, es sei nicht zu
-  entscheiden, ob Codex das Format gewechselt habe oder der Merge den Weg
-  abgeschnitten. Die Kontrolle entscheidet es: Auf einem offenen PR kam sie
-  ebenso wenig. Das Format hat gewechselt, die Tabelle hat sie ersetzt.
-- Die acht Beobachtungen sind damit nachträglich in Ordnung — sie waren nie
-  auffällig, nur unkontrolliert.
-- **Nicht** belegt ist, dass ein BEFUND auf einem gemergten PR geschrieben
-  würde. Dieser Lauf fand nichts. Eine Gegenprobe dafür bräuchte einen Lauf
-  MIT Befund, und den gab es bis heute in diesem Repo nie.
+**Der Fehlschluss, der hier eine Fassung lang stand, ist der lehrreiche
+Teil.** Geschrieben stand: «Hinterlassen hat er die Tabelle — und sonst
+nichts. `get_reviews` → `[]`, `get_review_comments` → `totalCount: 0`.» Das
+war wörtlich das, was die API antwortete, und es war falsch. Die Abfrage
+erfolgte **nach** dem Umschalten der Tabelle auf `Completed` (13:54:34), das
+Review-Objekt war zu diesem Zeitpunkt seit zwei Sekunden eingereicht — und
+die Liste kam trotzdem leer zurück.
 
-Wie sie zustande kam, ist selbst eine Lehre: nicht über den Gate-Job, der
-zweimal neben dem Merge herlief und nichts ausrichtete, sondern weil ein
-`@codex review` von Hand einen Lauf auf einem PR startete, der offen blieb.
-Die Kontrolle brauchte keine Sperre — sie brauchte einen PR, den niemand
-sofort mergte.
+Das ist dieselbe Falle wie bei den zwei Abfragen zu #90 weiter oben, nur
+teurer: **Eine zwischengespeicherte Antwort sieht aus wie eine aktuelle.**
+Dort betraf es einen fortgeschriebenen Kommentarkörper, hier eine Liste, die
+leer zurückkommt, obwohl ihr Inhalt existiert. Ein leeres Ergebnis ist die
+gefährlichste Form davon, weil es wie eine Aussage aussieht.
+
+**Praktisch:** `Completed` in der Tabelle und das Review-Objekt sind nicht
+gleichzeitig sichtbar. Wer aus «Tabelle fertig, Reviews leer» auf «keine
+Befunde» schliesst, kann um Sekunden danebenliegen. Zweimal abfragen, mit
+Abstand. Das Gate tut das seit diesem Tag — `clear` gilt dort erst, wenn es
+zwei Abfragen im Abstand von `ABSTAND_SEKUNDEN` überlebt;
+`test_clear_muss_eine_zweite_abfrage_ueberleben` hält es fest.
+
+**Die «Swish!»-Meldung** blieb auch hier aus, obwohl ein Befund vorlag — was
+nichts beweist, denn sie kommt laut Infokasten nur, wenn KEIN Befund vorliegt.
+Über ihren Verbleib sagt dieser Lauf also gar nichts; die Frage weiter oben
+bleibt offen, und die Fassung, die sie hier für entschieden erklärte, war
+wieder zu schnell.
+
+Wie die Kontrolle zustande kam, ist selbst eine Lehre: nicht über den
+Gate-Job, der zweimal neben dem Merge herlief, sondern weil ein
+`@codex review` von Hand einen Lauf auf einem PR startete, den niemand sofort
+mergte. Sie brauchte keine Sperre — sie brauchte Zeit.
 
 Eine parallele Session an `lindas-mcp` meldet, die Tabelle sei bei Befund und
 ohne Befund **zeichengleich** und beweise nur, DASS geprüft wurde. Das deckt

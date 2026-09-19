@@ -42,8 +42,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  issues: write   # nur fuer den `@codex review`-Anstoss nach einem Push
+  # `pull-requests: write` und nicht `read`: Der Anstoss kommentiert ueber
+  # `issues/{n}/comments`, aber das Ziel ist ein PULL REQUEST. GitHub verlangt
+  # dafuer die Pull-request-Berechtigung, nicht die Issue-Berechtigung — mit
+  # `pull-requests: read` antwortet der Endpunkt mit 403 «Resource not
+  # accessible by integration». Am 19.09.2026 auf PR #64 genau so gemessen.
+  pull-requests: write
+  issues: write   # fuer den Fall, dass der Endpunkt auf ein Issue zeigt
 
 concurrency:
   # Ein neuer Push macht das Warten auf den alten Head gegenstandslos.
@@ -148,11 +153,19 @@ jobs:
           echo "Antwort der API:"
           cat anstoss.json
           echo
-          echo 'Haeufigste Ursache: Settings → Actions → General →'
-          echo 'Workflow permissions steht auf "Read repository contents".'
-          echo 'Der permissions-Block eines Workflows kann nur einschraenken,'
-          echo 'nicht erweitern — issues: write greift dann nicht.'
-          echo 'Umstellen auf "Read and write permissions".'
+          # Hier stand der Rat, die repo-weite Vorgabe unter Settings →
+          # Actions → General auf «Read and write» zu stellen. Ein
+          # Codex-Review auf PR #64 hat ihn zerlegt: Die Vorgabe ist keine
+          # Obergrenze, der `permissions:`-Block hebt sie fuer PRs aus
+          # demselben Repo an. Der Rat haette also die Vorgabe JEDES
+          # Workflows aufgeweicht und den Fehler stehen lassen.
+          echo 'Zwei bekannte Ursachen, in dieser Reihenfolge pruefen:'
+          echo '1. Der Endpunkt issues/{n}/comments zeigt hier auf einen PULL'
+          echo '   REQUEST. Dafuer verlangt GitHub pull-requests: write, nicht'
+          echo '   issues: write. Den permissions-Block oben pruefen.'
+          echo '2. Laeuft der PR aus einem FORK, werden angeforderte'
+          echo '   Schreibrechte auf read-only gekuerzt, unabhaengig vom'
+          echo '   permissions-Block. Dann hilft nur ein Anstoss von Hand.'
 
       - name: Auf das Codex-Urteil warten
         id: gate
@@ -168,6 +181,7 @@ jobs:
           [ "$ANSTOSS" = "false" ] && frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN"
           echo "Frist: ${frist}s"
           ende=$(( $(date +%s) + frist ))
+          bestaetigt=0
           while :; do
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
@@ -186,10 +200,33 @@ jobs:
               --comments comments.json --since "$SINCE" | sed -n 's/^state=//p')
             echo "[$(date -u +%H:%M:%S)] $state"
 
-            # Alles ausser `pending` ist ein Ergebnis — auch ein schlechtes.
-            # Auf eine Kontingent- oder Environment-Meldung weiterzuwarten
-            # hiesse, eine Absage fuer Stille zu halten.
-            [ "$state" != "pending" ] && break
+            # `clear` heisst: Tabelle fertig, kein Review-Objekt gesehen.
+            # DAS IST DER GEFAEHRLICHSTE ZUSTAND, und zwar gemessen. Am
+            # 19.09.2026 auf PR #64 reichte Codex sein Review-Objekt um
+            # 13:54:32 ein, die Tabelle sprang um 13:54:34 auf `Completed` —
+            # und eine Abfrage NACH 13:54:34 lieferte fuer die Reviews
+            # trotzdem `[]`. Eine zwischengespeicherte Antwort sieht aus wie
+            # eine aktuelle. Wer hier beim ersten Mal zuschlaegt, faerbt das
+            # Gate gruen, waehrend ein Befund vorliegt — genau der Haken,
+            # gegen den es gebaut ist.
+            #
+            # Deshalb: `clear` gilt erst, wenn es zwei Abfragen im Abstand
+            # von ABSTAND_SEKUNDEN ueberlebt. Ein Befund, der noch unterwegs
+            # ist, hat dann Zeit, sichtbar zu werden.
+            if [ "$state" = "clear" ]; then
+              bestaetigt=$((bestaetigt + 1))
+              if [ "$bestaetigt" -ge 2 ]; then
+                echo "clear zum zweiten Mal — bestaetigt."
+                break
+              fi
+              echo "clear zum ersten Mal — Bestaetigungsrunde."
+            else
+              bestaetigt=0
+              # Alles andere ausser `pending` ist sofort ein Ergebnis, auch
+              # ein schlechtes: Auf eine Kontingent- oder Environment-Meldung
+              # weiterzuwarten hiesse, eine Absage fuer Stille zu halten.
+              [ "$state" != "pending" ] && break
+            fi
             [ "$(date +%s)" -ge "$ende" ] && break
             sleep "$ABSTAND_SEKUNDEN"
           done

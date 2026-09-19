@@ -199,6 +199,43 @@ def test_ohne_anstoss_wird_kuerzer_gewartet() -> None:
     assert any(z.startswith("WARTE_OHNE_ANSTOSS_SEKUNDEN:") for z in zeilen)
 
 
+def test_clear_muss_eine_zweite_abfrage_ueberleben() -> None:
+    """Der gefaehrlichste Zustand, und er ist gemessen.
+
+    Am 19.09.2026 auf PR #64: Codex reichte sein Review-Objekt um 13:54:32
+    ein, die Statustabelle sprang um 13:54:34 auf `Completed` — und eine
+    Abfrage NACH 13:54:34 lieferte fuer `get_reviews` trotzdem `[]`. Eine
+    zwischengespeicherte Antwort sieht aus wie eine aktuelle.
+
+    `clear` heisst «Tabelle fertig, kein Review-Objekt gesehen». Wer beim
+    ersten Mal zuschlaegt, faerbt das Gate gruen, waehrend ein Befund
+    vorliegt. Das ist genau der Haken, gegen den das Gate gebaut ist —
+    deshalb muss `clear` zwei Abfragen ueberleben.
+    """
+    zeilen = _befehlszeilen()
+    assert 'if [ "$state" = "clear" ]; then' in zeilen, (
+        "`clear` wird nicht gesondert behandelt — dann zaehlt die erste, "
+        "moeglicherweise veraltete Antwort"
+    )
+    assert 'if [ "$bestaetigt" -ge 2 ]; then' in zeilen, (
+        "es fehlt die Bedingung, dass `clear` zweimal gesehen werden muss"
+    )
+    assert "bestaetigt=0" in zeilen, "der Zaehler wird nie zurueckgesetzt"
+
+
+def test_der_anstoss_darf_auf_einem_pr_kommentieren() -> None:
+    """`issues/{n}/comments` auf einem PR verlangt pull-requests: write.
+
+    Mit `pull-requests: read` antwortet der Endpunkt mit 403 «Resource not
+    accessible by integration» — am 19.09.2026 auf PR #64 gemessen. Die
+    Issue-Berechtigung genuegt nicht, weil das Ziel ein Pull Request ist.
+    """
+    zeilen = _befehlszeilen()
+    assert "pull-requests: write" in zeilen, (
+        "mit `pull-requests: read` kann der Job auf einem PR nicht kommentieren"
+    )
+
+
 def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
     """Sonst liest sich `pending` wie «Codex hat nicht geantwortet».
 
