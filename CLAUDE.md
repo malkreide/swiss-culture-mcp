@@ -574,11 +574,16 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
 
 **Drei Dinge fehlen ihm, und alle drei gehören benannt:**
 
-- **Er ist kein required check.** Das einzutragen ist eine Repo-Einstellung,
-  die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein Mensch, unter
-  Settings → Branches (oder als Ruleset), Name: `codex-gate`. Wie teuer das
-  ist, hat derselbe Lauf gemessen: #62 war um 09:15:08 gemergt, das Gate wurde
-  um 09:16:14 grün. Es hat 66 Sekunden zu spät recht gehabt.
+- ~~**Er ist kein required check.**~~ **Seit dem 19.9.2026 ist er einer** —
+  eingetragen von Hand unter Settings → Branches, Name: `codex-gate`. Der
+  Agent-Proxy sperrt diese Einstellung mit HTTP 403, sie konnte also nur ein
+  Mensch vornehmen, und aus demselben Grund lässt sie sich von hier aus auch
+  nicht nachlesen. **Belegt ist sie erst durch den ersten PR, der nicht
+  mergbar ist, solange das Gate offen steht** — bis dahin ist «eingetragen»
+  eine Angabe, keine Messung. Was das Fehlen gekostet hat, steht als Mass
+  daneben: #62 war um 09:15:08 gemergt, das Gate wurde um 09:16:14 grün, und
+  #63 war um 09:23:27 gemergt, das Gate grün um 09:25:04. Zweimal recht
+  gehabt, 66 und 97 Sekunden zu spät.
 - **Der Weg über `synchronize` ist ungeprüft.** Nach einem Push kommentiert
   der Job selbst `@codex review`. Ob Codex auf einen Kommentar des
   `GITHUB_TOKEN`-Bots reagiert, ist nicht gemessen — #62 wurde nie
