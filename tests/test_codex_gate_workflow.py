@@ -140,6 +140,32 @@ def test_jeder_ausloeser_der_den_head_aendern_kann_startet_das_gate(ausloeser: s
     assert ausloeser in zeile, f"`{ausloeser}` fehlt in `types:` — {zeile}"
 
 
+def test_der_anstoss_prueft_seinen_statuscode() -> None:
+    """Ein geschluckter HTTP-Fehler ist schlimmer als ein lauter.
+
+    Gemessen am 19.09.2026 auf PR #64: Der Schritt lautete
+    `curl -sS ... -o /dev/null` und meldete danach «Review nach Push
+    angestossen». Der Kommentar erschien nie; `curl -sS` endet bei einem
+    HTTP-Fehler mit Exit 0. Das Gate wartete anschliessend auf eine Antwort
+    auf eine Frage, die nie gestellt worden war — und haette sie als
+    «Codex reagiert nicht» verbucht.
+
+    Das ist die Positivkontrolle in Workflow-Form: Ein Ausbleiben ist erst
+    dann eine Messung, wenn der Reiz nachweislich gesetzt wurde.
+    """
+    posts = [z for z in _befehlszeilen() if "-X POST" in z]
+    assert len(posts) == 1, f"erwartet wird genau ein POST, gefunden: {posts}"
+    assert "-o /dev/null" not in posts[0], (
+        "der POST verwirft seine Antwort — dann ist ein 403 von einem 201 nicht zu unterscheiden"
+    )
+    assert "-w '%{http_code}'" in posts[0], (
+        "ohne den Statuscode kann der Schritt seinen eigenen Fehlschlag nicht sehen"
+    )
+    assert 'if [ "$code" != "201" ]; then' in _befehlszeilen(), (
+        "der Statuscode wird geholt, aber nicht geprueft"
+    )
+
+
 def test_nach_einem_push_wird_ein_review_angestossen() -> None:
     """Ein Push ist kein Codex-Ausloeser — sonst liefe das Gate in den Timeout.
 

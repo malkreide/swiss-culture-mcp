@@ -311,19 +311,33 @@ geschaltet, um 09:15:12 setzte Codex eine reguläre Statustabelle auf
 `f09a9e0` — samt Infokasten «Your team has set up Codex to review pull
 requests in this repo», und um 09:16:08 stand sie auf `✅ Completed`.
 
-**Die Environment ist da. Die Meldung auf dem Draft war Draft-Verhalten.**
-Derselbe PR, dieselbe Minute des Tages, zwei gegensätzliche Auskünfte —
-getrennt nur durch das Umschalten von Draft auf ready.
+**Die Environment ist da.** Derselbe PR, zwei gegensätzliche Auskünfte.
 
-Daraus die Regel: **Auf einem Draft ist die Environment-Meldung keine
-Auskunft über das Repo.** Wer sie dort liest und eine Environment anlegt,
-behebt ein Problem, das keines ist — dieselbe Klasse wie der Admin, den
-niemand braucht, im Abschnitt «Ein 403 ist gar keine Auskunft». Auf einem
-ready-PR gilt sie weiterhin.
+**Hier stand dann: «Die Meldung auf dem Draft war Draft-Verhalten.» Auch das
+war falsch, und der Fehler ist lehrreicher als der erste.** Am selben Tag um
+13:44:42 wurde PR #64 eröffnet — **nicht** als Draft — und trug um 13:44:51,
+neun Sekunden später, dieselbe Environment-Meldung. Draft oder nicht, spielt
+also keine Rolle.
 
-Fürs Gate ist der Fall damit doppelt entschärft: Der Job läuft auf Drafts gar
-nicht (`if: draft == false`), und der `since`-Filter hätte den Kommentar von
-09:06 ohnehin verworfen — er liegt vor dem Committer-Datum des Head-Commits.
+Was stattdessen zu allen Beobachtungen passt: **Alle bisher aufgezeichneten
+Statustabellen — #56, #61, #62, #63 — nennen als «Review trigger» den Wert
+`Draft marked ready`. Keine einzige nennt ein Öffnen.** Der Verdacht lautet
+deshalb: Von den drei Auslösern, die Codex in seinem eigenen Infokasten nennt,
+liefert «Open a pull request for review» hier keinen Lauf, sondern die
+Environment-Meldung; «Mark a draft as ready» liefert einen. Das sind vier
+Tabellen und zwei Meldungen — ein Verdacht mit Belegen, keine bewiesene Regel.
+
+**Der Methodenfehler, und er ist der eigentliche Ertrag:** Es standen zwei
+Erklärungen zur Wahl, die Messung schied eine aus, und die andere galt als
+bestätigt. Dass `opened` als dritte die ganze Zeit danebenstand und nie
+geprüft war, fiel erst auf, als sie eintrat. **Zwei Hypothesen sind keine
+Alternative, sondern zwei Hypothesen.** Wer die verbleibende für bewiesen
+hält, hat nur aufgehört zu suchen.
+
+Praktisch heisst das: **Die Environment-Meldung kurz nach dem Öffnen eines PR
+ist keine Auskunft über das Repo.** Wer sie liest und eine Environment
+anlegt, behebt ein Problem, das keines ist — dieselbe Klasse wie der Admin,
+den niemand braucht, im Abschnitt «Ein 403 ist gar keine Auskunft».
 
 Fürs Gate ist der Fall schon entschieden, und zwar richtig herum: Der
 Klassifizierer liest die Statustabelle **vor** den Meldungstexten. Eine
@@ -590,12 +604,26 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
   daneben: #62 war um 09:15:08 gemergt, das Gate wurde um 09:16:14 grün, und
   #63 war um 09:23:27 gemergt, das Gate grün um 09:25:04. Zweimal recht
   gehabt, 66 und 97 Sekunden zu spät.
-- **Der Weg über `synchronize` ist ungeprüft.** Nach einem Push kommentiert
-  der Job selbst `@codex review`. Ob Codex auf einen Kommentar des
-  `GITHUB_TOKEN`-Bots reagiert, ist nicht gemessen — #62 wurde nie
-  nachgepusht, solange er offen war. Tut Codex es nicht, läuft das Gate nach
-  jedem Push in den Timeout und sagt dort, dass ein Mensch `@codex review`
-  schreiben muss.
+- **Der Weg über `synchronize` ist weiterhin ungeprüft — aber aus einem
+  anderen Grund als gedacht.** Am 19.9.2026 wurde er auf PR #64 gefahren, und
+  der Test kam gar nicht bis zur Frage: Der Schritt lautete
+  `curl -sS ... -o /dev/null` und meldete danach «Review nach Push
+  angestossen». Der Kommentar erschien nie. `curl -sS` endet bei einem
+  HTTP-Fehler mit Exit 0 — die Erfolgsmeldung war eine Behauptung über etwas,
+  das niemand geprüft hatte. Das Gate wartete anschliessend auf eine Antwort
+  auf eine Frage, die nie gestellt worden war, und hätte das Schweigen als
+  «Codex reagiert nicht auf den Bot» verbucht.
+
+  **Das ist die Positivkontrolle aus dem 403-Abschnitt, in Workflow-Form:
+  Ein Ausbleiben ist erst dann eine Messung, wenn der Reiz nachweislich
+  gesetzt wurde.** Der Schritt prüft seinen Statuscode jetzt und wird rot,
+  wenn der Anstoss nicht 201 zurückgibt;
+  `tests/test_codex_gate_workflow.py::test_der_anstoss_prueft_seinen_statuscode`
+  hält das fest. Der wahrscheinlichste Grund für den Fehlschlag steht in der
+  Fehlermeldung des Schritts: Steht unter Settings → Actions → General die
+  Workflow permission auf «Read repository contents», greift `issues: write`
+  im Workflow nicht — ein `permissions:`-Block kann nur einschränken, nie
+  erweitern.
 - **Auf einem Draft läuft er nicht** (`if: draft == false`) und ist dort als
   `skipped` verzeichnet. Ob GitHub ein übersprungenes Ergebnis als erfüllten
   required check zählt, ist **ungemessen**; wer die Einstellung vornimmt,

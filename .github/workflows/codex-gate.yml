@@ -106,14 +106,36 @@ jobs:
       # Ungeprueft ist, ob Codex auf einen Kommentar des GITHUB_TOKEN-Bots
       # reagiert. Tut er es nicht, endet der Job im Timeout und sagt dort,
       # dass ein Mensch `@codex review` schreiben muss.
+      #
+      # DER STATUSCODE WIRD GEPRUEFT, UND ZWAR AUS MESSUNG.
+      # Die erste Fassung lautete `curl -sS ... -o /dev/null` und meldete
+      # danach «Review nach Push angestossen». Am 19.09.2026 auf PR #64
+      # gemessen: Der Kommentar erschien nie, der Schritt lief gruen durch.
+      # `curl -sS` endet bei einem HTTP-Fehler mit Exit 0 — die Erfolgszeile
+      # war eine Behauptung ueber etwas, das nicht geprueft wurde. Das Gate
+      # wartete anschliessend 20 Minuten auf eine Antwort auf eine Frage,
+      # die nie gestellt worden war.
       - name: Nach einem Push einen Review anstossen
         if: github.event.action == 'synchronize'
         run: |
           set -euo pipefail
-          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" \
+          code=$(curl -sS -o anstoss.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "$GH_API/issues/$PR/comments" \
-            -d '{"body":"@codex review"}' -o /dev/null
+            -d '{"body":"@codex review"}')
+          echo "HTTP $code"
+          if [ "$code" != "201" ]; then
+            echo "Der Anstoss ist NICHT gesetzt worden. Antwort der API:"
+            cat anstoss.json
+            echo
+            echo 'Haeufigste Ursache: Settings → Actions → General →'
+            echo 'Workflow permissions steht auf "Read repository contents".'
+            echo 'Der `permissions:`-Block eines Workflows kann nur'
+            echo 'einschraenken, nicht erweitern — `issues: write` greift dann'
+            echo 'nicht. Umstellen auf "Read and write permissions".'
+            exit 1
+          fi
           echo "Review nach Push angestossen."
 
       - name: Auf das Codex-Urteil warten
