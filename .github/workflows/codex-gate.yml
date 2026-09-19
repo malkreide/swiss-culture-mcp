@@ -54,10 +54,12 @@ jobs:
   codex-gate:
     name: codex-gate
     # Ein Draft wird nicht gemergt, also gibt es hier nichts zu schuetzen.
-    # NICHT deshalb, weil auf einem Draft nichts kaeme: In diesem Repo trug
-    # PR #56 als Draft ueber Stunden null Kommentare, im Nachbar-Repo
-    # swiss-cultural-heritage-mcp kam auf dem Draft-PR #92 dagegen acht
-    # Sekunden nach dem Anlegen die Environment-Meldung. Gewartet wird so
+    #
+    # NICHT deshalb, weil auf einem Draft nichts kaeme — das war die erste
+    # Begruendung und sie ist widerlegt: PR #62 dieses Repos trug am
+    # 19.09.2026 rund dreissig Sekunden nach dem Anlegen als Draft die
+    # Environment-Meldung. (PR #56 desselben Tages trug als Draft stundenlang
+    # nichts; woran der Unterschied haengt, ist ungemessen.) Gewartet wird so
     # oder so nicht — ein Draft ist kein Merge-Kandidat.
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest

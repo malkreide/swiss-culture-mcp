@@ -40,6 +40,19 @@
       "created_at": "2026-09-19T06:36:13Z",
       "head_sha_des_pr": "bfe7ab7",
       "body": "<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-19T06:36:09.750345Z\">2026-09-19T06:36:09.750345Z</relative-time> | `bfe7ab7` | Draft marked ready |\n"
+    },
+    {
+      "_quelle": "malkreide/swiss-culture-mcp PR #62, abgerufen 2026-09-19",
+      "_zustand": "environment",
+      "_hinweis": "Auf einem DRAFT-PR, 30 Sekunden nach dem Anlegen — und 85 Minuten nachdem in demselben Repo auf PR #61 ein regulaerer Review durchgelaufen war. Die Meldung belegt also nicht, dass eine Environment fehlt.",
+      "id": 5740662764,
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422
+      },
+      "created_at": "2026-09-19T09:06:06Z",
+      "updated_at": "2026-09-19T09:06:06Z",
+      "body": "To use Codex here, [create an environment for this repo](https://chatgpt.com/codex/cloud/settings/environments)."
     }
   ]
 }

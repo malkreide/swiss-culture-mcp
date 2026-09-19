@@ -81,11 +81,9 @@ HEAD_61 = "9a035dee86de48e355a93f6676253a313def1d75"
 LAEUFT = _ROH["malkreide/swiss-cultural-heritage-mcp PR #90"]["body"]
 HEAD_90 = FRUEHER
 
-# PR #92 des Nachbar-Repos, 19.09.2026 07:14:11Z — woertlich, samt Link.
-ENVIRONMENT_MELDUNG = (
-    "To use Codex here, [create an environment for this repo]"
-    "(https://chatgpt.com/codex/cloud/settings/environments)."
-)
+# PR #62 dieses Repos, 19.09.2026 09:06:06Z — woertlich aus der Fixture,
+# samt Markdown-Link mitten im Satz.
+ENVIRONMENT_MELDUNG = _ROH["malkreide/swiss-culture-mcp PR #62"]["body"]
 
 
 def kommentar(body: str, *, user=CODEX, created_at="2026-09-19T07:00:00Z") -> dict:
@@ -122,10 +120,13 @@ def test_die_fixture_traegt_echte_aufgezeichnete_koerper() -> None:
     """
     daten = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     assert daten["_herkunft"]["aufgezeichnet_am"] == "2026-09-19"
-    assert len(daten["kommentare"]) == 3
+    assert len(daten["kommentare"]) == 4
     for koerper in (FERTIG, FERTIG_61, LAEUFT):
         assert "<!-- codex-pull-request-review-summary -->" in koerper
         assert "| Review | Status | Commit | Review trigger |" in koerper
+    # Die Environment-Meldung ist gerade KEINE Tabelle — sonst liefe der
+    # Test unten, der sie gegen eine Tabelle antreten laesst, ins Leere.
+    assert "codex-pull-request-review-summary" not in ENVIRONMENT_MELDUNG
 
 
 # ─────────────────────────── Die belegenden Faelle ─────────────────────────────
@@ -327,12 +328,17 @@ def test_laeuft_schlaegt_fertig_wenn_beides_dasteht() -> None:
 
 
 def test_eine_fertige_tabelle_schlaegt_eine_environment_meldung() -> None:
-    """Die Reihenfolge, und sie ist gemessen begruendet.
+    """Die Reihenfolge, und sie ist in DIESEM Repo gemessen begruendet.
 
-    Am 19.09.2026 kam im Nachbar-Repo auf einem Draft-PR die
-    Environment-Meldung, waehrend andere PRs am selben Morgen regulaer
-    geprueft wurden. Die Meldung allein belegt also nicht, dass in diesem
-    Repo keine Reviews laufen — sagt die Tabelle `Completed`, gilt sie.
+    Am 19.09.2026 um 07:41 lief auf PR #61 ein regulaerer Review durch —
+    Statustabelle samt Infokasten «Your team has set up Codex to review pull
+    requests in this repo». Um 09:06, 85 Minuten spaeter, kam auf dem
+    frisch angelegten Draft-PR #62 die Environment-Meldung. Eine Environment
+    war also da; die Meldung belegt ihr Fehlen nicht.
+
+    Deshalb darf sie eine `Completed`-Tabelle zum Head nicht ueberstimmen.
+    Ohne diese Reihenfolge faerbte ein einzelner solcher Kommentar das Gate
+    rot, obwohl der Lauf nachweislich stattgefunden hat.
     """
     state, _ = classify([], [kommentar(ENVIRONMENT_MELDUNG), kommentar(FERTIG)], HEAD_56)
     assert state == CLEAR

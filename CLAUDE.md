@@ -258,7 +258,9 @@ ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
   Infokasten, den Codex unter jeden Review setzt, behauptet weiterhin eine
   Reaktion («otherwise it will react with 👍») — am 23.8. kam in sechs Repos
   die Meldung und in keinem die Reaktion. Der Kasten ist keine Quelle.
-- **Der PR ist ein Draft** — darauf läuft Codex nicht an.
+- **Der PR ist ein Draft** — dann kommt manchmal nichts und manchmal die
+  Environment-Meldung. Beides am 19.9.2026 in diesem Repo beobachtet, siehe
+  unten.
 - **Das Kontingent ist weg** — dann schreibt er die Meldung oben.
 - **Für das Repo fehlt eine Environment** — dann schreibt er:
 
@@ -287,11 +289,41 @@ sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
 («💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund, die beiden
 Ausfallmeldungen — Kontingent wie Environment — und die Laufstatus-Tabelle
 weiter unten sind gewöhnliche Issue-Kommentare und trennen sich nur im Text.
-Beim Draft gibt es überhaupt nichts, weil Codex nicht anläuft; ein
-kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht durchgeführter
-Test. Am 19.9.2026 erneut so beobachtet: Der PR trug als Draft über Stunden
-null Kommentare, und der erste erschien auf die Sekunde mit dem Umschalten auf
+Ein kommentarloser Draft ist kein Beleg, sondern ein nicht durchgeführter
+Test. Am 19.9.2026 so beobachtet: PR #56 trug als Draft über Stunden null
+Kommentare, und der erste erschien auf die Sekunde mit dem Umschalten auf
 ready.
+
+**Hier stand «Beim Draft gibt es überhaupt nichts, weil Codex nicht anläuft».
+Das ist widerlegt, gemessen in diesem Repo am selben Tag.** PR #62 wurde um
+09:05:5x als Draft angelegt; um **09:06:06**, also rund dreissig Sekunden
+später, stand die Environment-Meldung darunter. Codex läuft also auf einem
+Draft sehr wohl an — jedenfalls weit genug, um zu antworten.
+
+Und die Antwort ist die zweite Widerlegung: **Die Environment-Meldung belegt
+nicht, dass eine Environment fehlt.** 85 Minuten vorher, um 07:41, war auf
+PR #61 desselben Repos ein regulärer Review durchgelaufen, Statustabelle samt
+Infokasten «Your team has set up Codex to review pull requests in this repo».
+
+Zwei Erklärungen passen auf beide Beobachtungen, und **keine ist belegt**:
+
+- Codex behandelt Drafts anders und schickt dort diese Meldung statt eines
+  Laufs. Dann ist sie auf einem Draft bedeutungslos.
+- Die Environment ist zwischen 07:41 und 09:06 tatsächlich weggefallen. Dann
+  ist sie ernst, und der nächste Review scheitert auch auf einem ready-PR.
+
+Die entscheidende Messung ist billig: **PR #62 auf ready schalten und
+nachsehen.** Kommt eine Statustabelle, war es das Draft-Verhalten; kommt die
+Meldung erneut, fehlt die Environment wirklich. Vorher gehört die Frage offen
+gelassen — aus einer Meldung auf einen Zustand zu schliessen ist genau der
+Fehler, den der Abschnitt «Ein 4xx ist kein Nein» beschreibt.
+
+Fürs Gate ist der Fall schon entschieden, und zwar richtig herum: Der
+Klassifizierer liest die Statustabelle **vor** den Meldungstexten. Eine
+`Completed`-Zeile zum Head schlägt eine Environment-Meldung; fehlt sie, gilt
+die Meldung und der Job wird rot. `test_eine_fertige_tabelle_schlaegt_eine_environment_meldung`
+hält beide Richtungen fest, seit dem 19.9.2026 mit dem hier aufgezeichneten
+Wortlaut aus PR #62.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
