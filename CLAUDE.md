@@ -357,19 +357,24 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es inzwischen **vier** sind — #56 bis #59 —, macht die Sache nicht
-sicherer, sondern nur die Lücke sichtbarer: Viermal dasselbe unter denselben
-Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung viermal.
+Dass es inzwischen **fünf** sind — #56 bis #60 —, macht die Sache nicht
+sicherer, sondern nur die Lücke sichtbarer: Fünfmal dasselbe unter denselben
+Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung fünfmal.
 **Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
 OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
 was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
 Befundlos-Meldung, nicht durch den Status in der Tabelle.
 
-Der Ablauf weiter unten («Den Lauf abwarten») liefert sie nebenbei mit: Wer ihn
-einmal durchhält, hat die Kontrolle. Dann ist hier nachzutragen, ob auf einem
-offenen PR neben der Tabelle noch etwas erscheint — und falls nicht, dass
-`Completed` der einzige Endzustand ist und die «Swish!»-Meldung oben
-Geschichte.
+Warum sie fehlt und wohl vorerst fehlen wird, steht weiter unten unter «Der
+Review wird nicht abgewartet». Zwei Versuche, sie über einen Ablauf zu
+beschaffen, sind gescheitert; sie käme erst mit einer Sperre, die das Mergen
+bis zum Urteil verhindert.
+
+Eine parallele Session an `lindas-mcp` meldet, die Tabelle sei bei Befund und
+ohne Befund **zeichengleich** und beweise nur, DASS geprüft wurde. Das deckt
+sich mit dem, was hier steht, ist aber **fremde Angabe aus einem anderen Repo
+und hier nicht nachgemessen** — als Beleg taugt es nicht, als Hinweis, wo zu
+suchen wäre, schon.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -456,61 +461,62 @@ daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
 Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
 
-### Den Lauf abwarten — das Verfahren
+### Der Review wird nicht abgewartet — was das Häkchen wert ist
 
-Am 19.9.2026 ist die Kontrolle **viermal** hintereinander nicht zustande
-gekommen, an #56, #57, #58 und #59 dieses Repos:
+Hier stand ein Verfahren. Es ist entfernt, weil es fünfmal nicht stattgefunden
+hat. Was bleibt, ist die Tatsache und ihre Folge fürs Lesen.
 
-| PR | ready → Merge | Stand beim Merge |
+**Gemessen am 19.9.2026, fünf PRs dieses Repos**, Zeit zwischen «ready for
+review» und Merge:
+
+| PR | ready → Merge | Stand des Laufs beim Merge |
 |---|---|---|
-| #56 | 57 s | Lauf lief (`Running`) |
-| #57 | 4 s | Lauf startete 1 s danach |
-| #58 | 20 s | Lauf lief (`Running`) |
-| #59 | **2 s** | Lauf startete **8 s danach** |
+| #56 | 57 s | lief (`Running`) |
+| #57 | 4 s | startete erst 1 s danach |
+| #58 | 20 s | lief (`Running`) |
+| #59 | **2 s** | startete erst 8 s danach |
+| #60 | 63 s | lief (`Running`) |
 
-Nicht aus Unkenntnis. #58 trug die Wartebedingung in der eigenen Checkliste,
-und #59 war der PR, der dieses Verfahren einführte.
+Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der fünf Fälle lag beim
+Merge ein Ergebnis vor.
 
-**Die erste Fassung dieses Abschnitts war darum falsch gebaut**, und zwar auf
-eine Art, die sich an den Zahlen ablesen lässt. Sie begann mit «Auf ready
-stellen» als Aufgabe des Menschen und bat ihn danach um eine Pause. «Ready» und
-«Merge» liegen in GitHubs Oberfläche aber nebeneinander und sind eine einzige
-Bewegung. Ein Verfahren, das gegen diese Bewegung Selbstbeherrschung verlangt,
-gewinnt nicht — bei #59 lag der Merge sogar **vor** dem Start des Laufs, das
-Fenster existierte also gar nicht.
+Es lag nicht an fehlendem Wissen: #58 trug die Wartebedingung in der eigenen
+Checkliste, #59 war der PR, der das Verfahren einführte, und bei #60 hatte ein
+Agent den PR selbst auf ready geschaltet, um das Zeitfenster zu erzeugen — es
+wurde 63 Sekunden gross und reichte trotzdem nicht. Zwei Anläufe, die Sache
+über einen Ablauf zu regeln, sind damit gescheitert. Ein dritter Ablauf wäre
+dieselbe Schraube ein drittes Mal.
 
-Die Reihenfolge muss das Fenster erzeugen, nicht die Disziplin. Deshalb
-schaltet **der Agent** auf ready, nicht der Mensch:
+**Die Folge, und nur darum geht es hier: Ein gemergter PR in diesem Repo ist
+kein Beleg, dass Codex hineingesehen hat.** Das Häkchen «Codex-Review
+beantwortet oder behoben — kein offener Befund beim Merge» in der
+PR-Vorlage wird gesetzt, bevor es zutrifft. Wer später wissen will, ob eine
+Änderung geprüft wurde, muss es nachträglich am PR nachsehen:
 
-1. **Der Agent eröffnet den PR als Draft.** Solange er Draft ist, läuft Codex
-   nicht an; ein kommentarloser Draft ist kein Beleg, sondern ein nicht
-   durchgeführter Test.
-2. **Der Agent schaltet selbst auf «ready»** (`update_pull_request`,
-   `draft: false`), sobald die Gates grün sind. Damit beginnt die Uhr zu einem
-   Zeitpunkt, den er kennt.
-3. **Rund 60 Sekunden warten, dann `get_comments` abfragen.** Den Kommentar mit
-   `<!-- codex-pull-request-review-summary -->` heraussuchen und darin ZWEI
-   Spalten lesen: **Status** und **Commit**. Der Commit muss der Head des PR
-   sein — eine Tabelle zu einem älteren Stand sagt nichts über den jetzigen.
-4. **Bei `🔄 Running` erneut abfragen**, nicht weiterrechnen. Bei `✅ Completed`
-   ist der Lauf durch.
-5. **Dann erst `get_reviews` und `get_review_comments`** für die Befunde. Der
-   Status in der Tabelle ist kein Befundbericht.
-6. **Der Agent meldet den Endzustand.** Erst danach mergt der Mensch — in einer
-   einzigen Bewegung, ohne Pause, die er einhalten müsste.
+- `get_comments`, den Kommentar mit `<!-- codex-pull-request-review-summary -->`
+  heraussuchen und darin ZWEI Spalten lesen: **Status** und **Commit**. Der
+  Commit muss der Head sein — eine Tabelle zu einem älteren Stand sagt nichts
+  über den jetzigen.
+- `✅ Completed` heisst «Lauf zu Ende», nicht «nichts gefunden». Die Befunde
+  stehen woanders: `get_reviews` und `get_review_comments`, beide.
+- Der Lauf überlebt den Merge und startet sogar noch danach — die Ergebnisse
+  sind also auch auf einem längst gemergten PR da und nachlesbar. Nur eben
+  erst, nachdem entschieden wurde.
 
-Der Unterschied zur ersten Fassung ist eine Zeile und trägt alles: Wer auf
-ready schaltet, bestimmt, wann das Fenster aufgeht. Liegt beides beim Menschen,
-schliesst es sich in Sekunden; liegt das Schalten beim Agenten, ist die
-Wartezeit schon vorbei, bevor der Mensch an den Merge-Knopf kommt.
+**Was das Problem wirklich lösen würde**, ist keine Vereinbarung, sondern eine
+Sperre: ein Check-Run, der als *required check* eingetragen ist und rot bleibt,
+bis Codex geurteilt hat. In `swiss-cultural-heritage-mcp` wird so etwas unter
+dem Namen `codex-gate` gebaut (Stand 19.9.2026, PR #92, dort noch unerprobt).
+Hier ist davon nichts gemessen, und das Eintragen eines required check ist eine
+Repo-Einstellung, die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein
+Mensch. Solange das nicht steht, gilt der Absatz oben.
 
-Wer das darüber hinaus automatisieren will, stösst auf eine Wand, die in dieser
-Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen an der
-Session, nicht am Konto. Ein Shell-Skript hat keinen Zugang (`curl` auf
+Wer stattdessen ein Skript oder eine Routine bauen will, stösst auf eine Wand,
+die in dieser Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen
+an der Session, nicht am Konto. Ein Shell-Skript hat keinen Zugang (`curl` auf
 `api.github.com` endet bei «GitHub access is not enabled for this session»),
-und eine gefeuerte Routine erbt **keine** MCP-Werkzeuge. Das Warten ist deshalb
-Sache der laufenden Session und kein Cron-Job. Wer eine Routine dafür baut,
-baut etwas, das nichts prüfen kann und «geprüft» meldet.
+und eine gefeuerte Routine erbt **keine** MCP-Werkzeuge. Wer eine Routine dafür
+baut, baut etwas, das nichts prüfen kann und «geprüft» meldet.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
