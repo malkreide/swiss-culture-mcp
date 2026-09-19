@@ -324,11 +324,26 @@ def test_das_personliche_token_steht_nur_im_anstoss_schritt() -> None:
     Befund eines Codex-Reviews auf PR #64 (P1) vom 19.09.2026.
     """
     text = _text()
-    vor_den_steps, _, ab_den_steps = text.partition("    steps:")
-    assert "CODEX_ANSTOSS_TOKEN" not in vor_den_steps, (
-        "das PAT ist job-weit deklariert und liegt damit in der Umgebung "
-        "jedes Schritts, auch der ausgecheckten Skripte"
-    )
+    _, _, ab_den_steps = text.partition("    steps:")
+
+    # Geprueft wird der job-weite `env:`-BLOCK, nicht das Vorkommen des
+    # Wortes irgendwo vor `steps:`. Die erste Fassung tat Letzteres und fiel,
+    # sobald ein Kommentar im Kopf den Secret-Namen nennt — ein Fehlalarm aus
+    # derselben Familie wie der `issues: write`-Test, der aus demselben Grund
+    # gruen blieb. Ein Textfund ist keine Aussage ueber eine Konfiguration,
+    # in beide Richtungen nicht.
+    kopf = text.partition("    steps:")[0]
+    _, trenner, nach_env = kopf.partition("\n    env:\n")
+    if trenner:
+        job_env = []
+        for zeile in nach_env.splitlines():
+            if zeile.strip() and not zeile.startswith("      "):
+                break
+            job_env.append(zeile)
+        assert "CODEX_ANSTOSS_TOKEN" not in "\n".join(job_env), (
+            "das PAT steht im job-weiten `env:`-Block und liegt damit in der "
+            "Umgebung jedes Schritts, auch der ausgecheckten Skripte"
+        )
     anstoss = ab_den_steps.split("- name: Nach einem Push einen Review anstossen", 1)[1]
     anstoss = anstoss.split("- name:", 1)[0]
     assert "CODEX_ANSTOSS_TOKEN" in anstoss, (
@@ -340,6 +355,50 @@ def test_das_personliche_token_steht_nur_im_anstoss_schritt() -> None:
     # einer Zeile prueft, prueft nicht ihre Wirkung.
     assert "\n        env:\n" in anstoss, (
         "das Token haengt an keinem `env:`-Block des Schritts und wird deshalb nicht gesetzt"
+    )
+
+
+def test_der_endbericht_erklaert_jeden_roten_zustand() -> None:
+    """Der Hinweistext muss mitwandern, wenn der Klassifizierer waechst.
+
+    Am 19.09.2026 zweimal erlebt, dass Prosa stehen bleibt, waehrend der Code
+    weiterzieht: Der Fehlerhinweis des Anstosses zeigte zweimal auf das
+    falsche Token, und ein Test hing an einem Wort, das nur noch im Kommentar
+    stand. Fehlerhinweise altern still, weil sie nur im Fehlerfall gelesen
+    werden — und dann prueft niemand mehr, ob sie noch stimmen.
+
+    Deshalb haengt die Liste im Endbericht hier an den Zustaenden des
+    Klassifizierers und nicht an einer abgeschriebenen Aufzaehlung. Ein neuer
+    Zustand ohne Handlungsanweisung faellt damit sofort auf.
+    """
+    import sys
+
+    sys.path.insert(0, str(_ROOT / "scripts"))
+    import classify_codex_review as klass
+
+    rote = {
+        wert
+        for name, wert in vars(klass).items()
+        if name.isupper() and isinstance(wert, str) and wert == name.lower()
+    } - set(klass.PROVEN)
+    assert rote, "keine roten Zustaende gefunden — der Scan sucht am falschen Ort"
+
+    # NUR im Block «Was jetzt zu tun ist», nicht in der ganzen Datei. Die
+    # erste Fassung suchte im ganzen Dokument und blieb gruen, als die
+    # `reviewed`-Zeile aus dem Bericht verschwand — der Kopfkommentar nennt
+    # denselben Zustand. Derselbe Fehler wie beim `issues: write`-Test, hier
+    # ausgerechnet in dem Test, der ihn verhindern soll.
+    block = _text().partition('echo "### Was jetzt zu tun ist"')[2]
+    block = block.partition('} >> "$GITHUB_STEP_SUMMARY"')[0]
+    assert block.strip(), "der Block «Was jetzt zu tun ist» wurde nicht gefunden"
+
+    # Im YAML stehen die Backticks escaped (\`), damit die Shell sie nicht
+    # als Kommandosubstitution liest. Vor dem Suchen entschaerfen, sonst
+    # findet der Test nie etwas und ist immer gruen.
+    block = block.replace("\\`", "`")
+    fehlend = [z for z in sorted(rote) if f"`{z}`" not in block]
+    assert not fehlend, (
+        f"der Endbericht sagt nicht, was bei diesen Zustaenden zu tun ist: {fehlend}"
     )
 
 

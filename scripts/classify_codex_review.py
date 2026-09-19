@@ -26,18 +26,31 @@ VIER GRUENDE, WARUM CODEX SCHWEIGT — NUR EINER IST HARMLOS
 Die Einordnung unten stammt nicht aus einem Ratespiel ueber Statuscodes,
 sondern aus den vier in CLAUDE.md dokumentierten Faellen:
 
-  reviewed     Ein Review-OBJEKT zum Head-Commit. Codex hat Befunde.
+  reviewed     Ein Review-OBJEKT zum Head-Commit. Codex hat Befunde. ROT.
   clear        Die Befundlos-Meldung («Didn't find any major issues»). Ein
                gewoehnlicher Issue-Kommentar, KEIN Review-Objekt.
   quota        «You have reached your Codex usage limits for code reviews.»
   environment  «To use Codex here, create an environment for this repo.»
 
-`reviewed` und `clear` sind beide ein Beleg, dass geprueft wurde. Wer nur das
-Review-Objekt gelten laesst, zaehlt jeden befundlosen Lauf als ungeprueft und
-baut sich denselben Fehlalarm ein, nur in die andere Richtung.
+NUR `clear` GIBT DEN PR FREI. `reviewed` heisst: Codex hat hingesehen UND
+etwas gefunden — das Gate bleibt rot, bis ein Lauf ohne Befund vorliegt.
 
-`quota` und `environment` sind KEIN Beleg. Sie sehen aus wie Stille und sind
-eine Absage — deshalb faerben sie das Gate rot, statt es offen zu lassen.
+Das war bis zum 19.09.2026 anders: `reviewed` zaehlte zu PROVEN, weil das
+Gate nur belegen sollte, DASS hingesehen wurde. In der Praxis hiess das, dass
+ein PR mit offenen Codex-Befunden gruen durchging — genau die Luecke, gegen
+die das Gate gebaut ist, eine Ebene hoeher. Die Entscheidung, `reviewed` rot
+zu machen, ist bewusst getroffen worden und kostet etwas: Jede Befundrunde
+braucht einen weiteren Codex-Lauf, und der PR wird erst frei, wenn einer
+davon nichts mehr findet.
+
+Wer nur das Review-Objekt als Beleg gelten laesst, baut den umgekehrten
+Fehlalarm: Dann gilt jeder befundlose Lauf als ungeprueft. Deshalb bleibt
+`clear` ein vollwertiger Beleg — die Tabelle auf `Completed` ohne
+Review-Objekt ist das, was ein sauberer Lauf hier hinterlaesst.
+
+`quota` und `environment` sind ueberhaupt kein Beleg. Sie sehen aus wie
+Stille und sind eine Absage — deshalb faerben sie das Gate rot, statt es
+offen zu lassen.
 
 UND EIN FUENFTER TEXT, DEN NOCH NIEMAND GESEHEN HAT
 ---------------------------------------------------
@@ -122,8 +135,17 @@ PENDING = "pending"
 #: kurze Frist ausschoepfte, waehrend ein Lauf noch arbeitete.
 RUNNING = "running"
 
-#: Zustaende, die belegen, dass Codex diesen Commit angesehen hat.
-PROVEN = frozenset({REVIEWED, CLEAR})
+#: Zustaende, die den PR freigeben.
+#:
+#: NUR `clear`. `reviewed` belegt zwar ebenfalls, dass Codex hingesehen hat —
+#: aber mit Befunden, und die gehoeren behoben, bevor gemergt wird. Bis zum
+#: 19.09.2026 stand `REVIEWED` hier mit drin; dann ging auf PR #64 ein Lauf
+#: mit zwei P1-Befunden gruen durch. Das Gate meldete korrekt «angesehen» und
+#: liess genau das passieren, wogegen es gebaut ist.
+#:
+#: Der Preis ist benannt: Jede Befundrunde braucht einen weiteren Codex-Lauf,
+#: und frei wird der PR erst, wenn einer nichts mehr findet.
+PROVEN = frozenset({CLEAR})
 
 # Nur der stabile Teil der Befundlos-Meldung. Der Schlusssatz wechselt bei
 # jedem Lauf («Swish!», «Delightful!», «Keep it up!»), der Satz davor nicht.
@@ -198,8 +220,9 @@ def classify(
             continue
         return (
             REVIEWED,
-            f"Codex-Review-Objekt zu {kurz} — Befunde liegen vor und gehoeren "
-            "beantwortet oder behoben, bevor gemergt wird.",
+            f"Codex-Review-Objekt zu {kurz}: Es liegen Befunde vor. Beheben "
+            "oder beantworten und pushen — das Gate wird erst gruen, wenn ein "
+            "Lauf zum dann aktuellen Head nichts mehr findet.",
         )
 
     laeuft = False
