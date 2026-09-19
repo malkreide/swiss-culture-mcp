@@ -505,11 +505,35 @@ PR-Vorlage wird gesetzt, bevor es zutrifft. Wer später wissen will, ob eine
 
 **Was das Problem wirklich lösen würde**, ist keine Vereinbarung, sondern eine
 Sperre: ein Check-Run, der als *required check* eingetragen ist und rot bleibt,
-bis Codex geurteilt hat. In `swiss-cultural-heritage-mcp` wird so etwas unter
-dem Namen `codex-gate` gebaut (Stand 19.9.2026, PR #92, dort noch unerprobt).
-Hier ist davon nichts gemessen, und das Eintragen eines required check ist eine
-Repo-Einstellung, die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein
-Mensch. Solange das nicht steht, gilt der Absatz oben.
+bis Codex geurteilt hat.
+
+Seit dem 19.9.2026 liegt so einer hier: `.github/workflows/codex-gate.yml` mit
+`scripts/classify_codex_review.py`, portiert aus `swiss-cultural-heritage-mcp`
+und auf die hier gemessenen Fälle umgeschrieben. Der Job wartet nach jedem
+`opened`, `ready_for_review`, `reopened` und `synchronize` bis zu 20 Minuten
+auf ein Urteil und wird rot, wenn keines kommt. `synchronize` stösst vorher
+selbst `@codex review` an — ein Push ist keiner der drei Auslöser, die Codex
+in seinem Infokasten nennt.
+
+**Zwei Dinge fehlen ihm, und beide gehören benannt:**
+
+- **Er ist kein required check.** Das einzutragen ist eine Repo-Einstellung,
+  die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein Mensch, unter
+  Settings → Branches (oder als Ruleset), Name: `codex-gate`. Bis dahin ist
+  er ein Hinweis und keine Schranke, und der Absatz oben gilt unverändert.
+- **Seine Mechanik ist am lebenden Objekt ungeprüft.** Die Einordnung ist
+  gegen aufgezeichnete Antwortkörper getestet (`tests/fixtures/codex_kommentare.json`,
+  #56 und #61 dieses Repos), aber ob Codex auf einen Kommentar des
+  `GITHUB_TOKEN`-Bots überhaupt reagiert, weiss niemand. Tut er es nicht,
+  läuft das Gate nach jedem Push in den Timeout.
+
+**Nebenbei liefert er die fehlende Kontrolle.** Oben steht, dass ein
+`✅ Completed` auf einem PR, der beim Lauf noch OFFEN war, bis heute fehlt —
+alle sechs Beobachtungen fielen auf gemergte PRs. Der Gate-Job läuft als
+PR-Check, also genau dann, wenn der PR offen ist. Sein erster grüner Lauf
+ist diese Kontrolle. Bis sie da ist, behauptet der Zustand `clear` im
+Klassifizierer ausdrücklich nur das Gemessene («angesehen»), nicht «keine
+Befunde» — `tests/test_classify_codex_review.py` hält den Wortlaut fest.
 
 Wer stattdessen ein Skript oder eine Routine bauen will, stösst auf eine Wand,
 die in dieser Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen
