@@ -74,6 +74,11 @@ jobs:
       # wird das Zehnfache der bekannten Obergrenze, weil ein Timer auf die
       # laengste bekannte Dauer beim ersten laengeren Lauf falsch geht.
       WARTE_SEKUNDEN: "1200"
+      # Wenn der `@codex review`-Anstoss nicht gesetzt werden konnte, wartet
+      # der Job nur noch hierauf — lange genug fuer einen Menschen, der
+      # sofort von Hand kommentiert, kurz genug, um keine 20 Minuten Laufzeit
+      # fuer eine Frage zu verbrennen, die nie gestellt wurde.
+      WARTE_OHNE_ANSTOSS_SEKUNDEN: "180"
       ABSTAND_SEKUNDEN: "30"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -115,7 +120,15 @@ jobs:
       # war eine Behauptung ueber etwas, das nicht geprueft wurde. Das Gate
       # wartete anschliessend 20 Minuten auf eine Antwort auf eine Frage,
       # die nie gestellt worden war.
+      # DER SCHRITT BRICHT DEN JOB NICHT AB — auch das ist gemessen.
+      # Die zweite Fassung endete hier mit `exit 1`. Das war der Ausschlag in
+      # die Gegenrichtung: Kann der Anstoss nicht gesetzt werden, koennte
+      # trotzdem ein Mensch `@codex review` kommentiert haben — am 19.09.2026
+      # auf PR #64 genau so geschehen. Ein harter Abbruch haette das Urteil,
+      # das danach vorlag, nie gelesen. Gewarnt wird laut, gewartet wird
+      # kuerzer, und der Grund steht am Ende im Klartext.
       - name: Nach einem Push einen Review anstossen
+        id: anstoss
         if: github.event.action == 'synchronize'
         run: |
           set -euo pipefail
@@ -125,26 +138,36 @@ jobs:
             "$GH_API/issues/$PR/comments" \
             -d '{"body":"@codex review"}')
           echo "HTTP $code"
-          if [ "$code" != "201" ]; then
-            echo "Der Anstoss ist NICHT gesetzt worden. Antwort der API:"
-            cat anstoss.json
-            echo
-            echo 'Haeufigste Ursache: Settings → Actions → General →'
-            echo 'Workflow permissions steht auf "Read repository contents".'
-            echo 'Der `permissions:`-Block eines Workflows kann nur'
-            echo 'einschraenken, nicht erweitern — `issues: write` greift dann'
-            echo 'nicht. Umstellen auf "Read and write permissions".'
-            exit 1
+          if [ "$code" = "201" ]; then
+            echo "gesetzt=true" >> "$GITHUB_OUTPUT"
+            echo "Review nach Push angestossen."
+            exit 0
           fi
-          echo "Review nach Push angestossen."
+          echo "gesetzt=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Der Anstoss @codex review ist nicht gesetzt worden (HTTP $code)."
+          echo "Antwort der API:"
+          cat anstoss.json
+          echo
+          echo 'Haeufigste Ursache: Settings → Actions → General →'
+          echo 'Workflow permissions steht auf "Read repository contents".'
+          echo 'Der permissions-Block eines Workflows kann nur einschraenken,'
+          echo 'nicht erweitern — issues: write greift dann nicht.'
+          echo 'Umstellen auf "Read and write permissions".'
 
       - name: Auf das Codex-Urteil warten
         id: gate
         env:
           SINCE: ${{ steps.stichtag.outputs.since }}
+          ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}
         run: |
           set -euo pipefail
-          ende=$(( $(date +%s) + WARTE_SEKUNDEN ))
+          # Konnte der Anstoss nicht gesetzt werden, ist auf nichts zu warten
+          # ausser auf einen Menschen, der von Hand kommentiert. Zwanzig
+          # Minuten dafuer zu blockieren, kostet Laufzeit ohne Ertrag.
+          frist="$WARTE_SEKUNDEN"
+          [ "$ANSTOSS" = "false" ] && frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN"
+          echo "Frist: ${frist}s"
+          ende=$(( $(date +%s) + frist ))
           while :; do
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
@@ -186,6 +209,7 @@ jobs:
           STATE: ${{ steps.gate.outputs.state }}
           REASON: ${{ steps.gate.outputs.reason }}
           PROVEN: ${{ steps.gate.outputs.proven }}
+          ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}
         run: |
           {
             echo "## Codex Review Gate"
@@ -214,6 +238,22 @@ jobs:
             echo "  steht oben woertlich. Einordnen und die Marker in"
             echo "  \`scripts/classify_codex_review.py\` ergaenzen."
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ANSTOSS" = "false" ]; then
+            {
+              echo
+              echo "### Achtung: der Anstoss ist gar nicht gesetzt worden"
+              echo
+              echo "Der \`@codex review\`-Kommentar konnte nicht geschrieben"
+              echo "werden (HTTP-Fehler, siehe Schritt oben). Codex wurde also"
+              echo "nichts gefragt — \`pending\` heisst hier **nicht**, dass er"
+              echo "nicht geantwortet hat."
+              echo
+              echo "Abhilfe: Settings → Actions → General → Workflow permissions"
+              echo "auf \"Read and write permissions\" stellen. Bis dahin hilft"
+              echo "ein \`@codex review\` von Hand."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           echo "Kein Beleg, dass Codex $HEAD_SHA angesehen hat: $STATE"
           echo "$REASON"

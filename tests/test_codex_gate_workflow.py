@@ -161,8 +161,54 @@ def test_der_anstoss_prueft_seinen_statuscode() -> None:
     assert "-w '%{http_code}'" in posts[0], (
         "ohne den Statuscode kann der Schritt seinen eigenen Fehlschlag nicht sehen"
     )
-    assert 'if [ "$code" != "201" ]; then' in _befehlszeilen(), (
+    assert 'if [ "$code" = "201" ]; then' in _befehlszeilen(), (
         "der Statuscode wird geholt, aber nicht geprueft"
+    )
+
+
+def test_ein_gescheiterter_anstoss_beendet_den_job_nicht() -> None:
+    """Der Ausschlag in die Gegenrichtung, und er ist genauso teuer.
+
+    Die zweite Fassung liess den Schritt mit `exit 1` enden. Dann kann das
+    Gate ein Urteil, das auf anderem Weg zustande kam, nie mehr lesen — am
+    19.09.2026 auf PR #64 lag genau so eines vor, weil ein Mensch von Hand
+    `@codex review` kommentiert hatte.
+
+    Statt abzubrechen wird laut gewarnt, kuerzer gewartet und der Grund am
+    Ende im Klartext genannt.
+    """
+    text = _text()
+    anstoss = text.split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "exit 1" not in anstoss, (
+        "der Anstoss-Schritt bricht den Job ab — dann bleibt ein Urteil, das "
+        "von Hand angestossen wurde, ungelesen"
+    )
+    assert "::warning::" in anstoss, "ein stiller Fehlschlag ist kein Fehlschlag"
+    assert "gesetzt=false" in anstoss and "gesetzt=true" in anstoss, (
+        "der Ausgang muss als Step-Output weitergereicht werden"
+    )
+
+
+def test_ohne_anstoss_wird_kuerzer_gewartet() -> None:
+    """Zwanzig Minuten auf eine Frage warten, die nie gestellt wurde."""
+    zeilen = _befehlszeilen()
+    assert 'frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN"' in " ".join(zeilen), (
+        "die Frist haengt nicht davon ab, ob der Anstoss ueberhaupt gesetzt wurde"
+    )
+    assert any(z.startswith("WARTE_OHNE_ANSTOSS_SEKUNDEN:") for z in zeilen)
+
+
+def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
+    """Sonst liest sich `pending` wie «Codex hat nicht geantwortet».
+
+    Das ist der Fehlbefund, den dieser PR beinahe produziert haette: ein
+    Ausbleiben ohne gesetzten Reiz, protokolliert als Aussage ueber Codex.
+    """
+    text = _text()
+    assert "ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}" in text
+    assert 'if [ "$ANSTOSS" = "false" ]; then' in _befehlszeilen(), (
+        "der Endbericht unterscheidet nicht zwischen «keine Antwort» und «nie gefragt»"
     )
 
 

@@ -255,9 +255,10 @@ ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
 
   Der Schlusssatz wechselt bei jedem Lauf («Delightful!», «Keep it up!»,
   «More of your lovely PRs please.»); stabil ist nur der Satz davor. Der
-  Infokasten, den Codex unter jeden Review setzt, behauptet weiterhin eine
-  Reaktion («otherwise it will react with 👍») — am 23.8. kam in sechs Repos
-  die Meldung und in keinem die Reaktion. Der Kasten ist keine Quelle.
+  Infokasten, den Codex unter jeden Review setzt, nennt zwei Reaktionen.
+  Zur 👀 siehe unten — sie gibt es, sie sitzt nur woanders, als hier zweimal
+  gesucht wurde. Die 👍 ist weiterhin **nie** beobachtet worden, auch nicht
+  auf einem sauberen Lauf an einem offenen PR (#64, 19.9.2026).
 - **Der PR ist ein Draft** — dann kommt manchmal nichts und manchmal die
   Environment-Meldung. Beides am 19.9.2026 in diesem Repo beobachtet, siehe
   unten.
@@ -373,7 +374,18 @@ Das ist keine der drei Meldungen oben. Es ist eine Aussage über den Lauf, nicht
 heissen, dass gerade noch geprüft wird — wer die Zahl als Beleg nimmt, zählt
 einen laufenden Review als abgeschlossenen. In derselben Antwort stand
 `reactions.total_count: 0`, während der Infokasten eine 👀-Reaktion während des
-Laufs behauptet. Der Kasten bleibt keine Quelle.
+Laufs behauptet.
+
+**Daraus wurde hier zwei Fassungen lang «der Kasten ist keine Quelle». Das
+war falsch — wir haben am falschen Ort gesucht.** Am 19.9.2026 trug auf PR #64
+der Kommentar, der den Lauf auslöste, `reactions: {"eyes": 1}`. Die Reaktion
+sitzt auf dem **auslösenden Kommentar**, nicht auf dem Statuskommentar und
+nicht am PR. Bei «Draft marked ready» gibt es gar keinen auslösenden
+Kommentar — deshalb war dort nie eine zu finden, und deshalb sah der Kasten
+wie eine Falschaussage aus. Er war präziser als die Messung.
+
+Die 👍 dagegen ist weiterhin nirgends aufgetaucht, auch nicht nach einem
+befundlosen Lauf auf einem offenen PR. Belegt: 👀 ja, 👍 nein.
 
 Der Marker ist der verlässliche Teil, nicht die Überschrift: Er steht im
 Rohtext des Kommentarkörpers und trennt diese Form von jedem anderen Text,
@@ -410,21 +422,37 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es inzwischen **acht** sind — #56 bis #63 —, macht die Sache nicht
-sicherer, sondern nur die Lücke sichtbarer: Achtmal dasselbe unter denselben
+Acht solche Beobachtungen — #56 bis #63 — machten die Sache nicht sicherer,
+sondern nur die Lücke sichtbarer: Achtmal dasselbe unter denselben
 Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung achtmal.
-**Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
-OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
-was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
-Befundlos-Meldung, nicht durch den Status in der Tabelle.
 
-Warum sie fehlt und wohl vorerst fehlen wird, steht weiter unten unter «Der
-Review wird nicht abgewartet». Zwei Versuche, sie über einen Ablauf zu
-beschaffen, sind gescheitert, und der dritte — ein Check-Run, der neben dem
-Merge herläuft — hat sie am 19.9.2026 auf #62 und #63 ebenfalls nicht
-geliefert. Sie käme erst mit einer Sperre, die das Mergen bis zum Urteil
-verhindert. Seit demselben Tag steht sie; ob sie hält, entscheidet der
-erste PR, der es versucht.
+**DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR, UND SIE ENTLASTET DIE ACHT.**
+Auf PR #64 lief Codex von 13:51:27 bis 13:54:34 auf `f913ecd`, während der
+PR **offen und nicht gemergt** war. Hinterlassen hat er: die Tabelle auf
+`✅ Completed` — und sonst nichts. `get_reviews` → `[]`,
+`get_review_comments` → `totalCount: 0`, keine Befundlos-Meldung.
+
+Das ist zeichengleich mit den acht Läufen auf gemergten PRs. Damit ist die
+Befürchtung ausgeräumt, der Merge schneide die Ausgabe ab: Ein sauberer Lauf
+sieht hier so aus, offen wie gemergt.
+
+**Zwei Dinge folgen daraus, und ein drittes ausdrücklich nicht:**
+
+- Die «Swish!»-Befundlos-Meldung ist **weg**. Oben steht noch, es sei nicht zu
+  entscheiden, ob Codex das Format gewechselt habe oder der Merge den Weg
+  abgeschnitten. Die Kontrolle entscheidet es: Auf einem offenen PR kam sie
+  ebenso wenig. Das Format hat gewechselt, die Tabelle hat sie ersetzt.
+- Die acht Beobachtungen sind damit nachträglich in Ordnung — sie waren nie
+  auffällig, nur unkontrolliert.
+- **Nicht** belegt ist, dass ein BEFUND auf einem gemergten PR geschrieben
+  würde. Dieser Lauf fand nichts. Eine Gegenprobe dafür bräuchte einen Lauf
+  MIT Befund, und den gab es bis heute in diesem Repo nie.
+
+Wie sie zustande kam, ist selbst eine Lehre: nicht über den Gate-Job, der
+zweimal neben dem Merge herlief und nichts ausrichtete, sondern weil ein
+`@codex review` von Hand einen Lauf auf einem PR startete, der offen blieb.
+Die Kontrolle brauchte keine Sperre — sie brauchte einen PR, den niemand
+sofort mergte.
 
 Eine parallele Session an `lindas-mcp` meldet, die Tabelle sei bei Befund und
 ohne Befund **zeichengleich** und beweise nur, DASS geprüft wurde. Das deckt
@@ -507,6 +535,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #59 | 07:07:11 | 07:08:08 | **57 s** |
 | #62 | 09:15:12 | 09:16:08 | **56 s** |
 | #63 | 09:23:35 | 09:24:32 | **57 s** |
+| #64 | 13:51:27 | 13:54:34 | **187 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -514,14 +543,19 @@ ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
 einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
 Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
 
-Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus sechs Läufen. Die
-letzten beiden (#62 mit 56 s, #63 mit 57 s) haben sie nicht verschoben — das
-macht sie nicht zur Regel, nur zu einer Spanne, die zweimal gehalten hat.
-Beide lagen nahe beieinander; aus zwei benachbarten Werten eine Typik zu
-machen, wäre derselbe Kurzschluss wie oben aus einem einzigen. Was
-daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
-**Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
-Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
+Hier stand «eine Spanne von 36 bis 124 Sekunden, aus sechs Läufen», und
+daneben die Warnung, ein Timer auf der längsten bekannten Dauer gehe beim
+ersten längeren Lauf falsch. **Der kam am selben Tag: #64 brauchte 187
+Sekunden**, ein Drittel mehr als der bisherige Höchstwert.
+
+Bekannt ist damit **36 bis 187 Sekunden**, aus sieben Läufen — und das ist
+keine Spanne, auf die man sich verlassen sollte, sondern der Beleg, dass es
+keine gibt. Zwischen #63 (57 s) und #64 (187 s) liegt Faktor drei, ohne dass
+sich am Repo etwas geändert hätte.
+
+Was fürs Warten folgt, ist deshalb keine Wartezeit, sondern eine Bedingung:
+**Den Status lesen, nicht die Uhr.** Diese Zeile stand hier als Vorsichtsmass
+und ist jetzt ein Befund.
 
 ### Der Review wird nicht abgewartet — was das Häkchen wert ist
 
@@ -604,26 +638,43 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
   daneben: #62 war um 09:15:08 gemergt, das Gate wurde um 09:16:14 grün, und
   #63 war um 09:23:27 gemergt, das Gate grün um 09:25:04. Zweimal recht
   gehabt, 66 und 97 Sekunden zu spät.
-- **Der Weg über `synchronize` ist weiterhin ungeprüft — aber aus einem
-  anderen Grund als gedacht.** Am 19.9.2026 wurde er auf PR #64 gefahren, und
-  der Test kam gar nicht bis zur Frage: Der Schritt lautete
-  `curl -sS ... -o /dev/null` und meldete danach «Review nach Push
-  angestossen». Der Kommentar erschien nie. `curl -sS` endet bei einem
-  HTTP-Fehler mit Exit 0 — die Erfolgsmeldung war eine Behauptung über etwas,
-  das niemand geprüft hatte. Das Gate wartete anschliessend auf eine Antwort
-  auf eine Frage, die nie gestellt worden war, und hätte das Schweigen als
-  «Codex reagiert nicht auf den Bot» verbucht.
+- **Der Weg über `synchronize` ist am 19.9.2026 auf PR #64 gefahren worden.
+  Er scheitert, und zwar an einer Repo-Einstellung, nicht an Codex.** Der
+  POST auf `issues/{n}/comments` mit dem `GITHUB_TOKEN` antwortet:
 
-  **Das ist die Positivkontrolle aus dem 403-Abschnitt, in Workflow-Form:
-  Ein Ausbleiben ist erst dann eine Messung, wenn der Reiz nachweislich
-  gesetzt wurde.** Der Schritt prüft seinen Statuscode jetzt und wird rot,
-  wenn der Anstoss nicht 201 zurückgibt;
-  `tests/test_codex_gate_workflow.py::test_der_anstoss_prueft_seinen_statuscode`
-  hält das fest. Der wahrscheinlichste Grund für den Fehlschlag steht in der
-  Fehlermeldung des Schritts: Steht unter Settings → Actions → General die
-  Workflow permission auf «Read repository contents», greift `issues: write`
-  im Workflow nicht — ein `permissions:`-Block kann nur einschränken, nie
-  erweitern.
+  ```
+  { "message": "Resource not accessible by integration", "status": "403" }
+  ```
+
+  Steht unter Settings → Actions → General die Workflow permission auf «Read
+  repository contents», greift `issues: write` im Workflow nicht — ein
+  `permissions:`-Block kann nur einschränken, nie erweitern. Umstellen auf
+  «Read and write permissions», dann trägt der Weg.
+
+  **Dass Codex auf `@codex review` reagiert, ist getrennt davon belegt.** Der
+  Anstoss von Hand (Nutzerkonto statt Bot) löste sechs Sekunden später einen
+  Lauf aus. Die Tabelle nennt dafür eine **dritte** Auslöser-Bezeichnung:
+  `Manual request`, neben `Draft marked ready` und dem nie beobachteten
+  Öffnen.
+
+  **Der Schritt selbst war zweimal falsch, in entgegengesetzte Richtungen** —
+  ein Lehrstück über Fehlbefunde:
+
+  1. `curl -sS ... -o /dev/null`, danach «Review nach Push angestossen».
+     `curl -sS` endet bei einem HTTP-Fehler mit Exit 0, die Antwort war
+     weggeworfen. Der Kommentar erschien nie, der Schritt lief grün durch,
+     und das Gate hätte das folgende Schweigen als «Codex reagiert nicht auf
+     den Bot» protokolliert. **Ein Ausbleiben ist erst dann eine Messung,
+     wenn der Reiz nachweislich gesetzt wurde** — dieselbe Positivkontrolle
+     wie im 403-Abschnitt weiter oben, nur in Workflow-Form.
+  2. Statuscode geprüft, bei Abweichung `exit 1`. Der Ausschlag in die
+     Gegenrichtung: Dann liest das Gate ein Urteil, das auf anderem Weg
+     zustande kam, nie mehr — und genau so eines lag auf #64 vor, weil ein
+     Mensch von Hand kommentiert hatte.
+  3. Jetzt: laut warnen, als Step-Output weiterreichen, kürzer warten
+     (`WARTE_OHNE_ANSTOSS_SEKUNDEN`) und im Endbericht ausdrücklich sagen,
+     dass nie gefragt wurde. `tests/test_codex_gate_workflow.py` hält alle
+     drei Zusicherungen einzeln fest.
 - **Auf einem Draft läuft er nicht** (`if: draft == false`) und ist dort als
   `skipped` verzeichnet. Ob GitHub ein übersprungenes Ergebnis als erfüllten
   required check zählt, ist **ungemessen**; wer die Einstellung vornimmt,
@@ -631,18 +682,22 @@ auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
   Annahme, die nie geprüft wurde, gehört nicht in die Begründung einer
   Schranke.
 
-**Was er NICHT geliefert hat, obwohl es erhofft war.** Oben steht, die
-fehlende Kontrolle sei ein `Completed` auf einem PR, der beim Lauf noch OFFEN
-war, und der Gate-Job liefere sie nebenbei. Er hat sie nicht geliefert: Auf
-#62 lag der Merge um 09:15:08, der Codex-Lauf begann um 09:15:12 — **vier
-Sekunden danach**, wie schon bei #57 und #59. Es ist jetzt die siebte
-Beobachtung unter denselben Bedingungen und immer noch keine Gegenprobe.
+**Was er NICHT geliefert hat, obwohl es erhofft war.** Der Gate-Job sollte
+nebenbei die fehlende Kontrolle liefern — ein `Completed` auf einem PR, der
+beim Lauf noch offen ist. Er hat sie nicht geliefert: Auf #62 lag der Merge
+um 09:15:08, der Codex-Lauf begann um 09:15:12, vier Sekunden danach; auf #63
+ebenso.
 
 Der Denkfehler steckte in der Erwartung: Nicht der Gate-Job entscheidet, wann
-Codex läuft, sondern das `ready`-Ereignis — und wie schnell danach gemergt
+Codex läuft, sondern das auslösende Ereignis — und wie schnell danach gemergt
 wird, entscheidet ein Mensch. Ein Job, der neben dem Merge herläuft, kann ihn
-nicht aufhalten. **Die Kontrolle käme erst mit dem required check**, und damit
-ist sie derselbe eine Handgriff wie alles andere hier.
+nicht aufhalten.
+
+**Geliefert hat sie dann etwas anderes, und zwar an eben diesem PR #64:** ein
+`@codex review` von Hand auf einem PR, den niemand sofort mergte. Der Lauf
+von 13:51:27 bis 13:54:34 ist die Kontrolle; was sie zeigt, steht oben unter
+«DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR». Sie brauchte keine Sperre,
+sondern nur einen PR, der eine Weile offen blieb.
 
 Bis dahin behauptet der Zustand `clear` im Klassifizierer ausdrücklich nur das
 Gemessene («angesehen»), nicht «keine Befunde» —
