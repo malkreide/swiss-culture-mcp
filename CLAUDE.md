@@ -357,13 +357,19 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es jetzt zwei sind, macht die Sache nicht sicherer, sondern nur die Lücke
-sichtbarer: Zweimal dasselbe unter denselben Bedingungen zu sehen ist keine
-Gegenprobe, sondern dieselbe Messung zweimal. **Die fehlende Kontrolle ist ein
-`Completed` auf einem PR, der beim Lauf noch OFFEN war** — die gibt es bis
-heute nicht. Solange sie fehlt, gilt unverändert, was oben steht: Belegt ist
-eine Prüfung durch ein Review-Objekt oder eine Befundlos-Meldung, nicht durch
-den Status in der Tabelle.
+Dass es inzwischen **drei** sind — #56, #57 und #58 —, macht die Sache nicht
+sicherer, sondern nur die Lücke sichtbarer: Dreimal dasselbe unter denselben
+Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung dreimal.
+**Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
+OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
+was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
+Befundlos-Meldung, nicht durch den Status in der Tabelle.
+
+Der Ablauf weiter unten («Den Lauf abwarten») liefert sie nebenbei mit: Wer ihn
+einmal durchhält, hat die Kontrolle. Dann ist hier nachzutragen, ob auf einem
+offenen PR neben der Tabelle noch etwas erscheint — und falls nicht, dass
+`Completed` der einzige Endzustand ist und die «Swish!»-Meldung oben
+Geschichte.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -436,6 +442,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 |---|---|---|---|
 | #56 | 06:35:59 | 06:38:03 | **124 s** |
 | #57 | 06:56:06 | 06:56:42 | **36 s** |
+| #58 | 07:02:29 | 07:03:49 | **80 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -443,10 +450,37 @@ ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
 einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
 Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
 
-Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus zwei Läufen. Was
+Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus drei Läufen. Was
 daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
 Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
+
+### Den Lauf abwarten — das Verfahren
+
+Am 19.9.2026 ist die Kontrolle dreimal hintereinander nicht zustande gekommen,
+an #56, #57 und #58 dieses Repos. Nicht aus Unkenntnis: Der dritte PR trug die
+Wartebedingung in der eigenen Checkliste. Gefehlt haben jedes Mal unter zwei
+Minuten. Damit das nicht vom Erinnern abhängt, steht es hier als Ablauf:
+
+1. **Auf «ready» stellen.** Vorher läuft Codex nicht an, ein kommentarloser
+   Draft ist kein Beleg.
+2. **Rund 60 Sekunden warten, dann `get_comments` abfragen.** Den Kommentar mit
+   `<!-- codex-pull-request-review-summary -->` heraussuchen und darin ZWEI
+   Spalten lesen: **Status** und **Commit**. Der Commit muss der Head des PR
+   sein — eine Tabelle zu einem älteren Stand sagt nichts über den jetzigen.
+3. **Bei `🔄 Running` erneut abfragen**, nicht weiterrechnen. Bei `✅ Completed`
+   ist der Lauf durch.
+4. **Dann erst `get_reviews` und `get_review_comments`** für die Befunde. Der
+   Status in der Tabelle ist kein Befundbericht.
+5. **Erst danach mergen.**
+
+Wer das automatisieren will, stösst auf eine Wand, die in dieser Datei schon
+zweimal beschrieben ist: Die GitHub-Werkzeuge hängen an der Session, nicht am
+Konto. Ein Shell-Skript hat keinen Zugang (`curl` auf `api.github.com` endet
+bei «GitHub access is not enabled for this session»), und eine gefeuerte
+Routine erbt **keine** MCP-Werkzeuge. Das Warten ist deshalb Sache dessen, der
+die Session fährt — Mensch oder Agent —, und kein Cron-Job. Wer eine Routine
+dafür baut, baut etwas, das nichts prüfen kann und «geprüft» meldet.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
