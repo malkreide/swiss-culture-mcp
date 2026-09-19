@@ -16,14 +16,18 @@ Drei solche Faelle stehen unten je einzeln:
 HERKUNFT DER FIXTURES
 ---------------------
 Die Statuskommentare kommen aus `tests/fixtures/codex_kommentare.json` und
-sind woertliche Antwortkoerper der GitHub-API, aufgezeichnet am 19.09.2026:
-die beiden `Completed`-Tabellen von PR #56 und #61 DIESES Repos, die
-`Running`-Tabelle aus `swiss-cultural-heritage-mcp` PR #90 — die konnte hier
-nicht nachgemessen werden, weil Codex die Tabelle in Ort fortschreibt und der
-laufende Zustand nach dem Lauf nicht mehr abrufbar ist. Das steht so auch in
-der Fixture.
+sind woertliche Antwortkoerper der GitHub-API dieses Repos, aufgezeichnet am
+19.09.2026: die `Completed`-Tabellen von PR #56, #61 und #62, die
+Environment-Meldung vom Draft-Stand des PR #62, und — als einziges Paar —
+derselbe Kommentar auf #62 einmal waehrend und einmal nach dem Lauf.
 
-Die Meldungstexte (Befundlos, Kontingent, Environment) stehen woertlich in
+Dass dieses Paar existiert, ist selbst ein Befund: Hier stand eine Fassung
+lang, der laufende Zustand sei gar nicht aufzuzeichnen, weil Codex die
+Tabelle in Ort fortschreibt. Aufzuzeichnen ist er sehr wohl — nur eben
+waehrend des Laufs. Fuer die `Running`-Tabelle stand deshalb zuerst eine
+fremde Aufnahme aus einem anderen Repo hier; sie ist ersetzt.
+
+Die uebrigen Meldungstexte (Befundlos, Kontingent) stehen woertlich in
 CLAUDE.md, aufgezeichnet am 21.8., 22.8. und 23.8.2026.
 """
 
@@ -77,13 +81,15 @@ HEAD_56 = "b503b48654912edb38a81e47178b5f1143e9debb"
 # PR #61 desselben Repos — zweite Aufzeichnung, anderer Commit.
 FERTIG_61 = _ROH["malkreide/swiss-culture-mcp PR #61"]["body"]
 HEAD_61 = "9a035dee86de48e355a93f6676253a313def1d75"
-# Fremdes Repo, siehe Modul-Docstring.
-LAEUFT = _ROH["malkreide/swiss-cultural-heritage-mcp PR #90"]["body"]
-HEAD_90 = FRUEHER
+# PR #62 dieses Repos: derselbe Kommentar 56 Sekunden vor und nach dem Ende
+# des Laufs. Gleiche ID, `created_at` unveraendert, `updated_at` gewandert.
+LAEUFT = _ROH["malkreide/swiss-culture-mcp PR #62 (laufend)"]["body"]
+FERTIG_62 = _ROH["malkreide/swiss-culture-mcp PR #62 (fertig)"]["body"]
+HEAD_62 = "f09a9e0c88a7276ff9a4e2d629a1b5c80f2a6b69"
 
 # PR #62 dieses Repos, 19.09.2026 09:06:06Z — woertlich aus der Fixture,
 # samt Markdown-Link mitten im Satz.
-ENVIRONMENT_MELDUNG = _ROH["malkreide/swiss-culture-mcp PR #62"]["body"]
+ENVIRONMENT_MELDUNG = _ROH["malkreide/swiss-culture-mcp PR #62 (Draft)"]["body"]
 
 
 def kommentar(body: str, *, user=CODEX, created_at="2026-09-19T07:00:00Z") -> dict:
@@ -120,8 +126,8 @@ def test_die_fixture_traegt_echte_aufgezeichnete_koerper() -> None:
     """
     daten = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     assert daten["_herkunft"]["aufgezeichnet_am"] == "2026-09-19"
-    assert len(daten["kommentare"]) == 4
-    for koerper in (FERTIG, FERTIG_61, LAEUFT):
+    assert len(daten["kommentare"]) == 5
+    for koerper in (FERTIG, FERTIG_61, FERTIG_62, LAEUFT):
         assert "<!-- codex-pull-request-review-summary -->" in koerper
         assert "| Review | Status | Commit | Review trigger |" in koerper
     # Die Environment-Meldung ist gerade KEINE Tabelle — sonst liefe der
@@ -275,7 +281,7 @@ def test_clear_behauptet_nicht_mehr_als_gemessen_ist() -> None:
 
 
 def test_eine_laufende_tabelle_ist_kein_urteil() -> None:
-    state, _ = classify([], [kommentar(LAEUFT)], HEAD_90)
+    state, _ = classify([], [kommentar(LAEUFT)], HEAD_62)
     assert state == PENDING
     assert state not in PROVEN
 
@@ -286,7 +292,7 @@ def test_die_statustabelle_ist_auch_kein_unbekannter_text() -> None:
     Als Urteil gelesen waere jeder frisch getriggerte PR sofort «geprueft».
     Als unbekannter Text gelesen waere er sofort rot.
     """
-    state, reason = classify([], [kommentar(LAEUFT)], HEAD_90)
+    state, reason = classify([], [kommentar(LAEUFT)], HEAD_62)
     assert state != UNKNOWN
     assert "laeuft noch" in reason
 
@@ -294,13 +300,25 @@ def test_die_statustabelle_ist_auch_kein_unbekannter_text() -> None:
 def test_die_tabelle_bindet_an_den_commit_nicht_an_die_zeit() -> None:
     """Die Tabelle wird in Ort fortgeschrieben — ihr `created_at` altert.
 
-    Auf #56 stand sie um 06:36:00 (created_at) und trug um 06:38:04
-    (updated_at) das fertige Urteil, bei unveraenderter Kommentar-ID. Ein
-    `since`-Filter auf `created_at` wuerde es wegwerfen, sobald der
-    Head-Commit juenger ist als der erste Tabellen-Post.
+    Auf #62 ist das Paar aufgezeichnet: dieselbe Kommentar-ID 5740705055,
+    `created_at` beide Male 09:15:14, der Koerper um 09:15:14 auf `Running`
+    und um 09:16:11 auf `Completed`. Ein `since`-Filter auf `created_at`
+    wuerde das fertige Urteil wegwerfen, sobald der Head-Commit juenger ist
+    als der erste Tabellen-Post.
     """
-    alt = kommentar(FERTIG, created_at="2026-09-19T06:36:00Z")
-    assert classify([], [alt], HEAD_56, since="2026-09-19T06:37:00Z")[0] == CLEAR
+    alt = kommentar(FERTIG_62, created_at="2026-09-19T09:15:14Z")
+    assert classify([], [alt], HEAD_62, since="2026-09-19T09:16:00Z")[0] == CLEAR
+
+
+def test_derselbe_kommentar_traegt_nacheinander_zwei_urteile() -> None:
+    """Das Paar aus #62, beide Koerper echt, gleiche Kommentar-ID.
+
+    Es ist der Beleg fuer den Satz in CLAUDE.md, den Kommentarkoerper NEU zu
+    holen statt ihn zu erinnern: Wer den um 09:15:14 gelesenen Text behaelt,
+    haelt einen fertigen Lauf fuer einen laufenden.
+    """
+    assert classify([], [kommentar(LAEUFT)], HEAD_62)[0] == PENDING
+    assert classify([], [kommentar(FERTIG_62)], HEAD_62)[0] == CLEAR
 
 
 def test_eine_tabelle_zu_einem_anderen_commit_belegt_den_head_nicht() -> None:

@@ -305,18 +305,25 @@ nicht, dass eine Environment fehlt.** 85 Minuten vorher, um 07:41, war auf
 PR #61 desselben Repos ein regulärer Review durchgelaufen, Statustabelle samt
 Infokasten «Your team has set up Codex to review pull requests in this repo».
 
-Zwei Erklärungen passen auf beide Beobachtungen, und **keine ist belegt**:
+Zwei Erklärungen passten auf beide Beobachtungen. **Die Messung hat neun
+Minuten später entschieden:** Um 09:15:06 wurde derselbe PR #62 auf ready
+geschaltet, um 09:15:12 setzte Codex eine reguläre Statustabelle auf
+`f09a9e0` — samt Infokasten «Your team has set up Codex to review pull
+requests in this repo», und um 09:16:08 stand sie auf `✅ Completed`.
 
-- Codex behandelt Drafts anders und schickt dort diese Meldung statt eines
-  Laufs. Dann ist sie auf einem Draft bedeutungslos.
-- Die Environment ist zwischen 07:41 und 09:06 tatsächlich weggefallen. Dann
-  ist sie ernst, und der nächste Review scheitert auch auf einem ready-PR.
+**Die Environment ist da. Die Meldung auf dem Draft war Draft-Verhalten.**
+Derselbe PR, dieselbe Minute des Tages, zwei gegensätzliche Auskünfte —
+getrennt nur durch das Umschalten von Draft auf ready.
 
-Die entscheidende Messung ist billig: **PR #62 auf ready schalten und
-nachsehen.** Kommt eine Statustabelle, war es das Draft-Verhalten; kommt die
-Meldung erneut, fehlt die Environment wirklich. Vorher gehört die Frage offen
-gelassen — aus einer Meldung auf einen Zustand zu schliessen ist genau der
-Fehler, den der Abschnitt «Ein 4xx ist kein Nein» beschreibt.
+Daraus die Regel: **Auf einem Draft ist die Environment-Meldung keine
+Auskunft über das Repo.** Wer sie dort liest und eine Environment anlegt,
+behebt ein Problem, das keines ist — dieselbe Klasse wie der Admin, den
+niemand braucht, im Abschnitt «Ein 403 ist gar keine Auskunft». Auf einem
+ready-PR gilt sie weiterhin.
+
+Fürs Gate ist der Fall damit doppelt entschärft: Der Job läuft auf Drafts gar
+nicht (`if: draft == false`), und der `since`-Filter hätte den Kommentar von
+09:06 ohnehin verworfen — er liegt vor dem Committer-Datum des Head-Commits.
 
 Fürs Gate ist der Fall schon entschieden, und zwar richtig herum: Der
 Klassifizierer liest die Statustabelle **vor** den Meldungstexten. Eine
@@ -389,9 +396,9 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Dass es inzwischen **fünf** sind — #56 bis #60 —, macht die Sache nicht
-sicherer, sondern nur die Lücke sichtbarer: Fünfmal dasselbe unter denselben
-Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung fünfmal.
+Dass es inzwischen **sieben** sind — #56 bis #62 —, macht die Sache nicht
+sicherer, sondern nur die Lücke sichtbarer: Siebenmal dasselbe unter denselben
+Bedingungen zu sehen ist keine Gegenprobe, sondern dieselbe Messung siebenmal.
 **Die fehlende Kontrolle ist ein `Completed` auf einem PR, der beim Lauf noch
 OFFEN war** — die gibt es bis heute nicht. Solange sie fehlt, gilt unverändert,
 was oben steht: Belegt ist eine Prüfung durch ein Review-Objekt oder eine
@@ -399,8 +406,9 @@ Befundlos-Meldung, nicht durch den Status in der Tabelle.
 
 Warum sie fehlt und wohl vorerst fehlen wird, steht weiter unten unter «Der
 Review wird nicht abgewartet». Zwei Versuche, sie über einen Ablauf zu
-beschaffen, sind gescheitert; sie käme erst mit einer Sperre, die das Mergen
-bis zum Urteil verhindert.
+beschaffen, sind gescheitert, und der dritte — ein Check-Run, der neben dem
+Merge herläuft — hat sie am 19.9.2026 auf #62 ebenfalls nicht geliefert. Sie
+käme erst mit einer Sperre, die das Mergen bis zum Urteil verhindert.
 
 Eine parallele Session an `lindas-mcp` meldet, die Tabelle sei bei Befund und
 ohne Befund **zeichengleich** und beweise nur, DASS geprüft wurde. Das deckt
@@ -481,6 +489,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #57 | 06:56:06 | 06:56:42 | **36 s** |
 | #58 | 07:02:29 | 07:03:49 | **80 s** |
 | #59 | 07:07:11 | 07:08:08 | **57 s** |
+| #62 | 09:15:12 | 09:16:08 | **56 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -488,7 +497,9 @@ ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
 einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
 Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
 
-Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus vier Läufen. Was
+Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus fünf Läufen. Der
+fünfte (#62, 56 s) hat die Spanne nicht verschoben — das macht sie nicht zur
+Regel, nur zu einer Spanne, die einmal gehalten hat. Was
 daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
 Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
@@ -508,8 +519,9 @@ review» und Merge:
 | #58 | 20 s | lief (`Running`) |
 | #59 | **2 s** | startete erst 8 s danach |
 | #60 | 63 s | lief (`Running`) |
+| #62 | **2 s** | startete erst 4 s danach |
 
-Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der fünf Fälle lag beim
+Ein Codex-Lauf braucht 36 bis 124 Sekunden. In keinem der sechs Fälle lag beim
 Merge ein Ergebnis vor.
 
 Es lag nicht an fehlendem Wissen: #58 trug die Wartebedingung in der eigenen
@@ -518,6 +530,13 @@ Agent den PR selbst auf ready geschaltet, um das Zeitfenster zu erzeugen — es
 wurde 63 Sekunden gross und reichte trotzdem nicht. Zwei Anläufe, die Sache
 über einen Ablauf zu regeln, sind damit gescheitert. Ein dritter Ablauf wäre
 dieselbe Schraube ein drittes Mal.
+
+**#62 ist der Beleg dafür, dass auch das Gate allein nicht reicht.** Es war
+der PR, der das Gate einführte; sein Text nannte die Einschränkung in einem
+eigenen Abschnitt. Der Job startete um 09:15:08 und wurde um 09:16:14 grün —
+**66 Sekunden nach dem Merge**, der um 09:15:08 stattfand. Ein Check, der
+nicht *required* ist, hält nichts auf. Das war vorher ein Argument und ist
+jetzt eine Messung.
 
 **Die Folge, und nur darum geht es hier: Ein gemergter PR in diesem Repo ist
 kein Beleg, dass Codex hineingesehen hat.** Das Häkchen «Codex-Review
@@ -547,25 +566,48 @@ auf ein Urteil und wird rot, wenn keines kommt. `synchronize` stösst vorher
 selbst `@codex review` an — ein Push ist keiner der drei Auslöser, die Codex
 in seinem Infokasten nennt.
 
-**Zwei Dinge fehlen ihm, und beide gehören benannt:**
+**Der erste Live-Lauf liegt vor, auf PR #62 am 19.9.2026.** Der Job startete
+um 09:15:08 (zwei Sekunden nach «ready»), pollte, sah um 09:16:08 die Tabelle
+auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
+09:16:14 mit `conclusion: success`. Die Mechanik trägt also — für den Weg
+über `ready_for_review`.
+
+**Drei Dinge fehlen ihm, und alle drei gehören benannt:**
 
 - **Er ist kein required check.** Das einzutragen ist eine Repo-Einstellung,
   die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein Mensch, unter
-  Settings → Branches (oder als Ruleset), Name: `codex-gate`. Bis dahin ist
-  er ein Hinweis und keine Schranke, und der Absatz oben gilt unverändert.
-- **Seine Mechanik ist am lebenden Objekt ungeprüft.** Die Einordnung ist
-  gegen aufgezeichnete Antwortkörper getestet (`tests/fixtures/codex_kommentare.json`,
-  #56 und #61 dieses Repos), aber ob Codex auf einen Kommentar des
-  `GITHUB_TOKEN`-Bots überhaupt reagiert, weiss niemand. Tut er es nicht,
-  läuft das Gate nach jedem Push in den Timeout.
+  Settings → Branches (oder als Ruleset), Name: `codex-gate`. Wie teuer das
+  ist, hat derselbe Lauf gemessen: #62 war um 09:15:08 gemergt, das Gate wurde
+  um 09:16:14 grün. Es hat 66 Sekunden zu spät recht gehabt.
+- **Der Weg über `synchronize` ist ungeprüft.** Nach einem Push kommentiert
+  der Job selbst `@codex review`. Ob Codex auf einen Kommentar des
+  `GITHUB_TOKEN`-Bots reagiert, ist nicht gemessen — #62 wurde nie
+  nachgepusht, solange er offen war. Tut Codex es nicht, läuft das Gate nach
+  jedem Push in den Timeout und sagt dort, dass ein Mensch `@codex review`
+  schreiben muss.
+- **Auf einem Draft läuft er nicht** (`if: draft == false`) und ist dort als
+  `skipped` verzeichnet. Ob GitHub ein übersprungenes Ergebnis als erfüllten
+  required check zählt, ist **ungemessen**; wer die Einstellung vornimmt,
+  sollte es prüfen. Drafts sind zwar ohnehin nicht mergbar — aber eine
+  Annahme, die nie geprüft wurde, gehört nicht in die Begründung einer
+  Schranke.
 
-**Nebenbei liefert er die fehlende Kontrolle.** Oben steht, dass ein
-`✅ Completed` auf einem PR, der beim Lauf noch OFFEN war, bis heute fehlt —
-alle sechs Beobachtungen fielen auf gemergte PRs. Der Gate-Job läuft als
-PR-Check, also genau dann, wenn der PR offen ist. Sein erster grüner Lauf
-ist diese Kontrolle. Bis sie da ist, behauptet der Zustand `clear` im
-Klassifizierer ausdrücklich nur das Gemessene («angesehen»), nicht «keine
-Befunde» — `tests/test_classify_codex_review.py` hält den Wortlaut fest.
+**Was er NICHT geliefert hat, obwohl es erhofft war.** Oben steht, die
+fehlende Kontrolle sei ein `Completed` auf einem PR, der beim Lauf noch OFFEN
+war, und der Gate-Job liefere sie nebenbei. Er hat sie nicht geliefert: Auf
+#62 lag der Merge um 09:15:08, der Codex-Lauf begann um 09:15:12 — **vier
+Sekunden danach**, wie schon bei #57 und #59. Es ist jetzt die siebte
+Beobachtung unter denselben Bedingungen und immer noch keine Gegenprobe.
+
+Der Denkfehler steckte in der Erwartung: Nicht der Gate-Job entscheidet, wann
+Codex läuft, sondern das `ready`-Ereignis — und wie schnell danach gemergt
+wird, entscheidet ein Mensch. Ein Job, der neben dem Merge herläuft, kann ihn
+nicht aufhalten. **Die Kontrolle käme erst mit dem required check**, und damit
+ist sie derselbe eine Handgriff wie alles andere hier.
+
+Bis dahin behauptet der Zustand `clear` im Klassifizierer ausdrücklich nur das
+Gemessene («angesehen»), nicht «keine Befunde» —
+`tests/test_classify_codex_review.py` hält den Wortlaut fest.
 
 Wer stattdessen ein Skript oder eine Routine bauen will, stösst auf eine Wand,
 die in dieser Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen
