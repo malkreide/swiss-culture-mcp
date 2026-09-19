@@ -369,7 +369,20 @@ def test_nach_einem_push_wird_ein_review_angestossen() -> None:
     """
     text = _text()
     assert "if: github.event.action == 'synchronize'" in text
-    assert "@codex review" in text
-    assert "issues: write" in text, (
-        "ohne `issues: write` kann der Job den Anstoss nicht kommentieren"
+
+    # Hier stand `assert "issues: write" in text`. Die Zeile war aus dem
+    # permissions-Block laengst verschwunden; gruen blieb der Test nur, weil
+    # der Wortlaut inzwischen in Kommentaren und Fehlerhinweisen vorkommt. Er
+    # dokumentierte damit einen Vertrag, den es nicht mehr gibt, und konnte
+    # gar nicht mehr aus dem richtigen Grund fallen. Befund eines
+    # Codex-Reviews auf PR #64 (P2), 19.09.2026.
+    #
+    # Ein Textfund im ganzen Dokument ist keine Zusicherung ueber eine
+    # Konfiguration. Gesucht wird deshalb im Rumpf des Schritts, und nach
+    # dem, was den Anstoss wirklich absetzt.
+    anstoss = text.split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert '-d \'{"body":"@codex review"}\'' in anstoss, (
+        "der Schritt setzt keinen `@codex review`-Kommentar ab"
     )
+    assert "$GH_API/issues/$PR/comments" in anstoss

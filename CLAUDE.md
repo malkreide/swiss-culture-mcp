@@ -595,7 +595,8 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #62 | 09:15:12 | 09:16:08 | **56 s** |
 | #63 | 09:23:35 | 09:24:32 | **57 s** |
 | #64 | 13:51:27 | 13:54:34 | **187 s** |
-| #64 (2.) | 14:08:38 | noch offen bei 14:11:30 | **> 172 s** |
+| #64 (2.) | 14:08:38 | 14:11:32 | **174 s** |
+| #64 (3.) | 14:18:05 | 14:21:45 | **220 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -608,10 +609,16 @@ daneben die Warnung, ein Timer auf der längsten bekannten Dauer gehe beim
 ersten längeren Lauf falsch. **Der kam am selben Tag: #64 brauchte 187
 Sekunden**, ein Drittel mehr als der bisherige Höchstwert.
 
-Bekannt ist damit **36 bis 187 Sekunden**, aus sieben Läufen — und das ist
+Bekannt ist damit **36 bis 220 Sekunden**, aus neun Läufen — und das ist
 keine Spanne, auf die man sich verlassen sollte, sondern der Beleg, dass es
-keine gibt. Zwischen #63 (57 s) und #64 (187 s) liegt Faktor drei, ohne dass
-sich am Repo etwas geändert hätte.
+keine gibt. Zwischen #63 (57 s) und dem dritten Lauf auf #64 (220 s) liegt
+Faktor vier, ohne dass sich am Repo etwas geändert hätte. Die Obergrenze ist
+an diesem einen Tag dreimal gestiegen: 124, dann 187, dann 220.
+
+Wer daraus eine Wartezeit macht, hat den Fehler schon gemacht. Am 19.9.2026
+kostete er einen Gate-Lauf: Eine Frist von 180 Sekunden — gewählt, weil die
+bekannte Obergrenze damals 187 betrug und «reicht schon» plausibel klang —
+lief 91 Sekunden vor dem Urteil ab.
 
 Was fürs Warten folgt, ist deshalb keine Wartezeit, sondern eine Bedingung:
 **Den Status lesen, nicht die Uhr.** Diese Zeile stand hier als Vorsichtsmass
@@ -680,7 +687,19 @@ auf ein Urteil und wird rot, wenn keines kommt. `synchronize` stösst vorher
 selbst `@codex review` an — ein Push ist keiner der drei Auslöser, die Codex
 in seinem Infokasten nennt.
 
-**Der erste Live-Lauf liegt vor, auf PR #62 am 19.9.2026.** Der Job startete
+**Der erste GRÜNE Lauf auf einem OFFENEN PR liegt vor: #64, 19.9.2026,
+14:17:14 bis 14:21:59.** Er ist zugleich der Praxistest der
+`running`-Erkennung — ohne sie wäre der Job um 14:20:14 in seine kurze Frist
+gelaufen, 91 Sekunden bevor Codex fertig war.
+
+**Er wurde grün, WEIL Codex etwas gefunden hat.** Der Zustand `reviewed`
+zählt zu `PROVEN`: Ein Review-Objekt belegt, dass hingesehen wurde. Das ist
+so gewollt und im Kopf des Workflows benannt — geprüft wird, ob Codex den
+Commit angesehen hat, nicht ob Befunde behoben wurden. Wer mehr erwartet,
+liest das Gate falsch; wer mehr will, muss `reviewed` rot machen und in Kauf
+nehmen, dass nur ein befundloser Lauf den PR freigibt.
+
+**Der erste Live-Lauf überhaupt lief auf PR #62 am 19.9.2026.** Der Job startete
 um 09:15:08 (zwei Sekunden nach «ready»), pollte, sah um 09:16:08 die Tabelle
 auf `✅ Completed` springen, ordnete sie als `clear` ein und endete um
 09:16:14 mit `conclusion: success`. Die Mechanik trägt also — für den Weg

@@ -200,13 +200,24 @@ jobs:
           # Obergrenze, der `permissions:`-Block hebt sie fuer PRs aus
           # demselben Repo an. Der Rat haette also die Vorgabe JEDES
           # Workflows aufgeweicht und den Fehler stehen lassen.
-          echo 'Zwei bekannte Ursachen, in dieser Reihenfolge pruefen:'
-          echo '1. Der Endpunkt issues/{n}/comments zeigt hier auf einen PULL'
-          echo '   REQUEST. Dafuer verlangt GitHub pull-requests: write, nicht'
-          echo '   issues: write. Den permissions-Block oben pruefen.'
-          echo '2. Laeuft der PR aus einem FORK, werden angeforderte'
-          echo '   Schreibrechte auf read-only gekuerzt, unabhaengig vom'
-          echo '   permissions-Block. Dann hilft nur ein Anstoss von Hand.'
+          # DER permissions-BLOCK IST HIER NICHT DIE ANTWORT.
+          # Er steuert den GITHUB_TOKEN; dieser POST laeuft mit dem PAT.
+          # Der Hinweis stand eine Fassung lang trotzdem hier und haette
+          # dazu verleitet, ein unbeteiligtes Token aufzuweiten, waehrend
+          # der Fehler stehen bleibt. Befund eines Codex-Reviews auf PR #64
+          # (P2), 19.09.2026 — der zweite dieser Art an derselben Stelle.
+          echo 'Das liegt am PAT in CODEX_ANSTOSS_TOKEN, nicht am'
+          echo 'permissions-Block dieses Workflows — der steuert den'
+          echo 'GITHUB_TOKEN, und der ist hier nicht im Spiel.'
+          echo 'Zu pruefen, in dieser Reihenfolge:'
+          echo '1. Ist das PAT abgelaufen oder widerrufen?'
+          echo '2. Deckt sein Geltungsbereich DIESES Repo ab? Ein'
+          echo '   fine-grained Token braucht es ausdruecklich in der'
+          echo '   Repository-Auswahl.'
+          echo '3. Traegt es Schreibrecht auf Pull Requests? Fine-grained:'
+          echo '   "Pull requests: Read and write". Klassisch: repo bzw.'
+          echo '   public_repo.'
+          echo '4. Darf das Konto in diesem Repo ueberhaupt kommentieren?'
 
       - name: Auf das Codex-Urteil warten
         id: gate
