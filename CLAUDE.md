@@ -284,23 +284,48 @@ ein, den dieser Abschnitt verhindern soll, nur in die andere Richtung.
 
 «Kein Kommentar» heisst also nicht «geprüft und sauber». Unterscheiden lässt es
 sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
-(«💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund und die
-beiden Ausfallmeldungen — Kontingent wie Environment — sind gewöhnliche
-Issue-Kommentare und trennen sich nur im Text. Beim Draft gibt es überhaupt
-nichts, weil Codex nicht anläuft; ein kommentarloser Draft ist deshalb kein
-Beleg, sondern ein nicht durchgeführter Test.
+(«💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund, die beiden
+Ausfallmeldungen — Kontingent wie Environment — und die Laufstatus-Tabelle
+weiter unten sind gewöhnliche Issue-Kommentare und trennen sich nur im Text.
+Beim Draft gibt es überhaupt nichts, weil Codex nicht anläuft; ein
+kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht durchgeführter
+Test. Am 19.9.2026 erneut so beobachtet: Der PR trug als Draft über Stunden
+null Kommentare, und der erste erschien auf die Sekunde mit dem Umschalten auf
+ready.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
 Limit-Meldung zuerst durchgerutscht.
 
 Der Kommentarzähler allein reicht ohnehin nicht: `comments: 1` kann die
-Befundlos-, die Kontingent- **oder** die Environment-Meldung sein — drei
-gegensätzliche Bedeutungen unter derselben Zahl. Den Text lesen, nicht die Zahl.
-Und einen unbekannten vierten Text wörtlich zitieren, statt ihn in eine der
-bekannten Schubladen zu zwingen: Dieser Abschnitt musste schon einmal von drei
-auf vier Gründe wachsen, und die 👍-Reaktion stand hier zwei Fassungen lang als
-Tatsache.
+Befundlos-, die Kontingent-, die Environment- **oder** die Laufstatus-Meldung
+sein — vier gegensätzliche Bedeutungen unter derselben Zahl. Den Text lesen,
+nicht die Zahl. Und einen unbekannten fünften Text wörtlich zitieren, statt ihn
+in eine der bekannten Schubladen zu zwingen: Dieser Abschnitt musste schon
+zweimal wachsen — von drei auf vier Gründe, dann um die Form unten — und die
+👍-Reaktion stand hier zwei Fassungen lang als Tatsache.
+
+**Die vierte Bedeutung: «läuft noch».** Am 19.9.2026 in diesem Repo beobachtet.
+Codex setzt beim Auslösen einen Issue-Kommentar mit dem HTML-Marker
+`<!-- codex-pull-request-review-summary -->`, der eine Tabelle trägt:
+
+```
+## Codex Review Summary
+| Review | Status | Commit | Review trigger |
+| 📝 Code Review | 🔄 Running since 2026-09-19T06:35:59Z | b503b48 | Draft marked ready |
+```
+
+Das ist keine der drei Meldungen oben. Es ist eine Aussage über den Lauf, nicht
+über den Befund, und es kommt **vor** dem Ergebnis. Ein `comments: 1` kann also
+heissen, dass gerade noch geprüft wird — wer die Zahl als Beleg nimmt, zählt
+einen laufenden Review als abgeschlossenen. In derselben Antwort stand
+`reactions.total_count: 0`, während der Infokasten eine 👀-Reaktion während des
+Laufs behauptet. Der Kasten bleibt keine Quelle.
+
+Der Marker ist der verlässliche Teil, nicht die Überschrift: Er steht im
+Rohtext des Kommentarkörpers und trennt diese Form von jedem anderen Text,
+ohne dass man auf Emoji oder Wortlaut angewiesen wäre. Wie die Tabelle im
+**Endzustand** aussieht, steht hier nicht — beobachtet ist nur `Running`.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -322,6 +347,33 @@ mergen. Am 21./22.8. lagen zwischen «ready for review» und Merge mehrfach drei
 bis fünf Sekunden. Codex wird beim Umschalten von Draft auf ready ausgelöst und
 braucht danach Zeit; wer sofort mergt, hat das Häkchen gesetzt und den Review
 nicht abgewartet.
+
+**Seit der Laufstatus-Tabelle ist das vorher zu sehen und nicht erst hinterher.**
+Das ist der praktische Wert der Form oben: Sie nennt Status UND Commit, ist vor
+dem Merge abrufbar, und `Running` auf dem Head-Commit heisst, dass das Häkchen
+noch nicht zu setzen ist. Bis dahin liess sich der zu frühe Merge nur
+rekonstruieren, wenn er schon passiert war.
+
+Am 19.9.2026 ist er trotzdem passiert, in diesem Repo, an PR #56:
+
+| Zeit (UTC) | |
+|---|---|
+| 06:35:53 | Draft → ready for review |
+| 06:35:59 | Codex-Review startet auf `b503b48` |
+| 06:36:50 | **PR gemergt** |
+
+**51 Sekunden** nach dem Start des Reviews. Die Tabelle stand in diesem Moment
+auf `Running` und war abrufbar — der Beleg, dass noch niemand hingesehen hatte,
+lag also vor und wurde nicht gelesen. Beim letzten Blick danach war weiterhin
+kein Review-Objekt und keine Befundlos-Meldung da; der Status las unverändert
+`Running`.
+
+**Was daraus NICHT folgt:** dass der Merge den Lauf abbricht. Beobachtet ist
+eine Spanne von rund einer Minute nach dem Merge, in der sich nichts geändert
+hatte — Codex braucht regulär länger. Wer daraus «der Merge killt den Review»
+macht, hat aus einer einzigen kurzen Beobachtung eine Kausalität erfunden. Ob
+ein Lauf nach dem Merge zu Ende geht und wohin er dann schreibt, ist offen.
+Gemessen ist nur: Zum Zeitpunkt des Merges lag kein Ergebnis vor.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
