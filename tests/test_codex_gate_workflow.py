@@ -140,6 +140,226 @@ def test_jeder_ausloeser_der_den_head_aendern_kann_startet_das_gate(ausloeser: s
     assert ausloeser in zeile, f"`{ausloeser}` fehlt in `types:` — {zeile}"
 
 
+def test_der_anstoss_prueft_seinen_statuscode() -> None:
+    """Ein geschluckter HTTP-Fehler ist schlimmer als ein lauter.
+
+    Gemessen am 19.09.2026 auf PR #64: Der Schritt lautete
+    `curl -sS ... -o /dev/null` und meldete danach «Review nach Push
+    angestossen». Der Kommentar erschien nie; `curl -sS` endet bei einem
+    HTTP-Fehler mit Exit 0. Das Gate wartete anschliessend auf eine Antwort
+    auf eine Frage, die nie gestellt worden war — und haette sie als
+    «Codex reagiert nicht» verbucht.
+
+    Das ist die Positivkontrolle in Workflow-Form: Ein Ausbleiben ist erst
+    dann eine Messung, wenn der Reiz nachweislich gesetzt wurde.
+    """
+    posts = [z for z in _befehlszeilen() if "-X POST" in z]
+    assert len(posts) == 1, f"erwartet wird genau ein POST, gefunden: {posts}"
+    assert "-o /dev/null" not in posts[0], (
+        "der POST verwirft seine Antwort — dann ist ein 403 von einem 201 nicht zu unterscheiden"
+    )
+    assert "-w '%{http_code}'" in posts[0], (
+        "ohne den Statuscode kann der Schritt seinen eigenen Fehlschlag nicht sehen"
+    )
+    assert 'if [ "$code" = "201" ]; then' in _befehlszeilen(), (
+        "der Statuscode wird geholt, aber nicht geprueft"
+    )
+
+
+def test_ein_gescheiterter_anstoss_beendet_den_job_nicht() -> None:
+    """Der Ausschlag in die Gegenrichtung, und er ist genauso teuer.
+
+    Die zweite Fassung liess den Schritt mit `exit 1` enden. Dann kann das
+    Gate ein Urteil, das auf anderem Weg zustande kam, nie mehr lesen — am
+    19.09.2026 auf PR #64 lag genau so eines vor, weil ein Mensch von Hand
+    `@codex review` kommentiert hatte.
+
+    Statt abzubrechen wird laut gewarnt, kuerzer gewartet und der Grund am
+    Ende im Klartext genannt.
+    """
+    text = _text()
+    anstoss = text.split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "exit 1" not in anstoss, (
+        "der Anstoss-Schritt bricht den Job ab — dann bleibt ein Urteil, das "
+        "von Hand angestossen wurde, ungelesen"
+    )
+    assert "::warning::" in anstoss, "ein stiller Fehlschlag ist kein Fehlschlag"
+    assert "gesetzt=false" in anstoss and "gesetzt=true" in anstoss, (
+        "der Ausgang muss als Step-Output weitergereicht werden"
+    )
+
+
+def test_ohne_anstoss_wird_kuerzer_gewartet() -> None:
+    """Zwanzig Minuten auf eine Frage warten, die nie gestellt wurde."""
+    zeilen = _befehlszeilen()
+    assert 'false|uebersprungen) frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN" ;;' in zeilen, (
+        "die Frist haengt nicht davon ab, ob der Anstoss ueberhaupt gesetzt wurde"
+    )
+    assert any(z.startswith("WARTE_OHNE_ANSTOSS_SEKUNDEN:") for z in zeilen)
+
+
+def test_clear_muss_eine_zweite_abfrage_ueberleben() -> None:
+    """Der gefaehrlichste Zustand, und er ist gemessen.
+
+    Am 19.09.2026 auf PR #64: Codex reichte sein Review-Objekt um 13:54:32
+    ein, die Statustabelle sprang um 13:54:34 auf `Completed` — und eine
+    Abfrage NACH 13:54:34 lieferte fuer `get_reviews` trotzdem `[]`. Eine
+    zwischengespeicherte Antwort sieht aus wie eine aktuelle.
+
+    `clear` heisst «Tabelle fertig, kein Review-Objekt gesehen». Wer beim
+    ersten Mal zuschlaegt, faerbt das Gate gruen, waehrend ein Befund
+    vorliegt. Das ist genau der Haken, gegen den das Gate gebaut ist —
+    deshalb muss `clear` zwei Abfragen ueberleben.
+    """
+    zeilen = _befehlszeilen()
+    assert 'if [ "$state" = "clear" ]; then' in zeilen, (
+        "`clear` wird nicht gesondert behandelt — dann zaehlt die erste, "
+        "moeglicherweise veraltete Antwort"
+    )
+    assert 'if [ "$bestaetigt" -ge 2 ]; then' in zeilen, (
+        "es fehlt die Bedingung, dass `clear` zweimal gesehen werden muss"
+    )
+    assert "bestaetigt=0" in zeilen, "der Zaehler wird nie zurueckgesetzt"
+
+
+def test_der_anstoss_nimmt_nicht_den_github_token() -> None:
+    """Der GITHUB_TOKEN taugt als Absender nicht — gemessen, nicht vermutet.
+
+    Am 19.09.2026 auf PR #64 setzte der Job den Kommentar mit dem
+    `GITHUB_TOKEN` erfolgreich (HTTP 201, nachdem `pull-requests: write`
+    gesetzt war). Codex antwortete vier Sekunden spaeter:
+
+        To use Codex here, create a Codex account and connect to github.
+
+    Der Anstoss erreicht Codex also und wird abgelehnt, weil
+    `github-actions[bot]` kein Codex-Konto hat. Ein Anstoss mit diesem Token
+    setzt damit nur einen Kommentar, der eine Absage provoziert.
+    """
+    posts = [z for z in _befehlszeilen() if "-X POST" in z]
+    assert len(posts) == 1, f"erwartet wird genau ein POST, gefunden: {posts}"
+    anstoss = _text().split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "$GH_TOKEN" not in anstoss, (
+        "der Anstoss nimmt den GITHUB_TOKEN — Codex lehnt dessen Konto ab"
+    )
+    assert "$ANSTOSS_TOKEN" in anstoss
+
+
+def test_ohne_eigenes_token_unterbleibt_der_anstoss() -> None:
+    """Lieber gar kein Kommentar als einer, der nur eine Absage provoziert."""
+    anstoss = _text().split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert 'if [ -z "${ANSTOSS_TOKEN:-}" ]; then' in anstoss
+    assert "gesetzt=uebersprungen" in anstoss
+
+
+def test_der_job_liest_nur() -> None:
+    """Der Anstoss laeuft ueber ein eigenes Token; Schreibrechte sind unnoetig.
+
+    Ein Token, das mehr darf als noetig, ist die teuerste Art, eine
+    Zusicherung zu verlieren, die niemand vermisst.
+    """
+    zeilen = _befehlszeilen()
+    assert "pull-requests: read" in zeilen
+    for schreibend in ("contents: write", "issues: write", "pull-requests: write"):
+        assert schreibend not in zeilen, f"unnoetige Berechtigung: {schreibend}"
+
+
+def test_ein_laufender_review_verlaengert_die_kurze_frist() -> None:
+    """Die kurze Frist darf nichts abschneiden, das schon laeuft.
+
+    Sie ist dafuer da, nicht auf etwas zu warten, das nie kommt. Am
+    19.09.2026 auf PR #64 lief sie nach 180 s ab, waehrend ein Codex-Lauf
+    seit 136 s arbeitete — und ein Lauf braucht bis 187 s. Der Job meldete
+    «kein Urteil» ueber ein Urteil, das gerade entstand.
+
+    Sobald die Statustabelle zum Head einen laufenden Review nennt, gilt
+    deshalb wieder die lange Frist.
+    """
+    zeilen = _befehlszeilen()
+    assert 'elif [ "$state" = "running" ]; then' in zeilen, (
+        "`running` wird nicht von `pending` unterschieden — dann kann die "
+        "Frist nicht auf einen laufenden Review reagieren"
+    )
+    assert "ende=$(( start + WARTE_SEKUNDEN ))" in zeilen, (
+        "die Frist wird bei einem laufenden Review nicht verlaengert"
+    )
+
+
+def test_ein_unbestaetigtes_clear_ueberlebt_den_fristablauf_nicht() -> None:
+    """Die Luecke sass genau in dem Zweig, der sie schliessen soll.
+
+    Wird `clear` zum ersten Mal in der letzten Runde gesehen, bricht die
+    Fristpruefung die Schleife mit `bestaetigt=1` ab. Die Endauswertung
+    laese dieselben Dateien noch einmal, faende `clear` und meldete
+    `proven=true` — gruen aus genau der einen, moeglicherweise veralteten
+    Beobachtung, gegen die die Bestaetigungsrunde gebaut ist.
+
+    Befund eines Codex-Reviews auf PR #64 (P1) vom 19.09.2026, und er war
+    richtig. Die Runde wird deshalb nachgeholt, auch nach Fristablauf.
+    """
+    zeilen = _befehlszeilen()
+    assert 'if [ "$bestaetigt" -eq 1 ]; then' in zeilen, (
+        "ein `clear`, das beim Fristablauf unbestaetigt war, geht ungeprueft in die Endauswertung"
+    )
+    text = _text()
+    nachlauf = text.split('if [ "$bestaetigt" -eq 1 ]; then', 1)[1]
+    nachlauf = nachlauf.split("python scripts/classify_codex_review.py", 1)[0]
+    assert "hole" in nachlauf, (
+        "die nachgeholte Runde liest die Dateien nicht neu — dann bestaetigt "
+        "sie nur dieselbe Momentaufnahme"
+    )
+
+
+def test_das_personliche_token_steht_nur_im_anstoss_schritt() -> None:
+    """Ein PAT eines Menschen darf nicht neben ausgechecktem Code liegen.
+
+    Job-weit gesetzt laege `CODEX_ANSTOSS_TOKEN` auch in der Umgebung der
+    Schritte, die `scripts/classify_codex_review.py` AUS DEM AUSGECHECKTEN
+    PR-STAND ausfuehren. Auf einem PR aus demselben Repo koennte eine
+    Aenderung an diesem Skript das Token auslesen und wegschicken — es
+    handelt repo-uebergreifend im Namen des Menschen.
+
+    Befund eines Codex-Reviews auf PR #64 (P1) vom 19.09.2026.
+    """
+    text = _text()
+    vor_den_steps, _, ab_den_steps = text.partition("    steps:")
+    assert "CODEX_ANSTOSS_TOKEN" not in vor_den_steps, (
+        "das PAT ist job-weit deklariert und liegt damit in der Umgebung "
+        "jedes Schritts, auch der ausgecheckten Skripte"
+    )
+    anstoss = ab_den_steps.split("- name: Nach einem Push einen Review anstossen", 1)[1]
+    anstoss = anstoss.split("- name:", 1)[0]
+    assert "CODEX_ANSTOSS_TOKEN" in anstoss, (
+        "das Token fehlt im Anstoss-Schritt — dann kann er nichts setzen"
+    )
+    # Und es muss unter einem echten `env:` stehen. Ohne diese Zeile fiel die
+    # Gegenprobe nicht, als `env:` zu `env2:` verbogen wurde: Der Name des
+    # Secrets stand weiter da, wirkungslos. Ein Test, der die Anwesenheit
+    # einer Zeile prueft, prueft nicht ihre Wirkung.
+    assert "\n        env:\n" in anstoss, (
+        "das Token haengt an keinem `env:`-Block des Schritts und wird deshalb nicht gesetzt"
+    )
+
+
+def test_der_endbericht_nennt_einen_gescheiterten_anstoss() -> None:
+    """Sonst liest sich `pending` wie «Codex hat nicht geantwortet».
+
+    Das ist der Fehlbefund, den dieser PR beinahe produziert haette: ein
+    Ausbleiben ohne gesetzten Reiz, protokolliert als Aussage ueber Codex.
+    """
+    text = _text()
+    assert "ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}" in text
+    zeilen = _befehlszeilen()
+    assert any(z.startswith('if [ "$ANSTOSS" = "false" ]') for z in zeilen), (
+        "der Endbericht unterscheidet nicht zwischen «keine Antwort» und «nie gefragt»"
+    )
+    assert "uebersprungen" in " ".join(zeilen), (
+        "der uebersprungene Anstoss faellt im Endbericht unter den Tisch"
+    )
+
+
 def test_nach_einem_push_wird_ein_review_angestossen() -> None:
     """Ein Push ist kein Codex-Ausloeser — sonst liefe das Gate in den Timeout.
 

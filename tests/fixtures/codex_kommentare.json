@@ -71,6 +71,19 @@
       "updated_at": "2026-09-19T09:16:11Z",
       "head_sha_des_pr": "f09a9e0",
       "body": "<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | ✅ **Completed** <relative-time datetime=\"2026-09-19T09:16:08.900861Z\">2026-09-19T09:16:08.900861Z</relative-time> | `f09a9e0` | Draft marked ready |\n\n\n\n\n<details> <summary>ℹ️ About Codex in GitHub</summary>\n<br/>\n\n[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you\n- Open a pull request for review\n- Mark a draft as ready\n- Comment \"@codex review\" or \"@codex security review\".\n\nCodex reacts with 👀 while any review is running, comments if it has suggestions, and reacts with 👍 once all reviews finish with no findings.\n\n</details>"
+    },
+    {
+      "_quelle": "malkreide/swiss-culture-mcp PR #64 (Konto), abgerufen 2026-09-19",
+      "_zustand": "kein_codex_konto",
+      "_hinweis": "Antwort auf einen `@codex review`-Kommentar von github-actions[bot] (HTTP 201, also zugestellt). Vier Sekunden spaeter kam diese Absage. Der Anstoss erreicht Codex also; abgelehnt wird das KONTO des Absenders. Fuenfter bekannter Meldungstext.",
+      "id": 5742483279,
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422
+      },
+      "created_at": "2026-09-19T14:03:04Z",
+      "updated_at": "2026-09-19T14:03:04Z",
+      "body": "To use Codex here, [create a Codex account and connect to github](https://chatgpt.com/codex/cloud/settings/connectors)."
     }
   ]
 }

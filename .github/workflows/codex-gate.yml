@@ -40,10 +40,19 @@ on:
   pull_request:
     types: [opened, ready_for_review, reopened, synchronize]
 
+# Nur Lesen. Der Anstoss laeuft ueber ein separates Token (siehe unten) und
+# braucht die Rechte des `GITHUB_TOKEN` nicht.
+#
+# Beiseite, weil es Zeit kostet, es noch einmal herauszufinden: Wollte man
+# mit dem `GITHUB_TOKEN` auf einem PR kommentieren, braucht es
+# `pull-requests: write`, nicht `issues: write` — der Endpunkt heisst zwar
+# `issues/{n}/comments`, das Ziel ist aber ein Pull Request. Mit
+# `pull-requests: read` antwortet er 403 «Resource not accessible by
+# integration». Am 19.09.2026 auf PR #64 gemessen. Nuetzt hier trotzdem
+# nichts, siehe den Anstoss-Schritt.
 permissions:
   contents: read
   pull-requests: read
-  issues: write   # nur fuer den `@codex review`-Anstoss nach einem Push
 
 concurrency:
   # Ein neuer Push macht das Warten auf den alten Head gegenstandslos.
@@ -74,6 +83,11 @@ jobs:
       # wird das Zehnfache der bekannten Obergrenze, weil ein Timer auf die
       # laengste bekannte Dauer beim ersten laengeren Lauf falsch geht.
       WARTE_SEKUNDEN: "1200"
+      # Wenn der `@codex review`-Anstoss nicht gesetzt werden konnte, wartet
+      # der Job nur noch hierauf — lange genug fuer einen Menschen, der
+      # sofort von Hand kommentiert, kurz genug, um keine 20 Minuten Laufzeit
+      # fuer eine Frage zu verbrennen, die nie gestellt wurde.
+      WARTE_OHNE_ANSTOSS_SEKUNDEN: "180"
       ABSTAND_SEKUNDEN: "30"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,30 +120,123 @@ jobs:
       # Ungeprueft ist, ob Codex auf einen Kommentar des GITHUB_TOKEN-Bots
       # reagiert. Tut er es nicht, endet der Job im Timeout und sagt dort,
       # dass ein Mensch `@codex review` schreiben muss.
+      #
+      # DER STATUSCODE WIRD GEPRUEFT, UND ZWAR AUS MESSUNG.
+      # Die erste Fassung lautete `curl -sS ... -o /dev/null` und meldete
+      # danach «Review nach Push angestossen». Am 19.09.2026 auf PR #64
+      # gemessen: Der Kommentar erschien nie, der Schritt lief gruen durch.
+      # `curl -sS` endet bei einem HTTP-Fehler mit Exit 0 — die Erfolgszeile
+      # war eine Behauptung ueber etwas, das nicht geprueft wurde. Das Gate
+      # wartete anschliessend 20 Minuten auf eine Antwort auf eine Frage,
+      # die nie gestellt worden war.
+      # WARUM HIER EIN EIGENES TOKEN STEHT — gemessen, nicht vermutet.
+      # Am 19.09.2026 auf PR #64 setzte der Job den Kommentar mit dem
+      # `GITHUB_TOKEN` erfolgreich (HTTP 201). Codex antwortete vier Sekunden
+      # spaeter:
+      #
+      #     To use Codex here, create a Codex account and connect to github.
+      #
+      # Der Anstoss ERREICHT Codex also; er wird abgelehnt, weil
+      # `github-actions[bot]` kein Codex-Konto hat. Codex bindet die Anfrage
+      # an das kommentierende Konto. Mit dem `GITHUB_TOKEN` ist dieser Weg
+      # damit nicht zu haben, gleich welche Berechtigung er traegt.
+      #
+      # Fehlt das Token, unterbleibt der Anstoss — statt einen Kommentar zu
+      # setzen, der nur eine Absage provoziert.
+      #
+      # DER SCHRITT BRICHT DEN JOB NICHT AB. Die zweite Fassung endete mit
+      # `exit 1`. Das war der Ausschlag in die Gegenrichtung: Kann der
+      # Anstoss nicht gesetzt werden, koennte trotzdem ein Mensch
+      # `@codex review` kommentiert haben — am selben Tag genau so geschehen.
+      # Ein harter Abbruch haette das Urteil, das danach vorlag, nie gelesen.
       - name: Nach einem Push einen Review anstossen
+        id: anstoss
         if: github.event.action == 'synchronize'
+        # DAS TOKEN STEHT NUR HIER, nicht job-weit. Es ist ein PAT eines
+        # MENSCHEN und handelt repo-uebergreifend in dessen Namen. Job-weit
+        # gesetzt laege es auch in der Umgebung der Schritte, die
+        # `scripts/classify_codex_review.py` AUS DEM AUSGECHECKTEN PR-STAND
+        # ausfuehren — auf einem PR aus demselben Repo koennte eine Aenderung
+        # an diesem Skript das Token also auslesen und wegschicken.
+        #
+        # Befund eines Codex-Reviews auf PR #64 (P1), 19.09.2026. Er war
+        # richtig: Die erste Fassung hatte es job-weit deklariert.
+        env:
+          # Optional. PAT eines Menschen MIT Codex-Konto, Scope `public_repo`
+          # bzw. `repo`. Fehlt es, unterbleibt der Anstoss — mit dem
+          # `GITHUB_TOKEN` geht es nachweislich nicht.
+          ANSTOSS_TOKEN: ${{ secrets.CODEX_ANSTOSS_TOKEN }}
         run: |
           set -euo pipefail
-          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" \
+          if [ -z "${ANSTOSS_TOKEN:-}" ]; then
+            echo "gesetzt=uebersprungen" >> "$GITHUB_OUTPUT"
+            echo "::notice::Kein CODEX_ANSTOSS_TOKEN hinterlegt — kein Anstoss."
+            echo 'Der GITHUB_TOKEN taugt dafuer nicht: Codex lehnt einen'
+            echo 'Anstoss von github-actions[bot] ab, weil das Konto kein'
+            echo 'Codex-Konto hat (gemessen 19.09.2026, PR #64). Wer den'
+            echo 'Anstoss automatisch will, hinterlegt ein PAT eines Menschen'
+            echo 'MIT Codex-Konto als Secret CODEX_ANSTOSS_TOKEN.'
+            exit 0
+          fi
+          code=$(curl -sS -o anstoss.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $ANSTOSS_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "$GH_API/issues/$PR/comments" \
-            -d '{"body":"@codex review"}' -o /dev/null
-          echo "Review nach Push angestossen."
+            -d '{"body":"@codex review"}')
+          echo "HTTP $code"
+          if [ "$code" = "201" ]; then
+            echo "gesetzt=true" >> "$GITHUB_OUTPUT"
+            echo "Review nach Push angestossen."
+            exit 0
+          fi
+          echo "gesetzt=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Der Anstoss @codex review ist nicht gesetzt worden (HTTP $code)."
+          echo "Antwort der API:"
+          cat anstoss.json
+          echo
+          # Hier stand der Rat, die repo-weite Vorgabe unter Settings →
+          # Actions → General auf «Read and write» zu stellen. Ein
+          # Codex-Review auf PR #64 hat ihn zerlegt: Die Vorgabe ist keine
+          # Obergrenze, der `permissions:`-Block hebt sie fuer PRs aus
+          # demselben Repo an. Der Rat haette also die Vorgabe JEDES
+          # Workflows aufgeweicht und den Fehler stehen lassen.
+          echo 'Zwei bekannte Ursachen, in dieser Reihenfolge pruefen:'
+          echo '1. Der Endpunkt issues/{n}/comments zeigt hier auf einen PULL'
+          echo '   REQUEST. Dafuer verlangt GitHub pull-requests: write, nicht'
+          echo '   issues: write. Den permissions-Block oben pruefen.'
+          echo '2. Laeuft der PR aus einem FORK, werden angeforderte'
+          echo '   Schreibrechte auf read-only gekuerzt, unabhaengig vom'
+          echo '   permissions-Block. Dann hilft nur ein Anstoss von Hand.'
 
       - name: Auf das Codex-Urteil warten
         id: gate
         env:
           SINCE: ${{ steps.stichtag.outputs.since }}
+          ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}
         run: |
           set -euo pipefail
-          ende=$(( $(date +%s) + WARTE_SEKUNDEN ))
-          while :; do
+          # Konnte der Anstoss nicht gesetzt werden, ist auf nichts zu warten
+          # ausser auf einen Menschen, der von Hand kommentiert. Zwanzig
+          # Minuten dafuer zu blockieren, kostet Laufzeit ohne Ertrag.
+          frist="$WARTE_SEKUNDEN"
+          case "$ANSTOSS" in
+            false|uebersprungen) frist="$WARTE_OHNE_ANSTOSS_SEKUNDEN" ;;
+          esac
+          echo "Frist: ${frist}s"
+          start=$(date +%s)
+          ende=$(( start + frist ))
+          bestaetigt=0
+          hole() {
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "$GH_API/pulls/$PR/reviews?per_page=100" -o reviews.json
             curl -sS -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "$GH_API/issues/$PR/comments?per_page=100" -o comments.json
+          }
+
+          while :; do
+            hole
 
             # `env -u GITHUB_OUTPUT`: Das Skript schreibt dorthin, sobald die
             # Variable gesetzt ist. In der Schleife waere das je Runde ein
@@ -141,13 +248,69 @@ jobs:
               --comments comments.json --since "$SINCE" | sed -n 's/^state=//p')
             echo "[$(date -u +%H:%M:%S)] $state"
 
-            # Alles ausser `pending` ist ein Ergebnis — auch ein schlechtes.
-            # Auf eine Kontingent- oder Environment-Meldung weiterzuwarten
-            # hiesse, eine Absage fuer Stille zu halten.
-            [ "$state" != "pending" ] && break
+            # `clear` heisst: Tabelle fertig, kein Review-Objekt gesehen.
+            # DAS IST DER GEFAEHRLICHSTE ZUSTAND, und zwar gemessen. Am
+            # 19.09.2026 auf PR #64 reichte Codex sein Review-Objekt um
+            # 13:54:32 ein, die Tabelle sprang um 13:54:34 auf `Completed` —
+            # und eine Abfrage NACH 13:54:34 lieferte fuer die Reviews
+            # trotzdem `[]`. Eine zwischengespeicherte Antwort sieht aus wie
+            # eine aktuelle. Wer hier beim ersten Mal zuschlaegt, faerbt das
+            # Gate gruen, waehrend ein Befund vorliegt — genau der Haken,
+            # gegen den es gebaut ist.
+            #
+            # Deshalb: `clear` gilt erst, wenn es zwei Abfragen im Abstand
+            # von ABSTAND_SEKUNDEN ueberlebt. Ein Befund, der noch unterwegs
+            # ist, hat dann Zeit, sichtbar zu werden.
+            if [ "$state" = "clear" ]; then
+              bestaetigt=$((bestaetigt + 1))
+              if [ "$bestaetigt" -ge 2 ]; then
+                echo "clear zum zweiten Mal — bestaetigt."
+                break
+              fi
+              echo "clear zum ersten Mal — Bestaetigungsrunde."
+            elif [ "$state" = "running" ]; then
+              # Ein Lauf ist in der Luft. Dann gilt die LANGE Frist, auch
+              # wenn der Anstoss nicht von hier kam — die kurze Frist ist
+              # dafuer da, nicht auf etwas zu warten, das nie kommt, nicht
+              # dafuer, etwas abzuschneiden, das schon laeuft.
+              #
+              # Am 19.09.2026 auf PR #64 genau so passiert: Die kurze Frist
+              # von 180 s lief um 14:10:54 ab, der Lauf hatte um 14:08:38
+              # begonnen und war noch nicht fertig. Ein Codex-Lauf braucht
+              # bis 187 s; eine Frist, die kuerzer ist als der Lauf, meldet
+              # «kein Urteil» ueber ein Urteil, das gerade entsteht.
+              bestaetigt=0
+              ende=$(( start + WARTE_SEKUNDEN ))
+            else
+              bestaetigt=0
+              # Alles andere ausser `pending` ist sofort ein Ergebnis, auch
+              # ein schlechtes: Auf eine Kontingent- oder Environment-Meldung
+              # weiterzuwarten hiesse, eine Absage fuer Stille zu halten.
+              [ "$state" != "pending" ] && break
+            fi
             [ "$(date +%s)" -ge "$ende" ] && break
             sleep "$ABSTAND_SEKUNDEN"
           done
+
+          # DIE BESTAETIGUNG DARF DIE FRIST UEBERLEBEN.
+          # Wird `clear` zum ersten Mal genau in der letzten Runde gesehen,
+          # bricht die Fristpruefung darunter die Schleife ab — mit
+          # `bestaetigt=1`. Die Endauswertung laese dieselben Dateien noch
+          # einmal, faende `clear` und meldete `proven=true`: gruen aus genau
+          # der einen, moeglicherweise veralteten Beobachtung, gegen die die
+          # Bestaetigungsrunde gebaut ist.
+          #
+          # Befund eines Codex-Reviews auf PR #64 (P1), 19.09.2026. Er war
+          # richtig — die Luecke war da, seit die Bestaetigungsrunde
+          # existierte, und zwar genau in dem Zweig, der sie tragen soll.
+          #
+          # Die Runde wird deshalb nachgeholt, auch nach Fristablauf. Sie
+          # kostet einmalig ABSTAND_SEKUNDEN und nur im Grenzfall.
+          if [ "$bestaetigt" -eq 1 ]; then
+            echo "clear war beim Fristablauf unbestaetigt — eine Runde wird nachgeholt."
+            sleep "$ABSTAND_SEKUNDEN"
+            hole
+          fi
 
           # Dieselben Dateien, dieselbe Einordnung — nur diesmal mit
           # `GITHUB_OUTPUT`, damit `state`, `reason` und `proven` je genau
@@ -164,6 +327,7 @@ jobs:
           STATE: ${{ steps.gate.outputs.state }}
           REASON: ${{ steps.gate.outputs.reason }}
           PROVEN: ${{ steps.gate.outputs.proven }}
+          ANSTOSS: ${{ steps.anstoss.outputs.gesetzt }}
         run: |
           {
             echo "## Codex Review Gate"
@@ -192,6 +356,25 @@ jobs:
             echo "  steht oben woertlich. Einordnen und die Marker in"
             echo "  \`scripts/classify_codex_review.py\` ergaenzen."
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ANSTOSS" = "false" ] || [ "$ANSTOSS" = "uebersprungen" ]; then
+            {
+              echo
+              echo "### Achtung: der Anstoss ist gar nicht gesetzt worden"
+              echo
+              echo "Codex wurde nichts gefragt — \`pending\` heisst hier"
+              echo "**nicht**, dass er nicht geantwortet hat."
+              echo
+              echo "**Ein Mensch muss \`@codex review\` auf diesem PR"
+              echo "kommentieren.** Ein Push allein ist kein Codex-Ausloeser,"
+              echo "und der \`GITHUB_TOKEN\` taugt als Absender nicht: Codex"
+              echo "bindet die Anfrage an das kommentierende Konto, und"
+              echo "\`github-actions[bot]\` hat keines (gemessen 19.09.2026)."
+              echo
+              echo "Automatisch geht es nur mit einem PAT eines Menschen mit"
+              echo "Codex-Konto, hinterlegt als Secret \`CODEX_ANSTOSS_TOKEN\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           echo "Kein Beleg, dass Codex $HEAD_SHA angesehen hat: $STATE"
           echo "$REASON"

@@ -49,6 +49,7 @@ from classify_codex_review import (  # noqa: E402
     PROVEN,
     QUOTA,
     REVIEWED,
+    RUNNING,
     UNKNOWN,
     classify,
 )
@@ -126,7 +127,7 @@ def test_die_fixture_traegt_echte_aufgezeichnete_koerper() -> None:
     """
     daten = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     assert daten["_herkunft"]["aufgezeichnet_am"] == "2026-09-19"
-    assert len(daten["kommentare"]) == 5
+    assert len(daten["kommentare"]) == 6
     for koerper in (FERTIG, FERTIG_61, FERTIG_62, LAEUFT):
         assert "<!-- codex-pull-request-review-summary -->" in koerper
         assert "| Review | Status | Commit | Review trigger |" in koerper
@@ -282,8 +283,27 @@ def test_clear_behauptet_nicht_mehr_als_gemessen_ist() -> None:
 
 def test_eine_laufende_tabelle_ist_kein_urteil() -> None:
     state, _ = classify([], [kommentar(LAEUFT)], HEAD_62)
-    assert state == PENDING
+    assert state == RUNNING
     assert state not in PROVEN
+
+
+def test_laufend_und_gar_nichts_sind_zwei_verschiedene_zustaende() -> None:
+    """Beides heisst «noch kein Urteil» und bedeutet Verschiedenes.
+
+    Bei `running` ist eines unterwegs, Warten lohnt. Bei `pending` ist nichts
+    in der Luft, und Warten kostet nur Laufzeit. Am 19.09.2026 auf PR #64
+    fiel der Unterschied auf: Der Gate-Job schoepfte seine kurze Frist von
+    180 s aus, waehrend ein Lauf seit 136 s arbeitete — ein Codex-Lauf
+    braucht bis 187 s. Eine Frist, die kuerzer ist als der Lauf, meldet
+    «kein Urteil» ueber ein Urteil, das gerade entsteht.
+
+    Solange beide Faelle denselben Namen tragen, kann der Workflow sie nicht
+    auseinanderhalten.
+    """
+    assert RUNNING != PENDING
+    assert RUNNING not in PROVEN
+    assert classify([], [kommentar(LAEUFT)], HEAD_62)[0] == RUNNING
+    assert classify([], [], HEAD_62)[0] == PENDING
 
 
 def test_die_statustabelle_ist_auch_kein_unbekannter_text() -> None:
@@ -293,7 +313,7 @@ def test_die_statustabelle_ist_auch_kein_unbekannter_text() -> None:
     Als unbekannter Text gelesen waere er sofort rot.
     """
     state, reason = classify([], [kommentar(LAEUFT)], HEAD_62)
-    assert state != UNKNOWN
+    assert state not in (UNKNOWN, CLEAR)
     assert "laeuft noch" in reason
 
 
@@ -317,7 +337,7 @@ def test_derselbe_kommentar_traegt_nacheinander_zwei_urteile() -> None:
     holen statt ihn zu erinnern: Wer den um 09:15:14 gelesenen Text behaelt,
     haelt einen fertigen Lauf fuer einen laufenden.
     """
-    assert classify([], [kommentar(LAEUFT)], HEAD_62)[0] == PENDING
+    assert classify([], [kommentar(LAEUFT)], HEAD_62)[0] == RUNNING
     assert classify([], [kommentar(FERTIG_62)], HEAD_62)[0] == CLEAR
 
 
@@ -342,7 +362,7 @@ def test_laeuft_schlaegt_fertig_wenn_beides_dasteht() -> None:
     zwei = _statustabelle("✅ **Completed**", "b503b48") + (
         "| 🔒 **Security Review** | 🔄 **Running** | `b503b48` | Draft marked ready |\n"
     )
-    assert classify([], [kommentar(zwei)], HEAD_56)[0] == PENDING
+    assert classify([], [kommentar(zwei)], HEAD_56)[0] == RUNNING
 
 
 def test_eine_fertige_tabelle_schlaegt_eine_environment_meldung() -> None:
@@ -385,6 +405,32 @@ def test_die_kopfzeile_der_tabelle_ist_keine_statuszeile() -> None:
 
 
 # ─────────────────────────── Unbekanntes und Stille ───────────────────────────
+
+
+def test_die_konto_absage_wird_zitiert_statt_einsortiert() -> None:
+    """Der fuenfte Meldungstext, woertlich aufgezeichnet — und der Beleg,
+    dass der Entwurf «unbekanntes zitieren» im Feld getragen hat.
+
+    Am 19.09.2026 auf PR #64 setzte der Gate-Job den `@codex review`-Anstoss
+    mit HTTP 201 ab. Codex antwortete vier Sekunden spaeter:
+
+        To use Codex here, create a Codex account and connect to github.
+
+    Der Anstoss ERREICHT Codex also; abgelehnt wird das Konto des Absenders,
+    `github-actions[bot]`. Das ist weder Kontingent noch Environment noch
+    Befundlosigkeit — und der Klassifizierer hat es im Lauf korrekt als
+    `unknown` gemeldet und woertlich zitiert, statt es in die naechstbeste
+    Schublade zu zwingen.
+
+    Er bekommt bewusst KEINEN eigenen Marker: Ein Zustand mehr hiesse, das
+    Gate koenne dann gruen werden, wenn es ihn erkennt — kann es nicht, es
+    wurde nichts geprueft. `unknown` mit Zitat ist die richtige Antwort.
+    """
+    body = _ROH["malkreide/swiss-culture-mcp PR #64 (Konto)"]["body"]
+    state, reason = classify([], [kommentar(body)], HEAD)
+    assert state == UNKNOWN
+    assert state not in PROVEN
+    assert "create a Codex account" in reason
 
 
 def test_ein_fuenfter_text_wird_zitiert_statt_einsortiert() -> None:
