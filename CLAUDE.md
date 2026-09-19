@@ -345,18 +345,25 @@ Gleiche Kommentar-ID, `created_at` unverändert 06:36:00, `updated_at` auf
   zwischen «läuft» und «fertig» gar nicht anzeigen.
 
 **`✅ Completed` heisst «Lauf zu Ende», nicht «nichts gefunden».** Die
-Unterscheidung ist nicht zu ersparen: In der einzigen Beobachtung kamen kein
-Review-Objekt (`get_reviews` → `[]`), keine Review-Threads
-(`get_review_comments` → `totalCount: 0`), keine Befundlos-Meldung und keine
-Reaktion (`reactions.total_count: 0`) — der Status in der Tabelle war das
-einzige Artefakt. Das sieht nach «sauber» aus, belegt es aber nicht: Der PR war
-zu diesem Zeitpunkt schon gemergt, und ob ein Befund auf einem gemergten PR
-überhaupt noch irgendwohin geschrieben wird, ist damit nicht geprüft. Die oben
-dokumentierte «Swish!»-Meldung blieb ebenfalls aus — ob Codex das Format
-gewechselt hat oder der Merge den Weg abschnitt, entscheidet diese eine
-Beobachtung nicht. Ein `Completed` auf einem **offenen** PR ist noch nicht
-danebengelegt worden; bis dahin gilt weiter, was oben steht: Belegt ist eine
-Prüfung durch ein Review-Objekt oder eine Befundlos-Meldung.
+Unterscheidung ist nicht zu ersparen. In beiden Beobachtungen — PR #56 und
+PR #57 desselben Tages — kamen kein Review-Objekt (`get_reviews` → `[]`),
+keine Review-Threads (`get_review_comments` → `totalCount: 0`), keine
+Befundlos-Meldung und keine Reaktion (`reactions.total_count: 0`); der Status
+in der Tabelle war jedes Mal das einzige Artefakt. Das sieht nach «sauber» aus
+und belegt es nicht: **Beide PRs waren zum Zeitpunkt des Laufs schon gemergt**,
+und ob ein Befund auf einem gemergten PR überhaupt noch irgendwohin
+geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
+«Swish!»-Meldung blieb beide Male aus — ob Codex das Format gewechselt hat oder
+der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
+wenig wie eine.
+
+Dass es jetzt zwei sind, macht die Sache nicht sicherer, sondern nur die Lücke
+sichtbarer: Zweimal dasselbe unter denselben Bedingungen zu sehen ist keine
+Gegenprobe, sondern dieselbe Messung zweimal. **Die fehlende Kontrolle ist ein
+`Completed` auf einem PR, der beim Lauf noch OFFEN war** — die gibt es bis
+heute nicht. Solange sie fehlt, gilt unverändert, was oben steht: Belegt ist
+eine Prüfung durch ein Review-Objekt oder eine Befundlos-Meldung, nicht durch
+den Status in der Tabelle.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -404,6 +411,13 @@ gut eine Minute lag; der nächste Blick hatte die Antwort. Der Reflex, eine
 Beobachtungslücke nicht zur Aussage zu machen, war richtig — die Lücke war
 bloss kleiner als gedacht.
 
+**Er startet sogar noch nach dem Merge.** Zwanzig Minuten später, an PR #57
+desselben Repos, lagen zwischen «ready» (06:56:01) und Merge (06:56:05) **vier
+Sekunden** — und der Lauf begann um 06:56:06, also eine Sekunde NACH dem
+Merge. Codex hängt damit am `ready`-Ereignis und nicht am Zustand des PR; dass
+er beim Anlaufen ins Leere greift, hält ihn nicht auf. Wer hofft, ein schneller
+Merge spare wenigstens das Kontingent, irrt also auch darin.
+
 Was der zu frühe Merge also kostet, ist nicht der Lauf, sondern das
 **Zeitfenster zum Reagieren**: Wer 51 Sekunden nach dem Start mergt, hat die
 Entscheidung getroffen, bevor das Ergebnis existierte. Kommt ein Befund, kommt
@@ -416,9 +430,23 @@ siehe den Absatz zu `✅ Completed` weiter oben. Ein sauber aussehender
 Endzustand auf einem gemergten PR ist deshalb kein Freispruch, sondern eine
 nicht durchgeführte Messung.
 
-Die Grössenordnung fürs Warten, aus dieser einen Messung: Start 06:35:59,
-Ende 06:38:03 — **rund zwei Minuten**. Eine Zahl, keine Regel; die nächste
-kann länger brauchen. Den Status lesen, nicht die Uhr.
+Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
+
+| PR | Start | Ende | Dauer |
+|---|---|---|---|
+| #56 | 06:35:59 | 06:38:03 | **124 s** |
+| #57 | 06:56:06 | 06:56:42 | **36 s** |
+
+Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
+brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
+ein Drittel. Aus einer einzigen Messung eine Zahl zu machen und ihr einen
+einseitigen Aufschlag mitzugeben, ist derselbe Fehler wie die erfundene
+Sperrdauer weiter oben — nur kleiner und darum leichter zu übersehen.
+
+Bekannt ist eine Spanne von **36 bis 124 Sekunden**, aus zwei Läufen. Was
+daraus fürs Warten folgt, ist nicht eine Wartezeit, sondern eine Bedingung:
+**Den Status lesen, nicht die Uhr.** Ein Timer, der auf die längste bekannte
+Dauer gestellt ist, geht beim ersten längeren Lauf falsch; die Tabelle nicht.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
