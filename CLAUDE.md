@@ -258,7 +258,9 @@ ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
   Infokasten, den Codex unter jeden Review setzt, behauptet weiterhin eine
   Reaktion («otherwise it will react with 👍») — am 23.8. kam in sechs Repos
   die Meldung und in keinem die Reaktion. Der Kasten ist keine Quelle.
-- **Der PR ist ein Draft** — darauf läuft Codex nicht an.
+- **Der PR ist ein Draft** — dann kommt manchmal nichts und manchmal die
+  Environment-Meldung. Beides am 19.9.2026 in diesem Repo beobachtet, siehe
+  unten.
 - **Das Kontingent ist weg** — dann schreibt er die Meldung oben.
 - **Für das Repo fehlt eine Environment** — dann schreibt er:
 
@@ -287,11 +289,41 @@ sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
 («💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund, die beiden
 Ausfallmeldungen — Kontingent wie Environment — und die Laufstatus-Tabelle
 weiter unten sind gewöhnliche Issue-Kommentare und trennen sich nur im Text.
-Beim Draft gibt es überhaupt nichts, weil Codex nicht anläuft; ein
-kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht durchgeführter
-Test. Am 19.9.2026 erneut so beobachtet: Der PR trug als Draft über Stunden
-null Kommentare, und der erste erschien auf die Sekunde mit dem Umschalten auf
+Ein kommentarloser Draft ist kein Beleg, sondern ein nicht durchgeführter
+Test. Am 19.9.2026 so beobachtet: PR #56 trug als Draft über Stunden null
+Kommentare, und der erste erschien auf die Sekunde mit dem Umschalten auf
 ready.
+
+**Hier stand «Beim Draft gibt es überhaupt nichts, weil Codex nicht anläuft».
+Das ist widerlegt, gemessen in diesem Repo am selben Tag.** PR #62 wurde um
+09:05:5x als Draft angelegt; um **09:06:06**, also rund dreissig Sekunden
+später, stand die Environment-Meldung darunter. Codex läuft also auf einem
+Draft sehr wohl an — jedenfalls weit genug, um zu antworten.
+
+Und die Antwort ist die zweite Widerlegung: **Die Environment-Meldung belegt
+nicht, dass eine Environment fehlt.** 85 Minuten vorher, um 07:41, war auf
+PR #61 desselben Repos ein regulärer Review durchgelaufen, Statustabelle samt
+Infokasten «Your team has set up Codex to review pull requests in this repo».
+
+Zwei Erklärungen passen auf beide Beobachtungen, und **keine ist belegt**:
+
+- Codex behandelt Drafts anders und schickt dort diese Meldung statt eines
+  Laufs. Dann ist sie auf einem Draft bedeutungslos.
+- Die Environment ist zwischen 07:41 und 09:06 tatsächlich weggefallen. Dann
+  ist sie ernst, und der nächste Review scheitert auch auf einem ready-PR.
+
+Die entscheidende Messung ist billig: **PR #62 auf ready schalten und
+nachsehen.** Kommt eine Statustabelle, war es das Draft-Verhalten; kommt die
+Meldung erneut, fehlt die Environment wirklich. Vorher gehört die Frage offen
+gelassen — aus einer Meldung auf einen Zustand zu schliessen ist genau der
+Fehler, den der Abschnitt «Ein 4xx ist kein Nein» beschreibt.
+
+Fürs Gate ist der Fall schon entschieden, und zwar richtig herum: Der
+Klassifizierer liest die Statustabelle **vor** den Meldungstexten. Eine
+`Completed`-Zeile zum Head schlägt eine Environment-Meldung; fehlt sie, gilt
+die Meldung und der Job wird rot. `test_eine_fertige_tabelle_schlaegt_eine_environment_meldung`
+hält beide Richtungen fest, seit dem 19.9.2026 mit dem hier aufgezeichneten
+Wortlaut aus PR #62.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
@@ -505,11 +537,35 @@ PR-Vorlage wird gesetzt, bevor es zutrifft. Wer später wissen will, ob eine
 
 **Was das Problem wirklich lösen würde**, ist keine Vereinbarung, sondern eine
 Sperre: ein Check-Run, der als *required check* eingetragen ist und rot bleibt,
-bis Codex geurteilt hat. In `swiss-cultural-heritage-mcp` wird so etwas unter
-dem Namen `codex-gate` gebaut (Stand 19.9.2026, PR #92, dort noch unerprobt).
-Hier ist davon nichts gemessen, und das Eintragen eines required check ist eine
-Repo-Einstellung, die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein
-Mensch. Solange das nicht steht, gilt der Absatz oben.
+bis Codex geurteilt hat.
+
+Seit dem 19.9.2026 liegt so einer hier: `.github/workflows/codex-gate.yml` mit
+`scripts/classify_codex_review.py`, portiert aus `swiss-cultural-heritage-mcp`
+und auf die hier gemessenen Fälle umgeschrieben. Der Job wartet nach jedem
+`opened`, `ready_for_review`, `reopened` und `synchronize` bis zu 20 Minuten
+auf ein Urteil und wird rot, wenn keines kommt. `synchronize` stösst vorher
+selbst `@codex review` an — ein Push ist keiner der drei Auslöser, die Codex
+in seinem Infokasten nennt.
+
+**Zwei Dinge fehlen ihm, und beide gehören benannt:**
+
+- **Er ist kein required check.** Das einzutragen ist eine Repo-Einstellung,
+  die der Agent-Proxy mit HTTP 403 sperrt — das kann nur ein Mensch, unter
+  Settings → Branches (oder als Ruleset), Name: `codex-gate`. Bis dahin ist
+  er ein Hinweis und keine Schranke, und der Absatz oben gilt unverändert.
+- **Seine Mechanik ist am lebenden Objekt ungeprüft.** Die Einordnung ist
+  gegen aufgezeichnete Antwortkörper getestet (`tests/fixtures/codex_kommentare.json`,
+  #56 und #61 dieses Repos), aber ob Codex auf einen Kommentar des
+  `GITHUB_TOKEN`-Bots überhaupt reagiert, weiss niemand. Tut er es nicht,
+  läuft das Gate nach jedem Push in den Timeout.
+
+**Nebenbei liefert er die fehlende Kontrolle.** Oben steht, dass ein
+`✅ Completed` auf einem PR, der beim Lauf noch OFFEN war, bis heute fehlt —
+alle sechs Beobachtungen fielen auf gemergte PRs. Der Gate-Job läuft als
+PR-Check, also genau dann, wenn der PR offen ist. Sein erster grüner Lauf
+ist diese Kontrolle. Bis sie da ist, behauptet der Zustand `clear` im
+Klassifizierer ausdrücklich nur das Gemessene («angesehen»), nicht «keine
+Befunde» — `tests/test_classify_codex_review.py` hält den Wortlaut fest.
 
 Wer stattdessen ein Skript oder eine Routine bauen will, stösst auf eine Wand,
 die in dieser Datei schon zweimal beschrieben ist: Die GitHub-Werkzeuge hängen
