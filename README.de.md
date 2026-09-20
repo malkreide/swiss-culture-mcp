@@ -153,7 +153,8 @@ Die Connector-URL ist immer der Host des Deployments plus der Transportpfad:
 1. Repository auf GitHub pushen/forken
 2. Auf [render.com](https://render.com): New Web Service → GitHub-Repo verbinden
 3. Umgebungsvariablen im Render-Dashboard setzen — darunter
-   `MCP_ALLOWED_HOSTS=your-app.onrender.com`
+   `MCP_ALLOWED_HOSTS=your-app.onrender.com` und, für einen browserbasierten
+   Client, `ALLOWED_ORIGINS=https://claude.ai`
 4. In claude.ai unter Settings → MCP Servers eintragen: `https://your-app.onrender.com/mcp`
 
 **Docker.** Das Repository liefert ein mehrstufiges [`Dockerfile`](Dockerfile)
@@ -165,8 +166,35 @@ und ein geratener wiese jede echte Anfrage mit HTTP 421 ab:
 
 ```bash
 docker build -t swiss-culture-mcp .
-docker run -p 8000:8000 -e MCP_ALLOWED_HOSTS=mcp.example.ch swiss-culture-mcp
+docker run -p 8000:8000 \
+    -e MCP_ALLOWED_HOSTS=mcp.example.ch \
+    -e ALLOWED_ORIGINS=https://claude.ai \
+    swiss-culture-mcp
 ```
+
+> **Die beiden Variablen sichern Verschiedenes — eine ersetzt die andere
+> nicht.** Gemessen an diesem Server bei `0.0.0.0`-Binding, mit einer Anfrage
+> mit `Origin: https://claude.ai`:
+>
+> | `MCP_ALLOWED_HOSTS` | `ALLOWED_ORIGINS` | Host-/Origin-Prüfung | POST | Preflight |
+> |---|---|---|---|---|
+> | gesetzt | gesetzt | aktiv | `200` | erlaubt |
+> | gesetzt | — | aktiv | **`403`** | abgewiesen |
+> | — | gesetzt | **aus** | `200` | erlaubt |
+> | — | — | **aus** | `200` | abgewiesen |
+>
+> Spaltenweise lesen, denn die beiden Fehlschläge sind nicht von derselben Art.
+> **`ALLOWED_ORIGINS` entscheidet, ob ein Browser-Client überhaupt
+> funktioniert**: ohne sie wird die Anfrage abgewiesen (`403` vom Transport,
+> solange die Host-Allowlist aktiv ist — abgelehnter `Origin`; ein abgelehnter
+> `Host` wäre `421`) oder der Browser kann die Antwort nicht lesen.
+> **`MCP_ALLOWED_HOSTS` entscheidet, ob das Deployment sicher ist**: ohne sie
+> gibt `build_transport_security()` `None` zurück, und `Host` wie `Origin`
+> werden überhaupt nicht geprüft. Zeile drei ist die Falle — der Browser-Client
+> verbindet sich, alles sieht richtig aus, und das Deployment steht offen für
+> DNS-Rebinding. Bei öffentlichem Binding beide setzen; `ALLOWED_ORIGINS` nur
+> dann weglassen, wenn kein browserbasierter Client den Server erreichen soll,
+> und `MCP_ALLOWED_HOSTS` dort nie.
 
 ```bash
 # Lokaler HTTP-Modus (nur loopback — sicherer Default, keine Allowlist nötig)

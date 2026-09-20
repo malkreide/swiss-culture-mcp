@@ -204,22 +204,37 @@ def test_der_healthcheck_findet_die_anweisung_und_nicht_den_kommentar():
 # Beide READMEs gegen den Quelltext
 # ---------------------------------------------------------------------------
 
-QUELLEN = ("src/swiss_culture_mcp/server.py", "src/swiss_culture_mcp/http_client.py")
+PAKET = WURZEL / "src" / "swiss_culture_mcp"
 READMES = ("README.md", "README.de.md")
+
+
+def _module() -> list[pathlib.Path]:
+    """Alle Python-Module des Pakets.
+
+    Hier stand eine feste Liste aus zwei Dateien — und das war genau der
+    Fehler, gegen den dieses Modul geschrieben ist: eine zweite Wahrheitsquelle,
+    die still veraltet. Ein `os.getenv` in `constants.py` oder in einem neuen
+    Modul waere nicht gefunden worden, die Verankerung unten waere von den
+    uebrigen Treffern gruen geblieben, und keine der beiden READMEs haette die
+    neue Einstellung nennen muessen.
+
+    Gefunden hat das ein Codex-Review am 20.9.2026 (PR #73, P2). Der Test war
+    als Drift-Wache gedacht und trug die Drift in sich selbst.
+    """
+    return sorted(PAKET.rglob("*.py"))
 
 
 def _gelesene_env_vars() -> set[str]:
     """Jede Umgebungsvariable, die der Server tatsaechlich liest.
 
-    Aus dem Quelltext erhoben, nicht aufgezaehlt: Eine Liste im Test waere eine
-    zweite Quelle, die beim naechsten `os.getenv` still veraltet — und dann
-    prueft dieses Modul die Vollstaendigkeit der Doku mit einer unvollstaendigen
-    Liste.
+    Aus dem Quelltext erhoben, nicht aufgezaehlt: Eine Aufzaehlung im Test
+    waere eine zweite Quelle, die beim naechsten `os.getenv` still veraltet —
+    und dann prueft dieses Modul die Vollstaendigkeit der Doku mit einer
+    unvollstaendigen Liste.
     """
     namen: set[str] = set()
-    for pfad in QUELLEN:
-        text = (WURZEL / pfad).read_text(encoding="utf-8")
-        namen |= set(re.findall(r'os\.getenv\(\s*"([A-Z_]+)"', text))
+    for pfad in _module():
+        namen |= set(re.findall(r'os\.getenv\(\s*"([A-Z_]+)"', pfad.read_text(encoding="utf-8")))
     return namen
 
 
@@ -228,6 +243,22 @@ def test_der_quelltext_liest_ueberhaupt_env_vars():
     waeren alle Zusicherungen darunter leer und trotzdem gruen — die
     gefaehrlichste Form von bestanden."""
     assert len(_gelesene_env_vars()) >= 5
+
+
+def test_die_erhebung_deckt_das_ganze_paket_ab():
+    """Die Zusicherung, die den P2-Befund festhaelt.
+
+    Ohne sie faellt ein `os.getenv` in einem bisher nicht erfassten Modul
+    niemandem auf: Die Verankerung oben bliebe von den uebrigen Treffern gruen.
+    Geprueft wird deshalb die MENGE der durchsuchten Dateien gegen alle Module
+    des Pakets, nicht ihre Anzahl.
+    """
+    gefunden = {p.name for p in _module()}
+    alle = {p.name for p in PAKET.rglob("*.py")}
+    assert gefunden == alle, f"nicht durchsucht: {sorted(alle - gefunden)}"
+    assert "constants.py" in gefunden, (
+        "das Paket hat seine Module umbenannt — die Erhebung ist nachzupruefen"
+    )
 
 
 @pytest.mark.parametrize("readme", READMES)
@@ -253,3 +284,50 @@ def test_beide_readmes_nennen_den_connector_pfad(readme: str):
     Projekt — wer ihn raet, traegt eine URL ein, die 404 liefert."""
     text = (WURZEL / readme).read_text(encoding="utf-8")
     assert "<host>/mcp" in text, f"{readme} nennt das Muster der Connector-URL nicht"
+
+
+def _abschnitt(text: str, von: str, bis: str) -> str:
+    """Der Textbereich zwischen zwei Markern, beide in EN und DE identisch."""
+    beginn = text.index(von)
+    return text[beginn : text.index(bis, beginn)]
+
+
+@pytest.mark.parametrize("readme", READMES)
+def test_die_render_anleitung_setzt_beide_variablen(readme: str):
+    """Die Zusicherung zum P1-Befund aus dem Codex-Review (PR #73, 20.9.2026).
+
+    Die READMEs bewerben ausdruecklich den Weg ueber claude.ai im Browser. Wer
+    der Anleitung folgte, setzte `MCP_ALLOWED_HOSTS` und nichts weiter — und
+    genau dann kommt ein Browser-Client nicht durch. Gemessen an diesem Server
+    mit `MCP_ALLOWED_HOSTS=mcp.example.ch` und ungesetztem `ALLOWED_ORIGINS`:
+
+        Origin: https://claude.ai   ->  403        (abgelehnter Origin)
+        CORS-Preflight              ->  kein Access-Control-Allow-Origin
+
+    Die `403` ist der Ort, an dem der Befund praeziser wurde als seine erste
+    Fassung: Er nannte `421`, das ist der Code fuer einen abgelehnten `Host`.
+    Ein abgelehnter `Origin` gibt `403`.
+
+    **Diese Zeile umfasste zuerst Render-Liste UND Docker-Aufruf in einem
+    Bereich.** Die Gegenprobe hat sie widerlegt: Faellt die Variable nur aus der
+    Render-Liste, hielt der Docker-Aufruf im selben Bereich den Test gruen.
+    Zwei Anleitungen brauchen zwei Zusicherungen — der Nachbartest unten sagt
+    dasselbe ueber die andere Richtung, und beide zusammen sind erst der Beleg.
+    """
+    abschnitt = _abschnitt(
+        (WURZEL / readme).read_text(encoding="utf-8"), "**Render.com", "**Docker.**"
+    )
+    for variable in ("MCP_ALLOWED_HOSTS", "ALLOWED_ORIGINS"):
+        assert variable in abschnitt, f"{readme}: die Render-Anleitung setzt {variable} nicht"
+
+
+@pytest.mark.parametrize("readme", READMES)
+def test_der_docker_aufruf_setzt_beide_variablen(readme: str):
+    """Die andere Haelfte. Render-Liste und `docker run` sind zwei getrennte
+    Anleitungen; wer nur eine prueft, misst die andere nicht. Beide Zeilen
+    zusammen fangen jede der zwei Richtungen einzeln — das war in der ersten
+    Fassung nicht so, siehe den Docstring darueber.
+    """
+    aufruf = _abschnitt((WURZEL / readme).read_text(encoding="utf-8"), "docker run", "```")
+    for variable in ("MCP_ALLOWED_HOSTS", "ALLOWED_ORIGINS"):
+        assert variable in aufruf, f"{readme}: der docker-run-Aufruf setzt {variable} nicht"
