@@ -172,15 +172,28 @@ docker run -p 8000:8000 \
     swiss-culture-mcp
 ```
 
-> **Both variables, or a browser client gets nowhere.** They guard different
-> things and are checked in different places, so setting only one still fails.
-> Measured against this server with `MCP_ALLOWED_HOSTS=mcp.example.ch` and
-> `ALLOWED_ORIGINS` unset, a request carrying `Origin: https://claude.ai` is
-> refused **twice**: the transport answers `403` (a rejected `Origin`; a
-> rejected `Host` would be `421`), and the CORS preflight comes back with no
-> `Access-Control-Allow-Origin` at all. Leave `ALLOWED_ORIGINS` unset only when
-> no browser-based client is meant to reach the server — stdio and
-> non-browser clients never need it.
+> **The two variables guard different things — one does not stand in for the
+> other.** Measured against this server on a `0.0.0.0` bind, with a request
+> carrying `Origin: https://claude.ai`:
+>
+> | `MCP_ALLOWED_HOSTS` | `ALLOWED_ORIGINS` | Host/Origin check | POST | Preflight |
+> |---|---|---|---|---|
+> | set | set | active | `200` | allowed |
+> | set | — | active | **`403`** | refused |
+> | — | set | **off** | `200` | allowed |
+> | — | — | **off** | `200` | refused |
+>
+> Read it column by column, because the two failures are not the same kind.
+> **`ALLOWED_ORIGINS` decides whether a browser client works at all**: without
+> it the request is refused (`403` from the transport when the Host allow-list
+> is active — a rejected `Origin`; a rejected `Host` would be `421`) or the
+> browser cannot read the response. **`MCP_ALLOWED_HOSTS` decides whether the
+> deployment is safe**: without it `build_transport_security()` returns `None`
+> and the `Host` and `Origin` headers are not checked at all. Row three is the
+> trap — a browser client connects and everything looks fine, through a
+> deployment open to DNS rebinding. Set both on a public bind; leave
+> `ALLOWED_ORIGINS` unset only when no browser-based client is meant to reach
+> the server, and never leave `MCP_ALLOWED_HOSTS` unset there.
 
 ```bash
 # Local HTTP mode (loopback only — safe default, no allow-list needed)

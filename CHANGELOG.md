@@ -108,6 +108,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dabei praezisiert: Er nannte `421`, das ist der Code fuer einen abgelehnten
   `Host`; ein abgelehnter `Origin` gibt `403`.
 
+  **Der Hinweiskasten dazu war in seiner ersten Fassung falsch**, und ein
+  zweiter Codex-Review hat es gefunden. Er behauptete «beide Variablen, sonst
+  kommt ein Browser-Client nicht durch» — das gilt fuer eine der vier
+  Kombinationen nicht. Gemessen bei `0.0.0.0`-Binding, Anfrage mit
+  `Origin: https://claude.ai`:
+
+  | `MCP_ALLOWED_HOSTS` | `ALLOWED_ORIGINS` | Pruefung | POST | Preflight |
+  |---|---|---|---|---|
+  | gesetzt | gesetzt | aktiv | 200 | erlaubt |
+  | gesetzt | — | aktiv | **403** | abgewiesen |
+  | — | gesetzt | **aus** | 200 | erlaubt |
+  | — | — | aus | 200 | abgewiesen |
+
+  Zeile drei ist die Falle: Ohne `MCP_ALLOWED_HOSTS` gibt
+  `build_transport_security()` `None` zurueck, die Pruefung ist aus, und das
+  konfigurierte CORS-Origin laesst die Anfrage durch. Der Client verbindet
+  sich, alles sieht richtig aus — durch ein Deployment, das offen fuer
+  DNS-Rebinding ist. Die beiden Variablen sichern also Verschiedenes:
+  `ALLOWED_ORIGINS` entscheidet, ob es FUNKTIONIERT, `MCP_ALLOWED_HOSTS`, ob es
+  SICHER ist. Beide READMEs zeigen jetzt die Tabelle statt der Behauptung, und
+  `tests/test_cors.py` misst alle vier Zeilen.
+
 ### Geaendert
 
 - **`serverInfo.name` heisst `swiss-culture-mcp`** (C3), mit Bindestrich wie
@@ -129,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Anmerkung zur Gegenprobe
 
-41 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft
+44 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft
 jeder Mutation belegt. Vier davon haben Fehler in den **Tests** gezeigt, nicht
 im Code — sie sind in den betroffenen Docstrings mit Datum festgehalten:
 

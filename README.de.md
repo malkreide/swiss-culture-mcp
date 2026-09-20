@@ -172,16 +172,29 @@ docker run -p 8000:8000 \
     swiss-culture-mcp
 ```
 
-> **Beide Variablen, sonst kommt ein Browser-Client nicht durch.** Sie sichern
-> Verschiedenes und werden an verschiedenen Stellen geprüft; nur eine zu setzen
-> genügt darum nicht. Gemessen an diesem Server mit
-> `MCP_ALLOWED_HOSTS=mcp.example.ch` und ungesetztem `ALLOWED_ORIGINS` wird eine
-> Anfrage mit `Origin: https://claude.ai` **zweimal** abgewiesen: Der Transport
-> antwortet `403` (abgelehnter `Origin`; ein abgelehnter `Host` wäre `421`), und
-> der CORS-Preflight kommt ganz ohne `Access-Control-Allow-Origin` zurück.
-> `ALLOWED_ORIGINS` nur dann ungesetzt lassen, wenn kein browserbasierter
-> Client den Server erreichen soll — stdio und Nicht-Browser-Clients brauchen
-> sie nie.
+> **Die beiden Variablen sichern Verschiedenes — eine ersetzt die andere
+> nicht.** Gemessen an diesem Server bei `0.0.0.0`-Binding, mit einer Anfrage
+> mit `Origin: https://claude.ai`:
+>
+> | `MCP_ALLOWED_HOSTS` | `ALLOWED_ORIGINS` | Host-/Origin-Prüfung | POST | Preflight |
+> |---|---|---|---|---|
+> | gesetzt | gesetzt | aktiv | `200` | erlaubt |
+> | gesetzt | — | aktiv | **`403`** | abgewiesen |
+> | — | gesetzt | **aus** | `200` | erlaubt |
+> | — | — | **aus** | `200` | abgewiesen |
+>
+> Spaltenweise lesen, denn die beiden Fehlschläge sind nicht von derselben Art.
+> **`ALLOWED_ORIGINS` entscheidet, ob ein Browser-Client überhaupt
+> funktioniert**: ohne sie wird die Anfrage abgewiesen (`403` vom Transport,
+> solange die Host-Allowlist aktiv ist — abgelehnter `Origin`; ein abgelehnter
+> `Host` wäre `421`) oder der Browser kann die Antwort nicht lesen.
+> **`MCP_ALLOWED_HOSTS` entscheidet, ob das Deployment sicher ist**: ohne sie
+> gibt `build_transport_security()` `None` zurück, und `Host` wie `Origin`
+> werden überhaupt nicht geprüft. Zeile drei ist die Falle — der Browser-Client
+> verbindet sich, alles sieht richtig aus, und das Deployment steht offen für
+> DNS-Rebinding. Bei öffentlichem Binding beide setzen; `ALLOWED_ORIGINS` nur
+> dann weglassen, wenn kein browserbasierter Client den Server erreichen soll,
+> und `MCP_ALLOWED_HOSTS` dort nie.
 
 ```bash
 # Lokaler HTTP-Modus (nur loopback — sicherer Default, keine Allowlist nötig)
