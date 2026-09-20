@@ -113,6 +113,8 @@ Try it immediately in Claude Desktop:
 | `MCP_HOST` | `127.0.0.1` | Bind host for HTTP transport (loopback by default) |
 | `MCP_PORT` | `8000` | Port for HTTP transport |
 | `MCP_ALLOW_PUBLIC_BIND` | `false` | If `true`, permits binding `0.0.0.0` without auth. Set this **only** behind an authenticating reverse proxy (e.g. Cloudflare Access, oauth2-proxy). |
+| `MCP_ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames this server answers to, **without a scheme** (`mcp.example.ch`). Feeds the Host/Origin check of the HTTP transport. **Set it for every non-loopback deployment** — see the warning below. Loopback stays allowed regardless, so container health checks keep working. |
+| `ALLOWED_ORIGINS` | *(empty)* | Comma-separated CORS origins, with scheme (`https://claude.ai`). Empty means no browser-based MCP client is permitted; stdio and non-browser clients are unaffected. `*` works but is logged as a warning. |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` — structured JSON logs to stderr |
 
 ### Claude Desktop Configuration
@@ -144,25 +146,48 @@ After restarting Claude Desktop, all tools are available. Example queries:
 
 For use via **claude.ai in the browser** (e.g. on managed workstations without local software):
 
+The connector URL is always the deployment's host plus the transport path:
+**`https://<host>/mcp`**. Add it in claude.ai under Settings → MCP Servers.
+
 **Render.com (recommended):**
 1. Push/fork the repository to GitHub
 2. On [render.com](https://render.com): New Web Service → connect GitHub repo
-3. Set environment variables in the Render dashboard
+3. Set environment variables in the Render dashboard — including
+   `MCP_ALLOWED_HOSTS=your-app.onrender.com`
 4. In claude.ai under Settings → MCP Servers, add: `https://your-app.onrender.com/mcp`
 
+**Docker.** The repository ships a multi-stage [`Dockerfile`](Dockerfile)
+(`python:3.13-slim`, non-root, TCP health check). It presets the transport, a
+`0.0.0.0` bind and `MCP_ALLOW_PUBLIC_BIND=true`, because inside a container the
+platform's edge proxy is the only way in. `MCP_ALLOWED_HOSTS` is deliberately
+left unset in the image — the hostname depends on where you deploy, and a
+guessed one would reject every real request with HTTP 421:
+
 ```bash
-# Docker / local HTTP mode (loopback only — safe default)
+docker build -t swiss-culture-mcp .
+docker run -p 8000:8000 -e MCP_ALLOWED_HOSTS=mcp.example.ch swiss-culture-mcp
+```
+
+```bash
+# Local HTTP mode (loopback only — safe default, no allow-list needed)
 MCP_TRANSPORT=streamable_http MCP_PORT=8000 python -m swiss_culture_mcp.server
 
 # Public bind (DANGEROUS — only behind an authenticating reverse proxy)
 MCP_TRANSPORT=streamable_http MCP_HOST=0.0.0.0 MCP_ALLOW_PUBLIC_BIND=true \
-    python -m swiss_culture_mcp.server
+    MCP_ALLOWED_HOSTS=mcp.example.ch python -m swiss_culture_mcp.server
 ```
 
 > ⚠️ **Security:** The server itself has no authentication. Binding to a public
 > interface without an upstream auth layer turns it into an open proxy for the
 > federal data sources. Always run an authenticating reverse proxy (Cloudflare
 > Access, oauth2-proxy, nginx + auth_request) in front of `0.0.0.0` deployments.
+
+> ⚠️ **Set `MCP_ALLOWED_HOSTS` on a public bind.** Without it the `Host` and
+> `Origin` headers are **not checked at all**, which leaves the server open to
+> DNS rebinding: an attacker points a victim's browser at it and talks to it
+> under a foreign `Host`. The server logs `dns_rebinding_protection_off` on
+> every such start — that line is the symptom, not a formality. A loopback bind
+> needs no allow-list; the SDK derives one from the bind host itself.
 
 ---
 
@@ -251,6 +276,15 @@ fills it with name, title, description, website URL and the version from the
 package metadata (`importlib.metadata`, the same source as the outbound
 `User-Agent`); a hand-maintained literal is rejected by
 `scripts/check_version_sync.py`.
+
+The name is `swiss-culture-mcp` — the same spelling as the distribution, the
+console script, the registry entry and the outbound `User-Agent`. It read
+`swiss_culture_mcp` until 2026-09-20; an identity spelled differently depending
+on where you look is not one. `tests/test_servername.py` holds the sources
+together rather than checking a literal against itself. The Python **logger**
+keeps the underscore on purpose: that is a logger name, not a server identity,
+and renaming it would break every operator's logging config without aligning
+anything.
 
 **Update policy.** When the gate fails, do not edit the constant blindly: read
 the spec changelog between the two revisions, verify the server still behaves,
