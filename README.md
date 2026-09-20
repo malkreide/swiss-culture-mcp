@@ -153,7 +153,8 @@ The connector URL is always the deployment's host plus the transport path:
 1. Push/fork the repository to GitHub
 2. On [render.com](https://render.com): New Web Service → connect GitHub repo
 3. Set environment variables in the Render dashboard — including
-   `MCP_ALLOWED_HOSTS=your-app.onrender.com`
+   `MCP_ALLOWED_HOSTS=your-app.onrender.com` and, for a browser-based client,
+   `ALLOWED_ORIGINS=https://claude.ai`
 4. In claude.ai under Settings → MCP Servers, add: `https://your-app.onrender.com/mcp`
 
 **Docker.** The repository ships a multi-stage [`Dockerfile`](Dockerfile)
@@ -165,8 +166,21 @@ guessed one would reject every real request with HTTP 421:
 
 ```bash
 docker build -t swiss-culture-mcp .
-docker run -p 8000:8000 -e MCP_ALLOWED_HOSTS=mcp.example.ch swiss-culture-mcp
+docker run -p 8000:8000 \
+    -e MCP_ALLOWED_HOSTS=mcp.example.ch \
+    -e ALLOWED_ORIGINS=https://claude.ai \
+    swiss-culture-mcp
 ```
+
+> **Both variables, or a browser client gets nowhere.** They guard different
+> things and are checked in different places, so setting only one still fails.
+> Measured against this server with `MCP_ALLOWED_HOSTS=mcp.example.ch` and
+> `ALLOWED_ORIGINS` unset, a request carrying `Origin: https://claude.ai` is
+> refused **twice**: the transport answers `403` (a rejected `Origin`; a
+> rejected `Host` would be `421`), and the CORS preflight comes back with no
+> `Access-Control-Allow-Origin` at all. Leave `ALLOWED_ORIGINS` unset only when
+> no browser-based client is meant to reach the server — stdio and
+> non-browser clients never need it.
 
 ```bash
 # Local HTTP mode (loopback only — safe default, no allow-list needed)

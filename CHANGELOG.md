@@ -85,6 +85,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weil nur eine nachgezogen wurde. Geprueft wird jede Sprache einzeln, damit
   die Meldung sagt, welche Fassung fehlt.
 
+  Die erste Fassung durchsuchte zwei fest benannte Dateien — also genau die
+  zweite Wahrheitsquelle, gegen die diese Wache geschrieben ist. Ein
+  `os.getenv` in `constants.py` waere nie gefunden worden, und die Verankerung
+  waere von den uebrigen Treffern gruen geblieben. Gefunden hat das ein
+  Codex-Review (P2); durchsucht wird jetzt das ganze Paket, und eine eigene
+  Zusicherung haelt die Abdeckung fest.
+
+- **`ALLOWED_ORIGINS` in den Deployment-Beispielen beider READMEs**, und je
+  eine Zusicherung fuer die Render-Anleitung und den `docker run`-Aufruf. Die
+  READMEs bewerben den Weg ueber claude.ai im Browser; wer der Anleitung
+  folgte, setzte nur `MCP_ALLOWED_HOSTS` — und genau dann kommt ein
+  Browser-Client nicht durch. Gemessen mit
+  `MCP_ALLOWED_HOSTS=mcp.example.ch` und ungesetztem `ALLOWED_ORIGINS`:
+
+  ```
+  Origin: https://claude.ai   ->  403        (abgelehnter Origin)
+  CORS-Preflight              ->  kein Access-Control-Allow-Origin
+  ```
+
+  Auch dieser Befund kam aus einem Codex-Review (P1). Die Messung hat ihn
+  dabei praezisiert: Er nannte `421`, das ist der Code fuer einen abgelehnten
+  `Host`; ein abgelehnter `Origin` gibt `403`.
+
 ### Geaendert
 
 - **`serverInfo.name` heisst `swiss-culture-mcp`** (C3), mit Bindestrich wie
@@ -106,8 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Anmerkung zur Gegenprobe
 
-32 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft
-jeder Mutation belegt. Drei davon haben Fehler in den **Tests** gezeigt, nicht
+41 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft
+jeder Mutation belegt. Vier davon haben Fehler in den **Tests** gezeigt, nicht
 im Code — sie sind in den betroffenen Docstrings mit Datum festgehalten:
 
 - «main() geht wieder ueber `mcp.run()`» lief in den Timeout, statt rot zu
@@ -122,6 +145,12 @@ im Code — sie sind in den betroffenen Docstrings mit Datum festgehalten:
   Dockerfile am ersten Vorkommen des Wortes `HEALTHCHECK` teilte — das seit
   derselben Aenderung im Kommentar ueber dem `ENV`-Block steht. Der Kommentar
   dieses Eintrags hat den Test desselben Eintrags entschaerft.
+- «`ALLOWED_ORIGINS` fehlt nur in der Render-Liste» ueberlebte, weil die
+  Zusicherung Render-Anleitung UND Docker-Aufruf in einem Bereich umfasste:
+  Die Variable stand noch im Docker-Aufruf und hielt den Test gruen. Zwei
+  Anleitungen brauchen zwei Zusicherungen. Bemerkenswert daran ist, dass der
+  Docstring der Nachbarzeile vor genau diesem Fehler warnte — die Warnung war
+  aufgeschrieben und trotzdem nicht befolgt.
 
 ## [1.2.0] - 2026-09-19
 
