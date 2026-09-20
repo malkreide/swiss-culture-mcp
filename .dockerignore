@@ -1,0 +1,46 @@
+# Was NICHT in den Build-Kontext gehoert.
+#
+# Der Kontext wird vor dem ersten Befehl vollstaendig an den Daemon geschickt.
+# Ohne diese Datei wandern `.git` (die ganze Historie), `tests/`, `audits/` und
+# jeder lokale Cache mit — bei jedem Build, auch wenn kein `COPY` sie je
+# anfasst. Und `.venv/` traegt Binaerdateien der Bauhost-Architektur, die im
+# Image nichts zu suchen haetten.
+#
+# Der Dockerfile kopiert ausdruecklich `pyproject.toml`, `README.md`, `LICENSE`
+# und `src/`. Alles hier Aufgefuehrte darf keines davon treffen — insbesondere
+# ist die Ausnahme `!README.md` unter dem `*.md` weiter unten tragend: ohne sie
+# bricht der Build im ersten `COPY`. `tests/test_deployment.py` haelt das fest.
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtualenv
+.venv/
+venv/
+
+# Build-Artefakte
+build/
+dist/
+
+# Nicht Teil der Laufzeit
+tests/
+audits/
+assets/
+scripts/
+.claude/
+
+# Dokumentation — README.md wird vom Dockerfile gebraucht (siehe oben).
+*.md
+!README.md

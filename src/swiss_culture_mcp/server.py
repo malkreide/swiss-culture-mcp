@@ -152,8 +152,19 @@ CACHE_HINTS: dict[CacheableMethod, CacheHint] = {
 # `__version__` und nicht ein Literal: `scripts/check_version_sync.py` weist
 # jede von Hand gepflegte Versionsnummer in `src/` zurueck, und genau diese
 # Drift hat im Portfolio schon falsche User-Agents erzeugt.
+#
+# Der NAME traegt seit dem 20.9.2026 den Bindestrich. Der Unterstrich oben ist
+# der gemessene Altstand und bleibt als Zitat stehen; er beschreibt, was am
+# Draht stand, nicht was dort stehen soll. Überall sonst heisst dieser Server
+# `swiss-culture-mcp` — Distribution, Konsolenskript, `server.json`, Repo — und
+# eine Identitaet, die sich je nach Blickwinkel anders schreibt, ist keine.
+# `test_der_servername_ist_ueberall_derselbe` haelt die Schreibweisen zusammen.
+#
+# Der Logger heisst weiter `swiss_culture_mcp`: Das ist ein Python-Logger-Name
+# und keine Server-Identitaet; ihn mitzuziehen wuerde jede Logkonfiguration
+# beim Betreiber brechen, ohne irgendetwas anzugleichen.
 mcp = MCPServer(
-    "swiss_culture_mcp",
+    "swiss-culture-mcp",
     title="Swiss Culture (BAK)",
     version=__version__,
     website_url=PROJECT_URL,

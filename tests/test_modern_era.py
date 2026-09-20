@@ -378,14 +378,16 @@ async def test_jede_antwort_traegt_die_serverinfo(method: str) -> None:
     """Die moderne Aera fuehrt `serverInfo` pro Antwort mit, nicht einmal pro Sitzung.
 
     Was hier fehlt, fehlt darum bei jedem Aufruf. Vor diesem Commit stand in
-    jeder Antwort `{"name": "swiss_culture_mcp", "version": ""}`.
+    jeder Antwort `{"name": "swiss_culture_mcp", "version": ""}` — der
+    Unterstrich ist der gemessene Altstand, seit dem 20.9.2026 traegt der Name
+    den Bindestrich wie ueberall sonst im Projekt.
     """
     async with draht() as client:
         response = await modern(client, method)
 
     assert response.status_code == 200, response.text
     info = response.json()["result"]["_meta"][SERVER_INFO_KEY]
-    assert info["name"] == "swiss_culture_mcp"
+    assert info["name"] == "swiss-culture-mcp"
     assert info["version"] == __version__
     assert info["version"], "ein leerer String ist die Drahtform von «weiss nicht»"
     assert info["websiteUrl"] == PROJECT_URL
