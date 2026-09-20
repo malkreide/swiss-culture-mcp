@@ -239,6 +239,44 @@ class TestHelperFunctions:
 
 
 class TestMainHardening:
+    """Der HTTP-Zweig laeuft seit SEC-005 nicht mehr ueber `mcp.run()`.
+
+    `mcp.run(transport="streamable-http", ...)` nimmt weder
+    `transport_security` noch CORS entgegen — und ohne `transport_security`
+    schaltet das SDK die Host-Pruefung ausdruecklich ab. `main()` ruft deshalb
+    `_run_http(host, port)`. Die Tests unten patchen genau diese Stelle; wer
+    weiter `mcp.run` patcht, prueft eine Aufrufstelle, die es fuer HTTP nicht
+    mehr gibt, und bliebe gruen, waehrend der HTTP-Transport gar nicht mehr
+    startet.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _kein_echter_serverstart(self):
+        """Kein Test dieser Klasse darf einen echten Server starten.
+
+        Beide Startwege werden geklammert, und beide aus einem gemessenen
+        Grund — die Gegenprobe vom 20.9.2026 hat sie nacheinander geliefert:
+
+        1. `mcp.run(transport="streamable-http", ...)`: Die Mutation «main()
+           geht wieder ueber mcp.run()» lief in den Timeout, statt gefangen zu
+           werden. Ein Lauf, der nicht endet, ist keine Messung.
+
+        2. `_run_http`: schlimmer, weil gruen. Unter der Mutation «Sperre
+           gegen public bind entfaellt» rief
+           `test_main_refuses_public_bind_without_override` den ECHTEN
+           `_run_http` auf; uvicorn scheiterte am schon belegten Port 8000 und
+           beendete sich mit `sys.exit(1)`. Das erwartete `SystemExit` kam
+           also — aus der Bindung statt aus der Sperre, und der Test meldete
+           bestanden, waehrend er genau das Gegenteil belegt hatte. Waere der
+           Port frei gewesen, haette er stattdessen gehangen.
+
+        Tests, die auf einem der beiden Mocks etwas zusichern, patchen ihn
+        zusaetzlich selbst; die innere Klammer gewinnt.
+        """
+        with patch("swiss_culture_mcp.server.mcp.run"):
+            with patch("swiss_culture_mcp.server._run_http"):
+                yield
+
     def test_main_refuses_public_bind_without_override(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
         monkeypatch.setenv("MCP_HOST", "0.0.0.0")
@@ -246,17 +284,55 @@ class TestMainHardening:
         with pytest.raises(SystemExit):
             main()
 
+    def test_die_sperre_greift_vor_dem_start(self, monkeypatch):
+        """Gegenprobe zur Zeile darueber: `SystemExit` allein sagt nicht, dass
+        nichts gestartet wurde.
+
+        Das ist nicht theoretisch. Ohne die Klammer oben kam das `SystemExit`
+        des Tests darueber unter Mutation aus uvicorns fehlgeschlagener
+        Bindung — gemessen am 20.9.2026. Wer nur auf die Ausnahme prueft,
+        prueft nicht, WOHER sie kommt.
+        """
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with patch("swiss_culture_mcp.server._run_http") as mock_http:
+            with pytest.raises(SystemExit):
+                main()
+        mock_http.assert_not_called()
+
     def test_main_allows_public_bind_with_override(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
         monkeypatch.setenv("MCP_HOST", "0.0.0.0")
         monkeypatch.setenv("MCP_ALLOW_PUBLIC_BIND", "true")
-        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+        with patch("swiss_culture_mcp.server._run_http") as mock_http:
             main()
-            mock_run.assert_called_once_with(
-                transport=SDK_HTTP_TRANSPORT, host="0.0.0.0", port=8000
-            )
+        mock_http.assert_called_once_with("0.0.0.0", 8000)
 
-    def test_main_uebergibt_einen_transportnamen_den_das_sdk_kennt(self, monkeypatch):
+    def test_der_http_zweig_laeuft_nicht_mehr_ueber_mcp_run(self, monkeypatch):
+        """Die eigentliche Zusicherung von SEC-005 an dieser Stelle.
+
+        `mcp.run()` hat keinen Parameter fuer `transport_security`; wer den
+        HTTP-Transport darueber startet, laeuft zwangslaeufig ohne
+        Host-Pruefung. Dass `main()` diesen Weg NICHT mehr nimmt, ist darum
+        selbst eine Zusicherung und nicht bloss ein Umbau.
+        """
+        import inspect
+
+        assert "transport_security" not in inspect.signature(type(mcp).run).parameters, (
+            "mcp.run() nimmt inzwischen transport_security entgegen — dann ist "
+            "die Begruendung fuer die eigene uvicorn-Schleife zu pruefen"
+        )
+
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.delenv("MCP_HOST", raising=False)
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with patch("swiss_culture_mcp.server._run_http"):
+            with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+                main()
+        mock_run.assert_not_called()
+
+    def test_die_transportkonstante_bleibt_ein_name_den_das_sdk_kennt(self, monkeypatch):
         """Hier stand die Erwartung `transport="streamable_http"` — als Literal.
 
         Das SDK nimmt nur `streamable-http` an, mit Bindestrich; `mcp.run()`
@@ -266,25 +342,18 @@ class TestMainHardening:
         gegen eine handgeschriebene Erwartung — denselben Tippfehler. Ein Mock
         nimmt jeden Namen an.
 
-        Geprueft wird jetzt gegen die Signatur des SDK statt gegen ein
-        Literal. `tests/test_modern_era.py` fuehrt denselben Namen zusaetzlich
-        wirklich durch `mcp.run()`; diese Zeile faengt ihn schon hier, wo die
-        uebrigen `main()`-Tests stehen.
+        Seit SEC-005 geht der HTTP-Zweig gar nicht mehr durch `mcp.run()`, die
+        Konstante wird dort also nicht mehr uebergeben. Geprueft wird sie
+        trotzdem weiter gegen die Signatur des SDK: `tests/test_modern_era.py`
+        fuehrt sie real durch `mcp.run()`, und ein stiller Namenswechsel im SDK
+        soll hier auffallen, wo die uebrigen `main()`-Tests stehen.
         """
         from typing import get_args, get_type_hints
 
         erlaubt = get_args(get_type_hints(type(mcp).run)["transport"])
         assert erlaubt, "die Signatur von run() nennt keine Transportnamen mehr"
-
-        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
-        monkeypatch.delenv("MCP_HOST", raising=False)
-        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
-        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
-            main()
-
-        uebergeben = mock_run.call_args.kwargs["transport"]
-        assert uebergeben in erlaubt, (
-            f"main() uebergibt transport={uebergeben!r}; mcp.run() nimmt nur "
+        assert SDK_HTTP_TRANSPORT in erlaubt, (
+            f"SDK_HTTP_TRANSPORT={SDK_HTTP_TRANSPORT!r}; mcp.run() nimmt nur "
             f"{erlaubt} an und wirft sonst ValueError"
         )
 
@@ -299,9 +368,9 @@ class TestMainHardening:
             monkeypatch.setenv("MCP_TRANSPORT", wert)
             monkeypatch.delenv("MCP_HOST", raising=False)
             monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
-            with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+            with patch("swiss_culture_mcp.server._run_http") as mock_http:
                 main()
-            assert mock_run.call_args.kwargs["transport"] == SDK_HTTP_TRANSPORT, (
+            assert mock_http.call_count == 1, (
                 f"MCP_TRANSPORT={wert} waehlte nicht den HTTP-Transport"
             )
 
@@ -313,18 +382,30 @@ class TestMainHardening:
         HTTP.
         """
         monkeypatch.setenv("MCP_TRANSPORT", "streamablehttp")
-        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
-            main()
+        with patch("swiss_culture_mcp.server._run_http") as mock_http:
+            with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+                main()
         mock_run.assert_called_once_with(transport="stdio")
+        mock_http.assert_not_called()
 
     def test_main_default_loopback_bind(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
         monkeypatch.delenv("MCP_HOST", raising=False)
         monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
-        with patch("swiss_culture_mcp.server.mcp.run") as mock_run:
+        with patch("swiss_culture_mcp.server._run_http") as mock_http:
             main()
-            kwargs = mock_run.call_args.kwargs
-            assert kwargs["host"] == "127.0.0.1"
+        assert mock_http.call_args.args[0] == "127.0.0.1"
+
+    def test_main_reicht_den_port_aus_der_umgebung_durch(self, monkeypatch):
+        """Gegenprobe zum Default: 8000 steht in beiden Zweigen, ein
+        weggefallenes `MCP_PORT` faellt ohne abweichenden Wert nicht auf."""
+        monkeypatch.setenv("MCP_TRANSPORT", "streamable_http")
+        monkeypatch.delenv("MCP_HOST", raising=False)
+        monkeypatch.setenv("MCP_PORT", "9443")
+        monkeypatch.delenv("MCP_ALLOW_PUBLIC_BIND", raising=False)
+        with patch("swiss_culture_mcp.server._run_http") as mock_http:
+            main()
+        assert mock_http.call_args.args[1] == 9443
 
     def test_main_stdio_default(self, monkeypatch):
         monkeypatch.delenv("MCP_TRANSPORT", raising=False)

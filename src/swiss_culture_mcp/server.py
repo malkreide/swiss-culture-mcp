@@ -18,6 +18,7 @@ import re
 import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
 from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 
 from . import __version__
 from .constants import (
@@ -85,7 +86,11 @@ __all__ = [
     "bak_isos_statistics",
     "bak_list_traditions",
     "bak_search_isos",
+    "build_http_app",
+    "build_transport_security",
+    "configured_origins",
     "main",
+    "CORS_ALLOW_HEADERS",
     "SDK_HTTP_TRANSPORT",
     "mcp",
 ]
@@ -1144,6 +1149,187 @@ SDK_HTTP_TRANSPORT = "streamable-http"
 _HTTP_TRANSPORT_ALIASES = frozenset({"streamable_http", "streamable-http"})
 
 
+# ---------------------------------------------------------------------------
+# Transport: Host-/Origin-Pruefung und CORS (SEC-005)
+# ---------------------------------------------------------------------------
+
+
+def configured_origins() -> list[str]:
+    """Liest `ALLOWED_ORIGINS` (kommagetrennt). Default leer — kein Browser.
+
+    Fail-closed ist die Portfolio-Vorgabe: Wer nichts setzt, erbt keine
+    durchlaessige Einstellung. Der Wildcard `*` bleibt erreichbar, muss aber
+    ausdruecklich verlangt werden — und steht dann im Log.
+
+    stdio und Nicht-Browser-Clients sind davon nicht betroffen: CORS ist eine
+    Regel, die der Browser durchsetzt, kein Zugangsschutz des Servers.
+    """
+    return [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+
+def build_transport_security(host: str, port: int) -> TransportSecuritySettings | None:
+    """Host-/Origin-Allowlist fuer den HTTP-Transport (SEC-005, eingehend).
+
+    Hier stand zuerst «ohne `transport_security` prueft das SDK weder `Host`
+    noch `Origin`», belegt mit dem Kommentar in
+    `mcp/server/transport_security.py`:
+
+        # If not specified, disable DNS rebinding protection by default for
+        # backwards compatibility
+
+    Das ist zu weit gegriffen, und die Gegenprobe in
+    `tests/test_transport_security.py` hat es widerlegt, bevor es hier stehen
+    bleiben konnte. `Server.streamable_http_app()` schaltet den Schutz bei
+    einem LOOPBACK-Bind von sich aus ein, und `mcp.run()` reicht `host` dorthin
+    durch. Am Draht gemessen, `transport_security=None`:
+
+        host=127.0.0.1   fremder Host -> 421   127.0.0.1:9999 -> 200
+        host=0.0.0.0     fremder Host -> 200   127.0.0.1:9999 -> 200
+
+    Daraus zwei Dinge, und beide tragen:
+
+    1. Mit `MCP_HOST=0.0.0.0` — was das Container-Image setzt — gab es
+       tatsaechlich keine Pruefung. Ein Angreifer, der das Opfer auf seine
+       Seite lockt, laesst dessen Browser per DNS-Rebinding auf den Server
+       zeigen und spricht ihn unter fremdem `Host` an.
+    2. Die Vorgabe des SDK fuer Loopback lautet `127.0.0.1:*` — mit
+       PORT-WILDCARD. Die Liste hier ist portgenau und damit enger als das,
+       was vorher galt; `127.0.0.1:9999` faellt jetzt auch lokal durch.
+
+    Gibt `None` zurueck, wenn sich keine Allowlist herleiten laesst: ein
+    Nicht-Loopback-Bind ohne `MCP_ALLOWED_HOSTS`. Der Server ist dann unter
+    einem Namen erreichbar, den dieser Prozess nicht kennt, und eine geratene
+    Liste wuerde JEDE echte Anfrage mit HTTP 421 abweisen. Der Aufrufer warnt
+    stattdessen — das ist die bewusste Luecke, nicht ein vergessener Fall.
+
+    `MCP_ALLOWED_HOSTS` ist kommagetrennt und nennt die Namen OHNE Schema; ein
+    Port gehoert nur dazu, wenn ihn die oeffentliche URL auch traegt (hinter
+    TLS auf 443 sendet der Client `mcp.example.ch`, nicht `mcp.example.ch:443`).
+    Das SDK vergleicht die Eintraege ZEICHENWEISE mit dem `Host`-Header — ein
+    verirrtes `https://` passt deshalb auf nichts und faellt sonst nirgends
+    auf. Darum protokolliert `_run_http()` die wirksame Liste beim Start.
+    """
+    allowed = [h.strip() for h in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+    if allowed:
+        # Loopback bleibt erreichbar — der Healthcheck des Containers verbindet
+        # auf 127.0.0.1, und ohne diese Ausnahme meldet er einen gesunden
+        # Server als krank.
+        hosts = set(allowed) | loopback
+    elif host in ("127.0.0.1", "localhost", "::1"):
+        hosts = loopback | {f"{host}:{port}"}
+    else:
+        return None
+
+    # Die konfigurierten CORS-Origins muessen die Transport-Pruefung ebenfalls
+    # bestehen, sonst weist der Server genau die Browser-Clients ab, die CORS
+    # zulaesst. `*` laesst sich hier nicht ausdruecken (Origins werden
+    # zeichenweise verglichen, es gibt nur einen Port-Wildcard `:*`) und wird
+    # deshalb nicht uebernommen — kopiert saehe es wie ein Wildcard aus und
+    # taete nichts.
+    origins = {o for o in configured_origins() if o != "*"}
+    origins |= {f"http://{h}" for h in hosts}
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(hosts),
+        allowed_origins=sorted(origins),
+    )
+
+
+# Die Header, nach denen Spec `2026-07-28` eine Anfrage routet, in der
+# Schreibweise des SDK (`mcp.shared.inbound`): die JSON-RPC-Methode, der
+# benannte Gegenstand und die Protokollrevision.
+CORS_ROUTING_HEADERS = ["Mcp-Method", "Mcp-Name", "Mcp-Protocol-Version"]
+
+# Ausdrueckliche Liste statt `"*"`. Bei `*` schaltet Starlette auf
+# `allow_all_headers` und spiegelt zurueck, was der Browser ankuendigt — das
+# ist nicht eine Allowlist, sondern ihr Fehlen, und es verdeckt jede Drift:
+# Faellt ein Header weg, den das Protokoll braucht, wird nichts rot, weil ein
+# Wildcard nicht falsch werden kann.
+#
+# `Last-Event-ID` ist, womit ein Client einen abgerissenen SSE-Strom wieder
+# aufnimmt (`LAST_EVENT_ID_HEADER` in `mcp.server.streamable_http`). Fehlt er,
+# bricht nur die Wiederaufnahme nach Paketverlust — der unangenehmste Weg,
+# einen Fehler zu finden.
+#
+# `Mcp-Param-*` fehlt mit Absicht: CORS kennt keinen Praefix-Wildcard, und kein
+# Tool hier annotiert ein Eingabefeld mit `x-mcp-header`, es wird also nie ein
+# solcher Header gesendet.
+CORS_ALLOW_HEADERS = [
+    "Content-Type",
+    *CORS_ROUTING_HEADERS,
+    "Mcp-Session-Id",
+    "Last-Event-ID",
+]
+
+
+def build_http_app(security: TransportSecuritySettings | None = None, host: str = "127.0.0.1"):
+    """Baut die Streamable-HTTP-App mit CORS.
+
+    `MCPServer.run()` serviert die ASGI-App ohne CORS. Browser-Clients koennen
+    den Antwort-Header `Mcp-Session-Id` dann nicht lesen und verlieren ihre
+    Sitzung. Darum wird die App hier selbst gebaut und der Header ueber
+    `expose_headers` freigegeben.
+
+    `security` und `host` sind in `mcp` 2.x Schluesselwort-Argumente DER APP,
+    keine Felder auf `mcp.settings` — dort gibt es sie nicht mehr.
+    """
+    from starlette.middleware.cors import CORSMiddleware
+
+    origins = configured_origins()
+    if "*" in origins:
+        logger.warning(
+            "cors_wildcard_origin hint=ALLOWED_ORIGINS enthaelt '*'; jede Website kann "
+            "diesen Server aus dem Browser eines Besuchers aufrufen. Produktiv "
+            "einzelne Origins benennen."
+        )
+    elif not origins:
+        logger.info(
+            "cors_no_origins hint=ALLOWED_ORIGINS ist nicht gesetzt, browserbasierte "
+            "MCP-Clients sind damit nicht zugelassen. stdio und Nicht-Browser-Clients "
+            "sind nicht betroffen."
+        )
+
+    app = mcp.streamable_http_app(transport_security=security, host=host)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=CORS_ALLOW_HEADERS,
+        # Ein Browser liest einen Antwort-Header nur, wenn er hier steht — und
+        # MCP-Clients brauchen `Mcp-Session-Id`, um eine Sitzung zu halten.
+        expose_headers=["Mcp-Session-Id"],
+    )
+    return app
+
+
+def _run_http(host: str, port: int) -> None:
+    """Serviert die CORS-umhuellte Streamable-HTTP-App mit uvicorn.
+
+    Eigene Schleife statt `mcp.run(transport=...)`: Nur so lassen sich
+    `transport_security` und CORS ueberhaupt uebergeben. `mcp.run()` nimmt
+    beides nicht entgegen.
+    """
+    import uvicorn
+
+    security = build_transport_security(host, port)
+    if security is None:
+        logger.warning(
+            "dns_rebinding_protection_off host=%s hint=MCP_ALLOWED_HOSTS auf die "
+            "Hostnamen setzen, unter denen dieser Server erreichbar ist; ohne sie "
+            "wird der Host-Header ueberhaupt nicht geprueft.",
+            host,
+        )
+    else:
+        # Die wirksame Liste, nicht die gesetzte Variable: Das SDK vergleicht
+        # zeichenweise, ein Tippfehler oder ein mitgeschriebenes `https://`
+        # faellt sonst erst als HTTP 421 auf jede einzelne Anfrage auf.
+        logger.info(
+            "dns_rebinding_protection_on allowed_hosts=%s", ",".join(security.allowed_hosts)
+        )
+    uvicorn.run(build_http_app(security, host), host=host, port=port, log_level="info")
+
+
 def main() -> None:
     """Startet den MCP-Server. Transport via Umgebungsvariable konfigurierbar.
 
@@ -1154,6 +1340,11 @@ def main() -> None:
       MCP_PORT            Port für HTTP-Transport (Default: 8000)
       MCP_ALLOW_PUBLIC_BIND  Wenn 'true', erlaubt Bindings auf 0.0.0.0 ohne Auth
                               (sonst SystemExit zum Schutz vor offenem Proxy)
+      MCP_ALLOWED_HOSTS   Kommagetrennte Hostnamen für die Host-/Origin-Prüfung
+                          des HTTP-Transports, ohne Schema. Ohne sie ist bei
+                          einem Nicht-Loopback-Bind KEINE Prüfung aktiv.
+      ALLOWED_ORIGINS     Kommagetrennte CORS-Origins (Default leer = keine
+                          browserbasierten Clients)
       LOG_LEVEL           DEBUG/INFO/WARNING/ERROR (Default: INFO)
     """
     transport = os.getenv("MCP_TRANSPORT", "stdio")
@@ -1173,7 +1364,13 @@ def main() -> None:
                 "authenticating reverse proxy)."
             )
         logger.info("server_start transport=%s host=%s port=%s", SDK_HTTP_TRANSPORT, host, port)
-        mcp.run(transport=SDK_HTTP_TRANSPORT, host=host, port=port)
+        # Nicht `mcp.run(transport=SDK_HTTP_TRANSPORT, ...)`: dieser Weg nimmt
+        # weder `transport_security` noch CORS entgegen, und ohne
+        # `transport_security` schaltet das SDK die Host-Pruefung ausdruecklich
+        # AB. `SDK_HTTP_TRANSPORT` bleibt trotzdem stehen und wird geprueft —
+        # der Name benennt weiterhin, welche Aera hier bedient wird, und
+        # `tests/test_modern_era.py` fuehrt ihn real durch `mcp.run()`.
+        _run_http(host, port)
     else:
         logger.info("server_start transport=stdio")
         mcp.run(transport="stdio")
