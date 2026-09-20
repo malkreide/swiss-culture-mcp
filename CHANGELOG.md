@@ -7,6 +7,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Host- und Origin-Pruefung fuer den HTTP-Transport** (SEC-005). `main()`
+  startete den Streamable-HTTP-Transport ueber `mcp.run()`. Dieser Weg nimmt
+  `transport_security` gar nicht entgegen, und ohne diesen Parameter leitet das
+  SDK seine Allowlist allein aus dem Bind-Host ab. Am Draht gemessen,
+  `transport_security=None`:
+
+  ```
+  host=127.0.0.1   fremder Host -> 421   127.0.0.1:9999 -> 200
+  host=0.0.0.0     fremder Host -> 200   127.0.0.1:9999 -> 200
+  ```
+
+  Mit `MCP_HOST=0.0.0.0` — was das Container-Image setzt — wurde also weder
+  `Host` noch `Origin` geprueft. Der Server stand damit offen fuer
+  DNS-Rebinding: Ein Angreifer laesst den Browser des Opfers auf ihn zeigen und
+  spricht ihn unter fremdem `Host` an.
+
+  Der Befund lautete zuerst pauschal «ohne `transport_security` prueft das SDK
+  nichts», gestuetzt auf den Kommentar im SDK-Quelltext. Die Gegenprobe hat das
+  widerlegt, bevor die falsche Begruendung im Code stehenbleiben konnte: Bei
+  einem Loopback-Bind installiert `streamable_http_app()` selbst
+  `127.0.0.1:*` — mit **Port-Wildcard**. Der Befund traegt genau fuer
+  `0.0.0.0`; die neue Liste ist portgenau und damit enger als die bisherige
+  SDK-Vorgabe.
+
+  Neu speist `MCP_ALLOWED_HOSTS` (kommagetrennt, ohne Schema) die Allowlist.
+  Loopback bleibt immer erlaubt, sonst meldet der Healthcheck des Containers
+  einen gesunden Server als krank. Bei einem Nicht-Loopback-Bind ohne Allowlist
+  bleibt der Schutz aus und der Server protokolliert
+  `dns_rebinding_protection_off` — eine geratene Liste wuerde jede echte
+  Anfrage mit 421 abweisen, und diese Luecke ist als eigene Zusicherung
+  festgehalten statt stillschweigend geschlossen.
+
+  Die Sperre `MCP_ALLOW_PUBLIC_BIND` bleibt unveraendert.
+
+### Hinzugefuegt
+
+- **CORS mit ausdruecklicher Header-Allowlist** (SDK-004). `mcp.run()` serviert
+  die ASGI-App ohne CORS; ein Browser-Client kann den Antwort-Header
+  `Mcp-Session-Id` dann nicht lesen und verliert seine Sitzung — der Server
+  antwortet korrekt, und der Client kommt trotzdem nicht weiter. Die App wird
+  jetzt selbst gebaut (`build_http_app`, eigene `uvicorn.run`-Schleife in
+  `_run_http`) und gibt den Header ueber `expose_headers` frei.
+
+  Die Header-Liste ist ausdruecklich und kein `"*"`: Bei einem Wildcard
+  schaltet Starlette auf `allow_all_headers` und spiegelt zurueck, was der
+  Browser ankuendigt. Das ist nicht eine Allowlist, sondern ihr Fehlen — und es
+  verdeckt jede Drift, weil ein Wildcard nicht falsch werden kann.
+  `ALLOWED_ORIGINS` ist fail-closed: Ohne Angabe ist kein Browser-Origin
+  zugelassen; stdio und Nicht-Browser-Clients sind nicht betroffen.
+
+- **`.dockerignore`** (C2). Ein Dockerfile lag bereits vor, eine
+  `.dockerignore` nicht. Ohne sie geht der gesamte Build-Kontext an den
+  Daemon — `.git` samt Historie, `tests/`, `audits/`, `.venv/` mit
+  Binaerdateien der Bauhost-Architektur — bei jedem Build, auch wenn kein
+  `COPY` sie je anfasst.
+
+  Zwei Zeilen darin sind tragend und einzeln zugesichert: die Ausnahme
+  `!README.md` unter dem `*.md` (der Dockerfile kopiert `README.md`, ohne die
+  Ausnahme bricht der Build im ersten `COPY`) und ihre **Reihenfolge** —
+  Docker wertet die Muster der Reihe nach aus, eine Ausnahme vor dem Muster,
+  das sie aufhebt, wirkt nicht.
+
+- **Tests fuer das Deployment und die Server-Identitaet**:
+  `tests/test_transport_security.py`, `tests/test_cors.py`,
+  `tests/test_deployment.py`, `tests/test_servername.py`. Der Dockerfile hatte
+  bisher keinen einzigen Test. Die Grenze von `test_deployment.py` steht im
+  Modul-Docstring statt verschwiegen: Es baut kein Image (kein Docker-Daemon in
+  der CI), es haelt nur Dockerfile und `.dockerignore` gegeneinander.
+
+- **Drift-Wache fuer beide READMEs.** Jede Umgebungsvariable, die der Server
+  tatsaechlich liest, muss in EN **und** DE dokumentiert sein; die Liste wird
+  aus dem Quelltext erhoben statt im Test aufgezaehlt. Im Portfolio sind die
+  beiden Sprachfassungen desselben Repos schon dreimal auseinandergelaufen,
+  weil nur eine nachgezogen wurde. Geprueft wird jede Sprache einzeln, damit
+  die Meldung sagt, welche Fassung fehlt.
+
+### Geaendert
+
+- **`serverInfo.name` heisst `swiss-culture-mcp`** (C3), mit Bindestrich wie
+  Distribution, Konsolenskript, `server.json` und ausgehender `User-Agent`.
+  Bisher stand dort `swiss_culture_mcp`; in der Aera `2026-07-28` steht dieser
+  Name in **jeder** Antwort, nicht nur im Handshake. Wer den Server anhand
+  seines `serverInfo.name` wiederzufinden versucht, suchte damit unter einem
+  Namen, unter dem er nirgends sonst gefuehrt wird.
+
+  Der Python-Logger behaelt den Unterstrich, und das steht als eigene Zeile da:
+  Ein Logger-Name ist keine Server-Identitaet, ihn mitzuziehen braeche jede
+  Logkonfiguration beim Betreiber. Eine Ausnahme, die man nicht aufschreibt,
+  wird beim naechsten Aufraeumen zum Fehler.
+
+- **`MCP_ALLOWED_HOSTS` im Dockerfile dokumentiert**, aber ausdruecklich ohne
+  Wert: Der Hostname haengt am Zielsystem, ein geratener wiese jede echte
+  Anfrage mit 421 ab. Beide READMEs fuehren die Variable, die Connector-URL
+  `https://<host>/mcp` und den Docker-Aufruf.
+
+### Anmerkung zur Gegenprobe
+
+32 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft
+jeder Mutation belegt. Drei davon haben Fehler in den **Tests** gezeigt, nicht
+im Code — sie sind in den betroffenen Docstrings mit Datum festgehalten:
+
+- «main() geht wieder ueber `mcp.run()`» lief in den Timeout, statt rot zu
+  werden: `mcp.run` startete einen echten Server. Ein Lauf, der nicht endet,
+  ist keine Messung.
+- «Sperre gegen public bind entfaellt» liess
+  `test_main_refuses_public_bind_without_override` **gruen**: Der echte
+  `_run_http` lief, uvicorn scheiterte am belegten Port 8000 und beendete sich
+  mit `sys.exit(1)`. Das erwartete `SystemExit` kam aus der Bindung statt aus
+  der Sperre.
+- «Healthcheck nimmt einen festen Port» ueberlebte, weil der Test den
+  Dockerfile am ersten Vorkommen des Wortes `HEALTHCHECK` teilte — das seit
+  derselben Aenderung im Kommentar ueber dem `ENV`-Block steht. Der Kommentar
+  dieses Eintrags hat den Test desselben Eintrags entschaerft.
+
 ## [1.2.0] - 2026-09-19
 
 ### Hinzugefuegt

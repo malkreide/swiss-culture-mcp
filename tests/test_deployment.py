@@ -198,3 +198,58 @@ def test_der_healthcheck_findet_die_anweisung_und_nicht_den_kommentar():
     assert befehl.startswith("HEALTHCHECK ")
     assert "CMD" in befehl
     assert "ENV" not in befehl, "der Helfer hat den ENV-Block eingefangen"
+
+
+# ---------------------------------------------------------------------------
+# Beide READMEs gegen den Quelltext
+# ---------------------------------------------------------------------------
+
+QUELLEN = ("src/swiss_culture_mcp/server.py", "src/swiss_culture_mcp/http_client.py")
+READMES = ("README.md", "README.de.md")
+
+
+def _gelesene_env_vars() -> set[str]:
+    """Jede Umgebungsvariable, die der Server tatsaechlich liest.
+
+    Aus dem Quelltext erhoben, nicht aufgezaehlt: Eine Liste im Test waere eine
+    zweite Quelle, die beim naechsten `os.getenv` still veraltet — und dann
+    prueft dieses Modul die Vollstaendigkeit der Doku mit einer unvollstaendigen
+    Liste.
+    """
+    namen: set[str] = set()
+    for pfad in QUELLEN:
+        text = (WURZEL / pfad).read_text(encoding="utf-8")
+        namen |= set(re.findall(r'os\.getenv\(\s*"([A-Z_]+)"', text))
+    return namen
+
+
+def test_der_quelltext_liest_ueberhaupt_env_vars():
+    """Verankert die Erhebung. Greift der Ausdruck oben eines Tages ins Leere,
+    waeren alle Zusicherungen darunter leer und trotzdem gruen — die
+    gefaehrlichste Form von bestanden."""
+    assert len(_gelesene_env_vars()) >= 5
+
+
+@pytest.mark.parametrize("readme", READMES)
+def test_beide_readmes_dokumentieren_jede_gelesene_env_var(readme: str):
+    """Im Portfolio sind EN und DE desselben Repos schon dreimal
+    auseinandergelaufen, weil nur eine Fassung nachgezogen wurde. Geprueft wird
+    jede Sprache einzeln, damit die Meldung sagt, WELCHE Fassung fehlt.
+
+    Die Richtung ist Absicht: Eine Variable, die der Server liest und die
+    Dokumentation verschweigt, ist eine Einstellung, von der der Betreiber
+    nichts weiss — bei `MCP_ALLOWED_HOSTS` ist das der Unterschied zwischen
+    geprueftem und ungeprueftem `Host`-Header.
+    """
+    text = (WURZEL / readme).read_text(encoding="utf-8")
+    fehlend = sorted(name for name in _gelesene_env_vars() if name not in text)
+    assert not fehlend, f"{readme} dokumentiert nicht: {', '.join(fehlend)}"
+
+
+@pytest.mark.parametrize("readme", READMES)
+def test_beide_readmes_nennen_den_connector_pfad(readme: str):
+    """Die Connector-URL ist Host plus Transportpfad. Der Pfad `/mcp` ist der
+    Default des SDK (`streamable_http_path`) und steht nirgends sonst im
+    Projekt — wer ihn raet, traegt eine URL ein, die 404 liefert."""
+    text = (WURZEL / readme).read_text(encoding="utf-8")
+    assert "<host>/mcp" in text, f"{readme} nennt das Muster der Connector-URL nicht"

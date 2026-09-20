@@ -113,6 +113,8 @@ Sofort in Claude Desktop ausprobieren:
 | `MCP_HOST` | `127.0.0.1` | Bind-Host für HTTP-Transport (per Default loopback) |
 | `MCP_PORT` | `8000` | Port für HTTP-Transport |
 | `MCP_ALLOW_PUBLIC_BIND` | `false` | Wenn `true`, erlaubt Binding auf `0.0.0.0` ohne Auth. **Nur** hinter authentifizierendem Reverse-Proxy setzen (z. B. Cloudflare Access, oauth2-proxy). |
+| `MCP_ALLOWED_HOSTS` | *(leer)* | Kommagetrennte Hostnamen, unter denen dieser Server antwortet, **ohne Schema** (`mcp.example.ch`). Speist die Host-/Origin-Pruefung des HTTP-Transports. **Bei jedem Nicht-Loopback-Deployment setzen** — siehe Warnung unten. Loopback bleibt in jedem Fall erlaubt, damit der Healthcheck des Containers weiter funktioniert. |
+| `ALLOWED_ORIGINS` | *(leer)* | Kommagetrennte CORS-Origins, mit Schema (`https://claude.ai`). Leer heisst: kein browserbasierter MCP-Client zugelassen; stdio und Nicht-Browser-Clients sind nicht betroffen. `*` ist moeglich, wird aber als Warnung protokolliert. |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` — strukturierte JSON-Logs auf stderr |
 
 ### Claude Desktop Konfiguration
@@ -144,19 +146,35 @@ Nach Neustart von Claude Desktop stehen alle Tools zur Verfügung. Beispielfrage
 
 Für den Einsatz via **claude.ai im Browser** (z. B. auf verwalteten Arbeitsplätzen ohne lokale Software-Installation):
 
+Die Connector-URL ist immer der Host des Deployments plus der Transportpfad:
+**`https://<host>/mcp`**. Eintragen in claude.ai unter Settings → MCP Servers.
+
 **Render.com (empfohlen):**
 1. Repository auf GitHub pushen/forken
 2. Auf [render.com](https://render.com): New Web Service → GitHub-Repo verbinden
-3. Umgebungsvariablen im Render-Dashboard setzen
+3. Umgebungsvariablen im Render-Dashboard setzen — darunter
+   `MCP_ALLOWED_HOSTS=your-app.onrender.com`
 4. In claude.ai unter Settings → MCP Servers eintragen: `https://your-app.onrender.com/mcp`
 
+**Docker.** Das Repository liefert ein mehrstufiges [`Dockerfile`](Dockerfile)
+(`python:3.13-slim`, non-root, TCP-Healthcheck). Es setzt Transport,
+`0.0.0.0`-Binding und `MCP_ALLOW_PUBLIC_BIND=true` vor, weil im Container der
+Edge-Proxy der Plattform der einzige Weg hinein ist. `MCP_ALLOWED_HOSTS` bleibt
+im Image bewusst ungesetzt — der Hostname hängt davon ab, wohin deployt wird,
+und ein geratener wiese jede echte Anfrage mit HTTP 421 ab:
+
 ```bash
-# Docker / lokaler HTTP-Modus (nur loopback — sicherer Default)
+docker build -t swiss-culture-mcp .
+docker run -p 8000:8000 -e MCP_ALLOWED_HOSTS=mcp.example.ch swiss-culture-mcp
+```
+
+```bash
+# Lokaler HTTP-Modus (nur loopback — sicherer Default, keine Allowlist nötig)
 MCP_TRANSPORT=streamable_http MCP_PORT=8000 python -m swiss_culture_mcp.server
 
 # Öffentliches Binding (GEFÄHRLICH — nur hinter authentifizierendem Reverse-Proxy)
 MCP_TRANSPORT=streamable_http MCP_HOST=0.0.0.0 MCP_ALLOW_PUBLIC_BIND=true \
-    python -m swiss_culture_mcp.server
+    MCP_ALLOWED_HOSTS=mcp.example.ch python -m swiss_culture_mcp.server
 ```
 
 > ⚠️ **Sicherheit:** Der Server selbst hat keine Authentifizierung. Ein Binding
@@ -164,6 +182,14 @@ MCP_TRANSPORT=streamable_http MCP_HOST=0.0.0.0 MCP_ALLOW_PUBLIC_BIND=true \
 > offenen Proxy für die Bundesdaten-Quellen. Vor `0.0.0.0`-Deployments immer
 > einen authentifizierenden Reverse-Proxy (Cloudflare Access, oauth2-proxy,
 > nginx + auth_request) vorschalten.
+
+> ⚠️ **Bei öffentlichem Binding `MCP_ALLOWED_HOSTS` setzen.** Ohne sie werden
+> `Host` und `Origin` **überhaupt nicht geprüft**, und der Server steht offen
+> für DNS-Rebinding: Ein Angreifer lässt den Browser des Opfers auf ihn zeigen
+> und spricht ihn unter fremdem `Host` an. Der Server protokolliert bei jedem
+> solchen Start `dns_rebinding_protection_off` — diese Zeile ist das Symptom,
+> keine Formalie. Ein Loopback-Binding braucht keine Allowlist; das SDK leitet
+> dort selbst eine aus dem Bind-Host ab.
 
 ---
 
@@ -252,6 +278,15 @@ Server fuellt es mit Name, Titel, Beschreibung, Projektadresse und der Version
 aus den Paket-Metadaten (`importlib.metadata` — dieselbe Quelle wie der
 ausgehende `User-Agent`); eine von Hand gepflegte Nummer weist
 `scripts/check_version_sync.py` zurueck.
+
+Der Name lautet `swiss-culture-mcp` — dieselbe Schreibweise wie Distribution,
+Konsolenskript, Registry-Eintrag und ausgehender `User-Agent`. Bis zum
+20.9.2026 stand dort `swiss_culture_mcp`; eine Identitaet, die sich je nach
+Blickwinkel anders schreibt, ist keine. `tests/test_servername.py` haelt die
+Quellen zusammen, statt ein Literal gegen sich selbst zu pruefen. Der
+Python-**Logger** behaelt den Unterstrich mit Absicht: Das ist ein
+Logger-Name und keine Server-Identitaet, ihn mitzuziehen braeche jede
+Logkonfiguration beim Betreiber, ohne irgendetwas anzugleichen.
 
 **Update-Politik.** Faellt das Gate, die Konstante nicht blind nachziehen: erst
 das Spec-Changelog zwischen den beiden Revisionen lesen, pruefen, ob sich der
