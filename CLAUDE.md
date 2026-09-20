@@ -458,11 +458,11 @@ geschrieben wird, ist damit weiterhin nicht geprüft. Die oben dokumentierte
 der Merge den Weg abschnitt, entscheiden zwei gleichartige Beobachtungen so
 wenig wie eine.
 
-Neun solche Beobachtungen — #56 bis #63 und, am selben Tag um 17:08, der
-Release-PR #67 — machten die Sache nicht sicherer, sondern nur die Lücke
-sichtbarer: Neunmal dasselbe unter denselben Bedingungen zu sehen ist keine
-Gegenprobe, sondern dieselbe Messung neunmal. Auch #67 war beim Start des
-Laufs schon gemergt, drei Sekunden vorher.
+Zehn solche Beobachtungen — #56 bis #63, der Release-PR #67 am selben Abend
+und #68 am Morgen darauf — machten die Sache nicht sicherer, sondern nur die
+Lücke sichtbarer: Zehnmal dasselbe unter denselben Bedingungen zu sehen ist
+keine Gegenprobe, sondern dieselbe Messung zehnmal. #67 und #68 waren beim
+Start des Laufs schon gemergt, drei bzw. sechs Sekunden vorher.
 
 **DIE KONTROLLE LIEGT SEIT DEM 19.9.2026 VOR — UND SIE SAGT DAS GEGENTEIL
 DESSEN, WAS HIER ZUERST STAND.** Auf PR #64 lief Codex von 13:51:27 bis
@@ -586,7 +586,8 @@ siehe den Absatz zu `✅ Completed` weiter oben. Ein sauber aussehender
 Endzustand auf einem gemergten PR ist deshalb kein Freispruch, sondern eine
 nicht durchgeführte Messung.
 
-Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
+Die Grössenordnung fürs Warten. Die Zeiten der letzten Zeile sind vom
+20.9., alle übrigen vom 19.9.:
 
 | PR | Start | Ende | Dauer |
 |---|---|---|---|
@@ -600,6 +601,7 @@ Die Grössenordnung fürs Warten, aus zwei Messungen desselben Tages:
 | #64 (2.) | 14:08:38 | 14:11:32 | **174 s** |
 | #64 (3.) | 14:18:05 | 14:21:45 | **220 s** |
 | #67 | 17:06:56 | 17:08:08 | **72 s** |
+| #68 | 08:07:02 | 08:07:59 | **57 s** |
 
 Hier stand eine Fassung lang «rund zwei Minuten; die nächste kann länger
 brauchen». Die Vorsicht war richtig, die Richtung geraten: Die nächste brauchte
@@ -612,7 +614,7 @@ daneben die Warnung, ein Timer auf der längsten bekannten Dauer gehe beim
 ersten längeren Lauf falsch. **Der kam am selben Tag: #64 brauchte 187
 Sekunden**, ein Drittel mehr als der bisherige Höchstwert.
 
-Bekannt ist damit **36 bis 220 Sekunden**, aus zehn Läufen — und das ist
+Bekannt ist damit **36 bis 220 Sekunden**, aus elf Läufen — und das ist
 keine Spanne, auf die man sich verlassen sollte, sondern der Beleg, dass es
 keine gibt. Zwischen #63 (57 s) und dem dritten Lauf auf #64 (220 s) liegt
 Faktor vier, ohne dass sich am Repo etwas geändert hätte. Die Obergrenze ist
@@ -632,8 +634,8 @@ und ist jetzt ein Befund.
 Hier stand ein Verfahren. Es ist entfernt, weil es fünfmal nicht stattgefunden
 hat. Was bleibt, ist die Tatsache und ihre Folge fürs Lesen.
 
-**Gemessen am 19.9.2026, acht PRs dieses Repos**, Zeit zwischen «ready for
-review» und Merge:
+**Gemessen am 19./20.9.2026, neun PRs dieses Repos**, Zeit zwischen «ready
+for review» und Merge:
 
 | PR | ready → Merge | Stand des Laufs beim Merge |
 |---|---|---|
@@ -645,11 +647,12 @@ review» und Merge:
 | #62 | **2 s** | startete erst 4 s danach |
 | #63 | **2 s** | startete erst 8 s danach |
 | #67 | **2 s** | startete erst 3 s danach |
+| #68 | **3 s** | startete erst 6 s danach |
 
-Ein Codex-Lauf braucht 36 bis 220 Sekunden. In keinem der acht Fälle lag beim
+Ein Codex-Lauf braucht 36 bis 220 Sekunden. In keinem der neun Fälle lag beim
 Merge ein Ergebnis vor.
 
-**#67 ist der teuerste der acht, und er kam zuletzt.** Es war der Release-PR
+**#67 ist der teuerste der neun.** Es war der Release-PR
 für 1.2.0: Was dort gemergt wird, bekommt danach einen Tag und geht auf PyPI,
 und ein PyPI-Upload ist nicht zurückzunehmen. Der Lauf war 72 Sekunden nach
 dem Merge fertig und meldete nichts — gut ausgegangen, aber gewusst hat es
@@ -657,8 +660,20 @@ beim Merge niemand. Gerade bei einem Release ist «den Status lesen, nicht die
 Uhr» keine Stilfrage: Es ist der letzte Punkt, an dem Umkehren noch gratis
 ist.
 
-Es lag nicht an fehlendem Wissen: #58 trug die Wartebedingung in der eigenen
-Checkliste, #59 war der PR, der das Verfahren einführte, und bei #60 hatte ein
+**#68 ist der Fall, der die Reihe kommentiert.** Es war der PR, der #67 in
+diese Tabelle eintrug — und er wurde drei Sekunden nach «ready» gemergt, also
+nach demselben Muster, das er beschreibt. Damit ist klar, dass hier keine
+Wissenslücke wirkt: Der Text lag beim Merge vor, er war der Gegenstand des
+Merges.
+
+Und er zeigt die Grenze dieser Tabelle. Jeder PR, der eine Zeile ergänzt,
+erzeugt beim Merge die nächste; wer sie vollständig halten will, schreibt
+endlos fort und lernt ab der dritten Zeile nichts mehr dazu. Die Tabelle
+ist ein Beleg, kein Protokoll — sie braucht keine zehnte Zeile, solange sich
+das Muster nicht ändert.
+
+Es lag auch sonst nicht an fehlendem Wissen: #58 trug die Wartebedingung in
+der eigenen Checkliste, #59 war der PR, der das Verfahren einführte, und bei #60 hatte ein
 Agent den PR selbst auf ready geschaltet, um das Zeitfenster zu erzeugen — es
 wurde 63 Sekunden gross und reichte trotzdem nicht. Zwei Anläufe, die Sache
 über einen Ablauf zu regeln, sind damit gescheitert. Ein dritter Ablauf wäre
@@ -739,19 +754,27 @@ ist inzwischen erledigt, die beiden anderen nicht:
   nicht nachlesen. Belegt ist sie erst durch den ersten PR, der nicht
   mergbar ist, solange das Gate offen steht.
 
-  **Drei Messungen desselben Tages sprechen dagegen, dass sie greift.** Auf
-  PR #64 stand `mergeable_state` auf `unstable`, während `codex-gate` rot
-  war — bei einem fehlgeschlagenen *required* Check wäre `blocked` zu
-  erwarten. PR #65 ging um 14:28:33 auf ready und war um 14:28:35 gemergt,
-  mit laufendem, urteilslosem Gate. Und PR #67, der Release-PR für 1.2.0,
-  ging um 17:06:51 auf ready und war um **17:06:53** gemergt — der
-  Gate-Lauf hatte um 17:06:52 begonnen und stand ohne Urteil. Eine aktive
-  Regel hätte jedes Mal verweigert.
+  **Vier Messungen sprechen dagegen, dass sie greift.** Auf PR #64 stand
+  `mergeable_state` auf `unstable`, während `codex-gate` rot war — bei einem
+  fehlgeschlagenen *required* Check wäre `blocked` zu erwarten. PR #65 ging
+  um 14:28:33 auf ready und war um 14:28:35 gemergt, mit laufendem,
+  urteilslosem Gate. PR #67, der Release-PR für 1.2.0, ging um 17:06:51 auf
+  ready und war um **17:06:53** gemergt — der Gate-Lauf hatte um 17:06:52
+  begonnen und stand ohne Urteil. Und PR #68 am 20.9.: ready um 08:06:53,
+  Gate-Lauf ab derselben Sekunde, gemergt um **08:06:56**, Urteil erst um
+  08:09:03. Eine aktive Regel hätte jedes Mal verweigert.
 
-  **Eine zweite Erklärung passt aber auf alle drei, und sie ist hier nicht
+  **Bei #68 wäre beinahe das Gegenteil notiert worden.** Drei Sekunden
+  zwischen ready und Merge legen nahe, der Job sei noch gar nicht angelaufen —
+  dann wäre der Fall schwächer als die anderen, weil eine Regel einen
+  Check-Run bräuchte, den es noch nicht gibt. Der Lauf hatte aber bereits
+  begonnen; nachgesehen statt geschlossen, und der Fall ist so stark wie #65
+  und #67. Die Startzeit steht in der Lauf-Liste und kostet eine Abfrage.
+
+  **Eine zweite Erklärung passt aber auf alle vier, und sie ist hier nicht
   ausgeschlossen:** Gemergt hat jedes Mal der Repo-Eigentümer, und «Allow
   administrators to bypass branch protections» erzeugt genau dasselbe Bild —
-  Regel aktiv, Merge trotzdem zugelassen. Drei Beobachtungen in dieselbe
+  Regel aktiv, Merge trotzdem zugelassen. Vier Beobachtungen in dieselbe
   Richtung sind damit kein Beleg, dass die Regel fehlt, sondern nur einer,
   dass sie **diese** Merges nicht aufgehalten hat. Das ist der Fehler von
   weiter oben in klein: Wer aus zwei möglichen Ursachen die erste nimmt,
@@ -766,7 +789,10 @@ ist inzwischen erledigt, die beiden anderen nicht:
 
   Was das Fehlen gekostet hat, steht als Mass daneben: #62 war um 09:15:08
   gemergt, das Gate wurde um 09:16:14 grün; #63 war um 09:23:27 gemergt, das
-  Gate grün um 09:25:04. Zweimal recht gehabt, 66 und 97 Sekunden zu spät.
+  Gate grün um 09:25:04; #68 war um 08:06:56 gemergt, das Gate grün um
+  08:09:03. Dreimal recht gehabt — 66, 97 und 127 Sekunden zu spät. Der
+  Abstand wächst, nicht weil das Gate langsamer wird, sondern weil schneller
+  gemergt wird.
 - **Der Weg über `synchronize` ist am 19.9.2026 auf PR #64 gefahren worden.
   Er scheitert, und zwar an einer Repo-Einstellung, nicht an Codex.** Der
   POST auf `issues/{n}/comments` mit dem `GITHUB_TOKEN` antwortet:
