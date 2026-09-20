@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Das Codex-Gate ist entfernt.** Weg sind der Workflow
+  `.github/workflows/codex-gate.yml`, der Klassifikator
+  `scripts/classify_codex_review.py`, seine beiden Testdateien und die
+  Fixture `tests/fixtures/codex_kommentare.json`; dazu die Codex-Zeile im
+  PR-Template und die Codex-Abschnitte in `CLAUDE.md`.
+
+  **Die Branch-Protection-Regel bleibt und muss von Hand weg.** Der Job war
+  seit dem 19.9.2026 unter Settings → Branches als required check `codex-gate`
+  eingetragen. Diese Einstellung sperrt der Agent-Proxy mit HTTP 403; sie ist
+  von hier aus weder les- noch aenderbar. Bleibt sie stehen, waehrend der
+  Workflow weg ist, verlangt `main` einen Check, den nichts mehr meldet.
+
+  Was bleibt: die Herkunftsangaben zu Befunden in `tests/test_cors.py`,
+  `tests/test_deployment.py` und `tests/test_werkzeug_versionen.py`, die
+  Branch-Namen in der Zwei-Agenten-Anekdote und die bisherigen
+  CHANGELOG-Eintraege. Diese Tests existieren aus diesen Gruenden; das zu
+  tilgen hiesse, den Nachweis zu faelschen.
+
 ### Security
 
 - **Host- und Origin-Pruefung fuer den HTTP-Transport** (SEC-005). `main()`
