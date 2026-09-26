@@ -302,12 +302,14 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 ## Dieses Repo
 
-**ruff: genau eine Quelle** — `ruff==0.16.3` im dev-Extra von
-`pyproject.toml`. Der dev-Install liefert damit die CI-Version, lokal wie
-dort. Keine zweite Version in die Workflows schreiben: ein solcher Schritt
-läuft nach dem Install und überstimmt den Pin still. `ci.yml` hatte zwei
-solche Schritte (Jobs `test` und `lint`); `test_werkzeug_versionen.py` hält
-beides fest. Eine `.pre-commit-config.yaml` gibt es nicht.
+**ruff: genau eine Quelle** — der exakte Pin im dev-Extra von
+`pyproject.toml`; die Version dort nachlesen, nicht hier
+(`tests/test_ruff_pin_doku.py` hält sie aus dieser Datei draussen). Der
+dev-Install liefert damit die CI-Version, lokal wie dort. Keine zweite Version
+in die Workflows schreiben: ein solcher Schritt läuft nach dem Install und
+überstimmt den Pin still. `ci.yml` hatte zwei solche Schritte (Jobs `test` und
+`lint`); `test_werkzeug_versionen.py` hält beides fest. Eine
+`.pre-commit-config.yaml` gibt es nicht.
 
 **Der `lint`-Job muss das Projekt installieren.** Er hatte als einzige
 ruff-Quelle den eigenen Pin-Schritt — den ersatzlos zu streichen nahm ihm
