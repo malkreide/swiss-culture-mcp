@@ -818,13 +818,27 @@ class TestLiveApis:
         assert any(r["name"] == "Zürich" for r in data["results"])
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(("kanton", "amtlich"), [("ZH", 73), ("GR", 105)])
+    @pytest.mark.parametrize(("kanton", "amtlich"), [("ZH", 73), ("GR", 107)])
     async def test_live_isos_anzahl_je_kanton(self, run_live, kanton, amtlich):
         """Exakte Zahlen — sie stehen in einer Verordnung, nicht in einem Index.
 
         Grundlage ist der Anhang 1 der VISOS (SR 451.12) in der Fassung vom
-        1.6.2026, ausgezaehlt: 1253 Ortsbilder, davon ZH 73 und GR 105. Alle
-        26 Kantone stimmen mit dem, was `api3.geo.admin.ch` liefert.
+        1.11.2026 (V vom 18.9.2026, AS 2026 488), am 3.11.2026 ausgezaehlt:
+        1255 Eintraege, davon ZH 73 und GR 107. Alle 26 Kantone stimmen in der
+        Anzahl mit dem, was `api3.geo.admin.ch` liefert, GR auch Nummer fuer
+        Nummer.
+
+        Die Vorfassung vom 1.6.2026 setzte GR 105 fest. Die Revision nahm
+        Hinterrhein (2061), Jenaz (2065) und Vals-Platz (2296) auf und strich
+        Roveredo (2183); der geplante Lauf vom 2.11.2026 wurde darauf rot, auf
+        demselben Commit, der eine Woche zuvor gruen war. Das ist der Fall, fuer
+        den dieser Test da ist, und er kommt mit jeder Revision wieder.
+
+        «In der Anzahl», nicht in der Menge: Wilen bei Neunforn fuehrt der
+        Anhang zweimal, unter TG als 3705 und unter ZH als 5782. Die API kennt
+        nur 3705, mit `kantone: ['TG', 'ZH']`. Fuer ZH ergeben beide 73,
+        schweizweit liefert die API 1254 statt 1255. Wer hier Nummernmengen
+        oder die Landessumme vergleicht, muss diesen Fall ausnehmen.
 
         Sonst waere hier eine Untergrenze richtig. Diese Liste aendert sich
         aber nur, wenn der Bundesrat die Verordnung aendert — kein laufender
@@ -843,7 +857,7 @@ class TestLiveApis:
         data = json.loads(result)
         assert data["total_in_kanton"] == amtlich, (
             f"{kanton}: {data['total_in_kanton']} statt {amtlich} laut VISOS-Anhang "
-            "(SR 451.12, Stand 1.6.2026). Erst die Verordnung pruefen, dann die Quelle."
+            "(SR 451.12, Fassung 1.11.2026). Erst die Verordnung pruefen, dann die Quelle."
         )
 
     @pytest.mark.asyncio

@@ -342,9 +342,25 @@ Der pytest-Aufruf braucht **`--run-live`**; ohne die Option überspringt
 sich jeder Live-Test selbst und der Lauf endet mit 4 übersprungen /
 Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
 Die Sollwerte der ISOS-Zahlen stehen nicht in der API, sondern im Anhang 1
-der VISOS (SR 451.12, Fassung 1.6.2026): 1253 Ortsbilder, ZH 73, GR 105,
-alle 26 Kantone deckungsgleich mit `api3.geo.admin.ch`. Fällt der Test, erst
-die Verordnung nachzählen. Gezählt wird nach ISOS-`nummer`, nie nach
+der VISOS (SR 451.12, Fassung 1.11.2026, AS 2026 488): 1255 Einträge, ZH 73,
+GR 107, alle 26 Kantone in der Anzahl deckungsgleich mit `api3.geo.admin.ch`.
+Fällt der Test, erst die Verordnung nachzählen. Am 2.11.2026 war genau das der
+Fall: GR 107 statt 105, auf demselben Commit, der eine Woche zuvor grün war —
+die Revision vom 1.11.2026 hatte drei Ortsbilder aufgenommen und eines
+gestrichen. Welche Fassung gilt, sagt Fedlex (die ohne `bis`):
+
+```bash
+curl -sS -G https://fedlex.data.admin.ch/sparqlendpoint -H 'Accept: text/csv' \
+  --data-urlencode 'query=PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
+SELECT DISTINCT ?fassung ?ab ?bis WHERE { ?fassung jolux:isMemberOf <https://fedlex.data.admin.ch/eli/cc/2019/673> ;
+  jolux:dateApplicability ?ab . OPTIONAL { ?fassung jolux:dateEndApplicability ?bis } } ORDER BY DESC(?ab) LIMIT 3'
+```
+
+Der Anhang als HTML liegt dann unter
+`https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/<JJJJMMTT>/de/html/`.
+«In der Anzahl» ist wörtlich gemeint: Wilen bei Neunforn steht im Anhang unter
+TG (3705) und ZH (5782), die API führt nur 3705 für beide Kantone —
+schweizweit 1254 statt 1255. Gezählt wird nach ISOS-`nummer`, nie nach
 Feature-`id`: Die Quelle liefert je Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
 den Event-Loop des vorherigen Tests (`RuntimeError: Event loop is closed`,
