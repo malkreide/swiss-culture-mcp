@@ -4,9 +4,11 @@ Tests für swiss-culture-mcp.
 Einheitstests mit Mocks (immer) und Live-Integrationstests (mit --run-live).
 """
 
+import asyncio
 import json
 import pathlib
 import sys
+import warnings
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from zoneinfo import ZoneInfo
@@ -821,6 +823,101 @@ def run_live(request):
 # still weiterzutragen.
 _ANHANG_ZU_API = {("ZH", "5782"): "3705"}
 
+# Modul-Alias statt `asyncio.sleep`: Der Offline-Test unten ersetzt nur diese
+# Pause, nicht das fremde Modul (CLAUDE.md, «Tests»).
+_pause = asyncio.sleep
+
+
+def _voruebergehend(antwort: str) -> bool:
+    """Kann ein zweiter Versuch diesen Fehlertext des Tools beheben?
+
+    Nur Zeitueberschreitung, Verbindungsfehler und 5xx. Ein 404, 403 oder 429
+    ist eine Antwort und wird nicht wiederholt, eine inhaltliche Abweichung
+    erst recht nicht. Die Vorlagen kommen aus `_handle_error` selbst, damit
+    eine neue Formulierung dort hier nicht still aus der Wiederholung faellt.
+    """
+    anfrage = httpx.Request("GET", "https://api3.geo.admin.ch/")
+    server_fehler = _handle_error(
+        httpx.HTTPStatusError("", request=anfrage, response=httpx.Response(503, request=anfrage))
+    ).split("(HTTP")[0]
+    return antwort.startswith(server_fehler) or antwort in (
+        _handle_error(httpx.TimeoutException("")),
+        _handle_error(httpx.ConnectError("")),
+    )
+
+
+async def _kanton_abfragen(kanton: str, wiederholt: list[str]) -> str:
+    """`bak_isos_by_kanton` fuer den VISOS-Abgleich, bei Stoerung einmal neu.
+
+    Gemessen am 3.11.2026: `api3.geo.admin.ch` antwortet meist unter einer
+    Sekunde, hat aber Ausreisser — AG 30,5 s, TI 7,9 s, mit und ohne
+    Zwischenspeicher. Der Server-Client gibt nach 20 s auf. Bei 26 Kantonen je
+    Lauf traf das zwei von rund 20 Laeufen (SO um 12:20 UTC, belegt; ein
+    erster, dessen Meldung verloren ging). Ohne zweiten Versuch oeffnete der
+    Wochenlauf deshalb Issues fuer Latenz, nicht fuer den Vertrag — genau den
+    Fehlalarm, den der Abgleich gegen Fedlex abschaffen soll.
+
+    Genau ein zweiter Versuch, und jeder wird in `wiederholt` vermerkt.
+    Scheitert auch er, kommt sein Fehlertext zurueck und wird zum Befund.
+    """
+    antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+    if _voruebergehend(antwort):
+        wiederholt.append(f"{kanton}: {antwort}")
+        await _pause(2)
+        antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+    return antwort
+
+
+class TestWiederholungImVisosAbgleich:
+    """Offline: Wann der VISOS-Abgleich einen Kanton ein zweites Mal fragt."""
+
+    @staticmethod
+    def _http(code: int) -> str:
+        anfrage = httpx.Request("GET", "https://example.com")
+        return _handle_error(
+            httpx.HTTPStatusError(
+                "", request=anfrage, response=httpx.Response(code, request=anfrage)
+            )
+        )
+
+    def test_zeitueberschreitung_verbindung_und_5xx_sind_voruebergehend(self):
+        assert _voruebergehend(_handle_error(httpx.TimeoutException("")))
+        assert _voruebergehend(_handle_error(httpx.ConnectError("")))
+        assert _voruebergehend(self._http(503))
+        assert _voruebergehend(self._http(500))
+
+    def test_eine_antwort_wird_nicht_wiederholt(self):
+        for code in (404, 403, 429):
+            assert not _voruebergehend(self._http(code)), code
+        assert not _voruebergehend('{"kanton": "SO", "total_in_kanton": 36}')
+
+    async def test_nach_einer_stoerung_genau_ein_zweiter_versuch(self, monkeypatch):
+        timeout = _handle_error(httpx.TimeoutException(""))
+        tool = AsyncMock(side_effect=[timeout, '{"ok": 1}'])
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        wiederholt: list[str] = []
+        assert await _kanton_abfragen("SO", wiederholt) == '{"ok": 1}'
+        assert tool.await_count == 2
+        assert wiederholt == [f"SO: {timeout}"]
+
+    async def test_zwei_stoerungen_bleiben_ein_befund(self, monkeypatch):
+        timeout = _handle_error(httpx.TimeoutException(""))
+        tool = AsyncMock(return_value=timeout)
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        assert await _kanton_abfragen("SO", []) == timeout
+        assert tool.await_count == 2
+
+    async def test_eine_absage_wird_nicht_wiederholt(self, monkeypatch):
+        tool = AsyncMock(return_value=self._http(404))
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        wiederholt: list[str] = []
+        await _kanton_abfragen("SO", wiederholt)
+        assert tool.await_count == 1
+        assert wiederholt == []
+
 
 @pytest.mark.live
 class TestLiveApis:
@@ -891,12 +988,14 @@ class TestLiveApis:
             for k, v in _ANHANG_ZU_API.items()
             if k not in im_anhang
         ]
+        wiederholt: list[str] = []
         for kanton in sorted(soll):
-            antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+            antwort = await _kanton_abfragen(kanton, wiederholt)
             # Ein Fehlertext des Tools ist ein Befund mit Namen, kein
             # JSONDecodeError: Der erste Lauf dieses Tests am 3.11.2026 war rot,
             # 18 s langsamer als sonst, und seine Ursache liess sich hinterher
-            # nicht mehr lesen. 20 s ist der Timeout des Server-Clients.
+            # nicht mehr lesen. Der zweite solche Lauf nannte sie dank dieser
+            # Zeile: SO, Zeitueberschreitung nach 20 s.
             try:
                 data = json.loads(antwort)
             except json.JSONDecodeError:
@@ -919,9 +1018,19 @@ class TestLiveApis:
                 befunde.append(
                     f"{kanton}: nur in der API " + ", ".join(f"{n} {api_namen[n]}" for n in nur_api)
                 )
+        if wiederholt:
+            # Sichtbar im Lauf, auch wenn er gruen endet: Wer die Latenz der
+            # Quelle beobachten will, findet sie in der Warnungsliste.
+            warnings.warn(
+                "VISOS-Abgleich: nach voruebergehender Stoerung erneut gefragt — "
+                + "; ".join(wiederholt),
+                stacklevel=1,
+            )
         assert not befunde, (
             f"API und VISOS-Fassung {fassung.kennung} (gueltig ab {fassung.ab:%d.%m.%Y}, "
-            f"{fassung.eli}) weichen ab:\n" + "\n".join(befunde)
+            f"{fassung.eli}) weichen ab:\n"
+            + "\n".join(befunde)
+            + (f"\nErneut gefragt: {'; '.join(wiederholt)}" if wiederholt else "")
         )
 
     @pytest.mark.asyncio

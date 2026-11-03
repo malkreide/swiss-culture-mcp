@@ -170,6 +170,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (1255 Eintraege, GR 107, ZH 73) decken sich mit zwei unabhaengigen
   Auszaehlungen: per regulaerem Ausdruck und ueber die API.
 
+  26 Anfragen je Lauf statt zwei machen den Abgleich anfaellig fuer die
+  Latenz der Quelle: `api3.geo.admin.ch` hat Ausreisser (am 3.11.2026 AG 30,5
+  s, TI 7,9 s), der Server-Client gibt nach 20 s auf, und 2 von rund 20
+  Laeufen wurden so rot (belegt: SO, Zeitueberschreitung). Der Abgleich fragt
+  einen Kanton deshalb nach Zeitueberschreitung, Verbindungsfehler oder 5xx
+  genau einmal neu und vermerkt das als Warnung; ein zweiter Fehlschlag ist
+  ein Befund, 404/403/429 und inhaltliche Abweichungen werden nie wiederholt.
+  Ein Fehlertext des Tools erscheint als Befund mit Kanton statt als
+  `JSONDecodeError`. Dieselben Ausreisser treffen die Nutzer des Servers; das
+  ist offen.
+
   Die Gegenprobe zeigte nebenbei, wie weit der alte Zaehlfehler reichte:
   Dedupliziert nach Feature-`id`, meldet `bak_isos_by_kanton` nicht nur GR 509
   statt 107, sondern auch FR 424 statt 45 und GE 422 statt 20.

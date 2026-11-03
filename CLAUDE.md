@@ -371,7 +371,17 @@ Fedlex aus, nennt die Meldung `FedlexLeseError`; der Lauf zählt dann als
 `finding`, nicht als `clear`, damit ein Vergleich, der nicht stattfand, kein
 Issue schliesst. Ein Fehlertext des Tools erscheint als Befund mit Kanton statt
 als `JSONDecodeError`: Der erste Lauf des Tests war rot, 18 s langsamer als
-sonst (Server-Timeout 20 s), und seine Ursache war hinterher nicht mehr lesbar.
+sonst, und seine Ursache war hinterher nicht mehr lesbar; der zweite nannte
+sie — SO, Zeitüberschreitung nach den 20 s des Server-Clients. Gemessen am
+3.11.2026: `api3.geo.admin.ch` antwortet meist unter einer Sekunde, hat aber
+Ausreisser (AG 30,5 s, TI 7,9 s), mit und ohne Zwischenspeicher. Bei 26
+Anfragen je Lauf traf das 2 von rund 20 Läufen. Der Abgleich fragt einen Kanton
+deshalb nach Zeitüberschreitung, Verbindungsfehler oder 5xx **genau einmal**
+neu (`_kanton_abfragen`) und vermerkt das als Warnung; erst ein zweiter
+Fehlschlag ist ein Befund. 404, 403, 429 und inhaltliche Abweichungen werden
+nie wiederholt. Dieselben Ausreisser treffen die Nutzer des Servers — der
+Client gibt nach 20 s auf (`TIMEOUT` in `constants.py`); das ist offen und
+nicht Teil des Abgleichs.
 Gezählt wird nach ISOS-`nummer`, nie nach Feature-`id`: Die Quelle liefert je
 Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
