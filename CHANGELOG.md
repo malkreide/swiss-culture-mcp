@@ -152,6 +152,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Geaendert
 
+- **Live-Test auf die VISOS-Fassung vom 1.11.2026 nachgefuehrt** (#81). Der
+  geplante Lauf vom 2.11.2026 meldete fuer GR 107 Ortsbilder statt 105 — auf
+  demselben Commit, der am 26.10. gruen war. Die Quelle hatte recht: Die
+  Verordnung vom 18.9.2026 (AS 2026 488) revidiert Anhang 1 der VISOS (SR
+  451.12) mit Wirkung ab 1.11.2026. Neu aufgenommen sind Hinterrhein (2061),
+  Jenaz (2065) und Vals-Platz (2296), gestrichen ist Roveredo (2183), Moutier
+  (929) steht jetzt unter JU statt BE. Anhang 1 zaehlt 1255 statt 1253
+  Eintraege; die GR-Nummern der API decken sich mit ihm Nummer fuer Nummer.
+  Am Server aendert sich nichts, er lieferte die gueltige Zahl.
+
+  Dabei aufgefallen: «alle 26 Kantone deckungsgleich» galt nur fuer die
+  Anzahl. Wilen bei Neunforn steht im Anhang unter TG (3705) und ZH (5782),
+  die API fuehrt nur 3705 fuer beide Kantone. Die Kantonszahlen stimmen,
+  die Landessumme der API liegt um eins tiefer (1254). Festgehalten im
+  Docstring des Live-Tests und in `CLAUDE.md`.
+
 - **`serverInfo.name` heisst `swiss-culture-mcp`** (C3), mit Bindestrich wie
   Distribution, Konsolenskript, `server.json` und ausgehender `User-Agent`.
   Bisher stand dort `swiss_culture_mcp`; in der Aera `2026-07-28` steht dieser
