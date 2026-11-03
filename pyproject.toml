@@ -41,7 +41,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
+    # Erst ab 0.24 kennt pytest-asyncio `asyncio_default_fixture_loop_scope`
+    # (unten); 0.23.8 meldet die Option als «Unknown config option».
+    "pytest-asyncio>=0.24.0",
     # Die einzige Stelle, an der die ruff-Version steht — anheben genuegt hier.
     # Eine Spanne hiesse: ein frischer dev-Install lintet mit einer anderen
     # Version als das Gate und meldet Abweichungen an unberuehrtem Code.
@@ -72,6 +74,14 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Ausdruecklich, was pytest-asyncio kuenftig ohnehin vorgibt: Async-Fixtures
+# laufen im Loop des Tests. Ohne den Eintrag warnt jeder Lauf mit einer
+# PytestDeprecationWarning, und der Loop folgt dem Scope der Fixture.
+# Folge: Eine modulweite Async-Fixture braucht ein eigenes `loop_scope=`,
+# sonst ScopeMismatch. Das ist gewollt — ein Objekt, das an einem anderen
+# Loop haengt als der Test, ist genau die Falle aus `tests/conftest.py`.
+# `tests/test_pytest_konfiguration.py` haelt den Wert fest.
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = [
     "live: Tests, die echte API-Aufrufe machen (mit --run-live ausführen)",

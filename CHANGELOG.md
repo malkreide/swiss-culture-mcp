@@ -152,6 +152,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Geaendert
 
+- **`asyncio_default_fixture_loop_scope = "function"` gesetzt.** pytest-asyncio
+  meldete in jedem Lauf, auch im woechentlichen Live-Lauf, eine
+  `PytestDeprecationWarning`: Ohne Eintrag folgt der Loop einer Async-Fixture
+  ihrem Scope, kuenftige Versionen geben `function` vor. Am Verhalten aendert
+  sich heute nichts, das Repo hat keine Async-Fixture. Die Entscheidung liegt
+  damit beim Repo statt bei der jeweils installierten, ungepinnten
+  Plugin-Version. Eine kuenftige modulweite Async-Fixture braucht ein eigenes
+  `loop_scope=`, sonst bricht sie mit `ScopeMismatch` ab — gewollt, weil ein
+  Objekt an einem fremden Loop genau die Falle aus `tests/conftest.py` ist.
+
+  Die Untergrenze im dev-Extra steigt von `pytest-asyncio>=0.23.0` auf
+  `>=0.24.0`: 0.23.8 kennt die Option nicht und meldet
+  `Unknown config option`, 0.24.0 nimmt sie ohne Warnung an (beides am
+  3.11.2026 gemessen). `tests/test_pytest_konfiguration.py` haelt den Wert
+  fest.
+
 - **Live-Test auf die VISOS-Fassung vom 1.11.2026 nachgefuehrt** (#81). Der
   geplante Lauf vom 2.11.2026 meldete fuer GR 107 Ortsbilder statt 105 — auf
   demselben Commit, der am 26.10. gruen war. Die Quelle hatte recht: Die
