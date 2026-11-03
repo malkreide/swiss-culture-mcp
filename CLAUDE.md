@@ -333,7 +333,7 @@ python scripts/check_version_sync.py
 
 **Live-Tests.** `.github/workflows/live-tests.yml` läuft geplant
 (`cron: "53 4 * * 1"`, wöchentlich Mo) plus `workflow_dispatch`, gegen
-`api3.geo.admin.ch`, `opendata.swiss` und den BAK-News-Feed; die
+`api3.geo.admin.ch`, `opendata.swiss`, den BAK-News-Feed und Fedlex; die
 Einordnung macht `scripts/classify_live_run.py`
 (`clear` / `finding` / `unknown`), ein Fund öffnet bzw. schliesst ein
 `upstream`-Issue. `schedule` greift nur auf dem Default-Branch: Änderungen
@@ -341,13 +341,18 @@ an der Datei wirken erst nach dem Merge, vorher von Hand auslösen.
 Der pytest-Aufruf braucht **`--run-live`**; ohne die Option überspringt
 sich jeder Live-Test selbst und der Lauf endet mit 4 übersprungen /
 Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
-Die Sollwerte der ISOS-Zahlen stehen nicht in der API, sondern im Anhang 1
-der VISOS (SR 451.12, Fassung 1.11.2026, AS 2026 488): 1255 Einträge, ZH 73,
-GR 107, alle 26 Kantone in der Anzahl deckungsgleich mit `api3.geo.admin.ch`.
-Fällt der Test, erst die Verordnung nachzählen. Am 2.11.2026 war genau das der
-Fall: GR 107 statt 105, auf demselben Commit, der eine Woche zuvor grün war —
-die Revision vom 1.11.2026 hatte drei Ortsbilder aufgenommen und eines
-gestrichen. Welche Fassung gilt, sagt Fedlex (die ohne `bis`):
+Die Sollwerte der ISOS-Zahlen stehen weder in der API noch im Test, sondern
+im Anhang 1 der VISOS (SR 451.12). Der Live-Test liest sie zur Laufzeit aus
+der Fassung, die am Stichtag (Europe/Zurich) gilt (`scripts/visos_anhang.py`),
+und vergleicht alle 26 Kantone: die Nummern und `total_in_kanton`. Bis zum
+3.11.2026 standen feste Zahlen im Test; am 2.11.2026 wurde der Lauf darauf rot
+(GR 107 statt 105), auf demselben Commit, der eine Woche zuvor grün war — die
+Revision vom 1.11.2026 hatte drei Ortsbilder aufgenommen und eines gestrichen.
+Eine Revision macht den Lauf seither nicht mehr rot, solange die API nachzieht.
+Rot heisst jetzt: API und gültige Fassung weichen ab, die Meldung nennt Kanton,
+Nummern und Fassung. Kurz nach einer Revision kann das die Nachführung bei
+geo.admin sein; welche Fassungen es gibt, sagt Fedlex (gültig ist die ohne
+`bis`):
 
 ```bash
 curl -sS -G https://fedlex.data.admin.ch/sparqlendpoint -H 'Accept: text/csv' \
@@ -356,12 +361,19 @@ SELECT DISTINCT ?fassung ?ab ?bis WHERE { ?fassung jolux:isMemberOf <https://fed
   jolux:dateApplicability ?ab . OPTIONAL { ?fassung jolux:dateEndApplicability ?bis } } ORDER BY DESC(?ab) LIMIT 3'
 ```
 
-Der Anhang als HTML liegt dann unter
-`https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/<JJJJMMTT>/de/html/`.
-«In der Anzahl» ist wörtlich gemeint: Wilen bei Neunforn steht im Anhang unter
-TG (3705) und ZH (5782), die API führt nur 3705 für beide Kantone —
-schweizweit 1254 statt 1255. Gezählt wird nach ISOS-`nummer`, nie nach
-Feature-`id`: Die Quelle liefert je Objekt mehrere Features, in GR bis zu 51.
+Die Adresse der HTML-Ausgabe liefert `visos_anhang.abfrage()` mit; zusammensetzen
+lässt sie sich nicht, ihre Endung wechselt (`-html-1`, `-html-2`, `-html-5`).
+Eine Ausnahme ist eingetragen (`_ANHANG_ZU_API` in `tests/test_server.py`):
+Wilen bei Neunforn steht im Anhang unter TG (3705) und ZH (5782), die API führt
+nur 3705 für beide Kantone — schweizweit 1254 statt 1255. Fällt der Eintrag im
+Anhang weg, meldet der Test das, statt die Ausnahme still weiterzutragen. Fällt
+Fedlex aus, nennt die Meldung `FedlexLeseError`; der Lauf zählt dann als
+`finding`, nicht als `clear`, damit ein Vergleich, der nicht stattfand, kein
+Issue schliesst. Ein Fehlertext des Tools erscheint als Befund mit Kanton statt
+als `JSONDecodeError`: Der erste Lauf des Tests war rot, 18 s langsamer als
+sonst (Server-Timeout 20 s), und seine Ursache war hinterher nicht mehr lesbar.
+Gezählt wird nach ISOS-`nummer`, nie nach Feature-`id`: Die Quelle liefert je
+Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
 den Event-Loop des vorherigen Tests (`RuntimeError: Event loop is closed`,
 sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt
@@ -391,7 +403,12 @@ abgerufenen — `gisos` und `bak_wurzel` gibt der Server als Link aus, ohne sie
 zu holen; deren Ziel `www.bak.admin.ch` gehört nicht in die Liste.
 
 Fixtures liegen unter `tests/fixtures/`, erzeugt von
-`scripts/record_fixtures.py`, Aufnahmedatum in `PROVENANCE.md` — nicht von
+`scripts/record_fixtures.py` (Aufnahmedatum in `PROVENANCE.md`) und, für die
+VISOS, von `scripts/record_visos.py` (`PROVENANCE_VISOS.md`) — getrennt, weil
+`record_fixtures.py` mit Absicht abbricht, sobald eine Adresse des Servers
+stirbt, und die Sollwert-Quelle sonst an jeder fremden Website hinge. Am
+3.11.2026 war genau das der Fall: lebendige-traditionen.ch war umgebaut. Alle
+Fixtures: nicht von
 Hand pflegen. Der Recorder bricht bei einem vorübergehenden 502 der Quelle
 ab; die Ausgabe endet dann an einer Stelle, die wegen der Pipe-Pufferung
 nicht die fehlerhafte Sonde ist. Einfach nochmal laufen lassen.

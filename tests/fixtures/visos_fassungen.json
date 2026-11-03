@@ -1,0 +1,172 @@
+{
+  "head": {
+    "link": [],
+    "vars": [
+      "fassung",
+      "ab",
+      "bis",
+      "datei"
+    ]
+  },
+  "results": {
+    "distinct": false,
+    "ordered": true,
+    "bindings": [
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20261101"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2026-11-01"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20261101/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20261101-de-html-2.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20260601"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2026-06-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2026-10-31"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20260601/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20260601-de-html-2.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20250501"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2025-05-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2026-05-31"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20250501/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20250501-de-html-1.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20240501"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2024-05-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2025-04-30"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20240501/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20240501-de-html-5.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20230401"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2023-04-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2024-04-30"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20230401/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20230401-de-html-5.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20220501"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2022-05-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2023-03-31"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20220501/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20220501-de-html-3.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20210501"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2021-05-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2022-04-30"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20210501/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20210501-de-html-2.html"
+        }
+      },
+      {
+        "fassung": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/eli/cc/2019/673/20200101"
+        },
+        "ab": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2020-01-01"
+        },
+        "bis": {
+          "type": "literal",
+          "datatype": "http://www.w3.org/2001/XMLSchema#date",
+          "value": "2021-04-30"
+        },
+        "datei": {
+          "type": "uri",
+          "value": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/673/20200101/de/html/fedlex-data-admin-ch-eli-cc-2019-673-20200101-de-html-2.html"
+        }
+      }
+    ]
+  }
+}

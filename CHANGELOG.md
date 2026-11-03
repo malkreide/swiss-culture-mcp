@@ -152,6 +152,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Geaendert
 
+- **Der ISOS-Live-Test liest seine Sollwerte von Fedlex.** Statt fester Zahlen
+  (ZH 73, GR 107) vergleicht `test_live_isos_deckt_sich_mit_der_gueltigen_visos`
+  alle 26 Kantone mit Anhang 1 der VISOS-Fassung, die am Stichtag gilt — je
+  Kanton die ISOS-Nummern und `total_in_kanton`. Eine Revision der Verordnung
+  macht den Wochenlauf damit nicht mehr rot, solange die API nachzieht; rot
+  wird er, wenn API und gueltige Fassung voneinander abweichen, und die
+  Meldung nennt Kanton, Nummern und Fassung. Anlass war der Lauf vom 2.11.2026,
+  der nach der Revision vom 1.11.2026 rot wurde, ohne dass etwas kaputt war.
+
+  Neu sind `scripts/visos_anhang.py` (Fassungsliste per SPARQL, Auswahl der
+  gueltigen Fassung, Leser fuer Anhang 1) und `scripts/record_visos.py` mit den
+  Aufnahmen `tests/fixtures/visos_fassungen.json` und
+  `visos_anhang1_20261101.html.gz` samt `PROVENANCE_VISOS.md`. Der Leser bricht
+  bei geaenderter Kopfzeile oder unlesbarer Zeile ab, statt Zeilen
+  wegzulassen; `tests/test_visos_anhang.py` prueft ihn offline. Seine Zahlen
+  (1255 Eintraege, GR 107, ZH 73) decken sich mit zwei unabhaengigen
+  Auszaehlungen: per regulaerem Ausdruck und ueber die API.
+
+  Die Gegenprobe zeigte nebenbei, wie weit der alte Zaehlfehler reichte:
+  Dedupliziert nach Feature-`id`, meldet `bak_isos_by_kanton` nicht nur GR 509
+  statt 107, sondern auch FR 424 statt 45 und GE 422 statt 20.
+
+  Eigener Recorder, weil `record_fixtures.py` mit Absicht abbricht, sobald
+  eine Adresse des Servers stirbt — am 3.11.2026 brach er ab, weil
+  lebendige-traditionen.ch umgebaut ist (Liste und Detailseiten 404,
+  `bak_list_traditions` liefert «Ressource nicht gefunden»). Das ist ein
+  eigener, noch offener Befund; die VISOS-Aufnahme soll nicht daran haengen.
+
 - **`asyncio_default_fixture_loop_scope = "function"` gesetzt.** pytest-asyncio
   meldete in jedem Lauf, auch im woechentlichen Live-Lauf, eine
   `PytestDeprecationWarning`: Ohne Eintrag folgt der Loop einer Async-Fixture

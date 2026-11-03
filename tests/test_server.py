@@ -6,8 +6,12 @@ Einheitstests mit Mocks (immer) und Live-Integrationstests (mit --run-live).
 
 import json
 import pathlib
+import sys
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
 from swiss_culture_mcp.server import (
@@ -35,6 +39,10 @@ from swiss_culture_mcp.server import (
     main,
     mcp,
 )
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+
+import visos_anhang  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures & Hilfsdaten
@@ -806,6 +814,14 @@ def run_live(request):
     return request.config.getoption("--run-live")
 
 
+# Anhang-Nummer -> API-Nummer, je Kanton, fuer den VISOS-Abgleich. Am
+# 3.11.2026 gemessen: Wilen bei Neunforn steht im Anhang unter TG (3705) und
+# unter ZH (5782); die API fuehrt nur 3705, mit `kantone: ['TG', 'ZH']`. Faellt
+# der Eintrag im Anhang weg, meldet der Live-Test das, statt die Ausnahme
+# still weiterzutragen.
+_ANHANG_ZU_API = {("ZH", "5782"): "3705"}
+
+
 @pytest.mark.live
 class TestLiveApis:
     @pytest.mark.asyncio
@@ -818,46 +834,94 @@ class TestLiveApis:
         assert any(r["name"] == "Zürich" for r in data["results"])
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(("kanton", "amtlich"), [("ZH", 73), ("GR", 107)])
-    async def test_live_isos_anzahl_je_kanton(self, run_live, kanton, amtlich):
-        """Exakte Zahlen — sie stehen in einer Verordnung, nicht in einem Index.
+    async def test_live_isos_deckt_sich_mit_der_gueltigen_visos(self, run_live):
+        """Die API gegen die VISOS, die heute gilt — Sollwerte live von Fedlex.
 
-        Grundlage ist der Anhang 1 der VISOS (SR 451.12) in der Fassung vom
-        1.11.2026 (V vom 18.9.2026, AS 2026 488), am 3.11.2026 ausgezaehlt:
-        1255 Eintraege, davon ZH 73 und GR 107. Alle 26 Kantone stimmen in der
-        Anzahl mit dem, was `api3.geo.admin.ch` liefert, GR auch Nummer fuer
-        Nummer.
+        Massstab ist Anhang 1 der VISOS (SR 451.12) in der Fassung, die am
+        Stichtag gilt. `scripts/visos_anhang.py` liest sie zur Laufzeit; offline
+        geprueft wird der Leser in `tests/test_visos_anhang.py`.
 
-        Die Vorfassung vom 1.6.2026 setzte GR 105 fest. Die Revision nahm
-        Hinterrhein (2061), Jenaz (2065) und Vals-Platz (2296) auf und strich
-        Roveredo (2183); der geplante Lauf vom 2.11.2026 wurde darauf rot, auf
-        demselben Commit, der eine Woche zuvor gruen war. Das ist der Fall, fuer
-        den dieser Test da ist, und er kommt mit jeder Revision wieder.
+        Bis zum 3.11.2026 standen hier feste Zahlen, ZH 73 und GR 105 aus der
+        Fassung vom 1.6.2026. Am 1.11.2026 trat eine Revision in Kraft (AS 2026
+        488: Hinterrhein, Jenaz, Vals-Platz neu, Roveredo gestrichen), die API
+        zog nach, und der geplante Lauf vom 2.11.2026 wurde rot — auf demselben
+        Commit, der eine Woche zuvor gruen war. Der Server lieferte die
+        gueltige Zahl; veraltet war der Test. Feste Zahlen fragen «wurde die
+        VISOS revidiert?», und das ist kein Vertrag mit der Quelle. Dieser Test
+        fragt nur noch: «Liefert der Server, was die gueltige Verordnung
+        festsetzt?»
 
-        «In der Anzahl», nicht in der Menge: Wilen bei Neunforn fuehrt der
-        Anhang zweimal, unter TG als 3705 und unter ZH als 5782. Die API kennt
-        nur 3705, mit `kantone: ['TG', 'ZH']`. Fuer ZH ergeben beide 73,
-        schweizweit liefert die API 1254 statt 1255. Wer hier Nummernmengen
-        oder die Landessumme vergleicht, muss diesen Fall ausnehmen.
+        Verglichen wird je Kanton zweierlei, und beides braucht es:
 
-        Sonst waere hier eine Untergrenze richtig. Diese Liste aendert sich
-        aber nur, wenn der Bundesrat die Verordnung aendert — kein laufender
-        Bestand, der um ein paar Eintraege schwankt. Faellt der Test, ist die
-        erste Frage nicht «ist die Quelle kaputt», sondern «wurde die VISOS
-        revidiert»: Anhang 1 auf fedlex.admin.ch nachzaehlen und die Zahl hier
-        mit dem Datum der neuen Fassung anpassen.
+        * die **Nummern** — eine Revision, die ein Ortsbild streicht und ein
+          anderes aufnimmt, laesst die Anzahl gleich;
+        * `total_in_kanton` — gegen den alten Fehler, Features statt Ortsbilder
+          zu zaehlen (GR 507 statt 105). Als Menge fallen doppelte Nummern
+          zusammen; nur die Anzahl sieht ihn.
 
-        GR steht hier, weil ZH allein nichts unterscheidet: Dort traegt jedes
-        Objekt genau eine Feature-ID, die alte Zaehlung nach `id` kam also auf
-        dieselben 73. In GR kamen 507 heraus.
+        Rot heisst: API und gueltige Verordnung weichen ab, die Meldung nennt
+        Kanton, Nummern und Fassung. Kurz nach einer Revision kann das die
+        Nachfuehrung bei geo.admin sein; ob die API noch die Vorfassung
+        liefert, zeigt die Fedlex-Abfrage in `CLAUDE.md`. Faellt Fedlex selbst
+        aus, nennt die Meldung `FedlexLeseError`.
         """
         if not run_live:
             pytest.skip("Live-Test übersprungen")
-        result = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton))
-        data = json.loads(result)
-        assert data["total_in_kanton"] == amtlich, (
-            f"{kanton}: {data['total_in_kanton']} statt {amtlich} laut VISOS-Anhang "
-            "(SR 451.12, Fassung 1.11.2026). Erst die Verordnung pruefen, dann die Quelle."
+        stichtag = datetime.now(ZoneInfo("Europe/Zurich")).date()
+        with httpx.Client(
+            timeout=60.0,
+            follow_redirects=True,
+            headers={"User-Agent": "swiss-culture-mcp-live-tests"},
+        ) as client:
+            fassung, eintraege = visos_anhang.abrufen(client, stichtag)
+
+        im_anhang = {(e.kanton, e.nummer) for e in eintraege}
+        namen = {e.nummer: e.objekt for e in eintraege}
+        soll: dict[str, set[str]] = {}
+        for kanton, nummer in im_anhang:
+            soll.setdefault(kanton, set()).add(_ANHANG_ZU_API.get((kanton, nummer), nummer))
+        assert set(soll) == set(KANTONE), (
+            f"Anhang 1 der Fassung {fassung.kennung} nennt {sorted(soll)} statt der "
+            "26 Kantone — erst den Leser gegen die Quelle pruefen."
+        )
+
+        befunde = [
+            f"Ausnahme {k} -> {v} hat kein Gegenstueck mehr im Anhang; die Liste "
+            "_ANHANG_ZU_API gehoert nachgefuehrt."
+            for k, v in _ANHANG_ZU_API.items()
+            if k not in im_anhang
+        ]
+        for kanton in sorted(soll):
+            antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+            # Ein Fehlertext des Tools ist ein Befund mit Namen, kein
+            # JSONDecodeError: Der erste Lauf dieses Tests am 3.11.2026 war rot,
+            # 18 s langsamer als sonst, und seine Ursache liess sich hinterher
+            # nicht mehr lesen. 20 s ist der Timeout des Server-Clients.
+            try:
+                data = json.loads(antwort)
+            except json.JSONDecodeError:
+                befunde.append(f"{kanton}: Server meldet {antwort[:200]!r}")
+                continue
+            ist = {str(r["isos_nummer"]) for r in data["results"]}
+            api_namen = {str(r["isos_nummer"]): r["name"] for r in data["results"]}
+            if data["total_in_kanton"] != len(soll[kanton]):
+                befunde.append(
+                    f"{kanton}: total_in_kanton {data['total_in_kanton']} statt {len(soll[kanton])}"
+                )
+            nur_anhang = sorted(soll[kanton] - ist, key=int)
+            nur_api = sorted(ist - soll[kanton], key=int)
+            if nur_anhang:
+                befunde.append(
+                    f"{kanton}: nur im Anhang "
+                    + ", ".join(f"{n} {namen.get(n, '?')}" for n in nur_anhang)
+                )
+            if nur_api:
+                befunde.append(
+                    f"{kanton}: nur in der API " + ", ".join(f"{n} {api_namen[n]}" for n in nur_api)
+                )
+        assert not befunde, (
+            f"API und VISOS-Fassung {fassung.kennung} (gueltig ab {fassung.ab:%d.%m.%Y}, "
+            f"{fassung.eli}) weichen ab:\n" + "\n".join(befunde)
         )
 
     @pytest.mark.asyncio
