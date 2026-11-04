@@ -8,7 +8,8 @@ zufaellig ueberein — dort traegt jedes Objekt genau eine Feature-ID.
 
 Diese Datei prueft die Mechanik ohne Netz. Dass die Quelle wirklich mehrere
 Features je Objekt liefert, kann sie nicht zeigen — das tut der Live-Test
-`test_live_isos_anzahl_je_kanton`, der gegen die amtlichen Zahlen prueft.
+`test_live_isos_deckt_sich_mit_der_gueltigen_visos`, der `total_in_kanton`
+aller 26 Kantone gegen die gerade gueltige VISOS-Fassung auf Fedlex prueft.
 """
 
 from __future__ import annotations

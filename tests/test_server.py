@@ -4,10 +4,16 @@ Tests für swiss-culture-mcp.
 Einheitstests mit Mocks (immer) und Live-Integrationstests (mit --run-live).
 """
 
+import asyncio
 import json
 import pathlib
+import sys
+import warnings
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
 from swiss_culture_mcp.server import (
@@ -35,6 +41,10 @@ from swiss_culture_mcp.server import (
     main,
     mcp,
 )
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+
+import visos_anhang  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures & Hilfsdaten
@@ -806,6 +816,109 @@ def run_live(request):
     return request.config.getoption("--run-live")
 
 
+# Anhang-Nummer -> API-Nummer, je Kanton, fuer den VISOS-Abgleich. Am
+# 3.11.2026 gemessen: Wilen bei Neunforn steht im Anhang unter TG (3705) und
+# unter ZH (5782); die API fuehrt nur 3705, mit `kantone: ['TG', 'ZH']`. Faellt
+# der Eintrag im Anhang weg, meldet der Live-Test das, statt die Ausnahme
+# still weiterzutragen.
+_ANHANG_ZU_API = {("ZH", "5782"): "3705"}
+
+# Modul-Alias statt `asyncio.sleep`: Der Offline-Test unten ersetzt nur diese
+# Pause, nicht das fremde Modul (CLAUDE.md, «Tests»).
+_pause = asyncio.sleep
+
+
+def _voruebergehend(antwort: str) -> bool:
+    """Kann ein zweiter Versuch diesen Fehlertext des Tools beheben?
+
+    Nur Zeitueberschreitung, Verbindungsfehler und 5xx. Ein 404, 403 oder 429
+    ist eine Antwort und wird nicht wiederholt, eine inhaltliche Abweichung
+    erst recht nicht. Die Vorlagen kommen aus `_handle_error` selbst, damit
+    eine neue Formulierung dort hier nicht still aus der Wiederholung faellt.
+    """
+    anfrage = httpx.Request("GET", "https://api3.geo.admin.ch/")
+    server_fehler = _handle_error(
+        httpx.HTTPStatusError("", request=anfrage, response=httpx.Response(503, request=anfrage))
+    ).split("(HTTP")[0]
+    return antwort.startswith(server_fehler) or antwort in (
+        _handle_error(httpx.TimeoutException("")),
+        _handle_error(httpx.ConnectError("")),
+    )
+
+
+async def _kanton_abfragen(kanton: str, wiederholt: list[str]) -> str:
+    """`bak_isos_by_kanton` fuer den VISOS-Abgleich, bei Stoerung einmal neu.
+
+    Gemessen am 3.11.2026: `api3.geo.admin.ch` antwortet meist unter einer
+    Sekunde, hat aber Ausreisser — AG 30,5 s, TI 7,9 s, mit und ohne
+    Zwischenspeicher. Der Server-Client gibt nach 20 s auf. Bei 26 Kantonen je
+    Lauf traf das zwei von rund 20 Laeufen (SO um 12:20 UTC, belegt; ein
+    erster, dessen Meldung verloren ging). Ohne zweiten Versuch oeffnete der
+    Wochenlauf deshalb Issues fuer Latenz, nicht fuer den Vertrag — genau den
+    Fehlalarm, den der Abgleich gegen Fedlex abschaffen soll.
+
+    Genau ein zweiter Versuch, und jeder wird in `wiederholt` vermerkt.
+    Scheitert auch er, kommt sein Fehlertext zurueck und wird zum Befund.
+    """
+    antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+    if _voruebergehend(antwort):
+        wiederholt.append(f"{kanton}: {antwort}")
+        await _pause(2)
+        antwort = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton, limit=500))
+    return antwort
+
+
+class TestWiederholungImVisosAbgleich:
+    """Offline: Wann der VISOS-Abgleich einen Kanton ein zweites Mal fragt."""
+
+    @staticmethod
+    def _http(code: int) -> str:
+        anfrage = httpx.Request("GET", "https://example.com")
+        return _handle_error(
+            httpx.HTTPStatusError(
+                "", request=anfrage, response=httpx.Response(code, request=anfrage)
+            )
+        )
+
+    def test_zeitueberschreitung_verbindung_und_5xx_sind_voruebergehend(self):
+        assert _voruebergehend(_handle_error(httpx.TimeoutException("")))
+        assert _voruebergehend(_handle_error(httpx.ConnectError("")))
+        assert _voruebergehend(self._http(503))
+        assert _voruebergehend(self._http(500))
+
+    def test_eine_antwort_wird_nicht_wiederholt(self):
+        for code in (404, 403, 429):
+            assert not _voruebergehend(self._http(code)), code
+        assert not _voruebergehend('{"kanton": "SO", "total_in_kanton": 36}')
+
+    async def test_nach_einer_stoerung_genau_ein_zweiter_versuch(self, monkeypatch):
+        timeout = _handle_error(httpx.TimeoutException(""))
+        tool = AsyncMock(side_effect=[timeout, '{"ok": 1}'])
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        wiederholt: list[str] = []
+        assert await _kanton_abfragen("SO", wiederholt) == '{"ok": 1}'
+        assert tool.await_count == 2
+        assert wiederholt == [f"SO: {timeout}"]
+
+    async def test_zwei_stoerungen_bleiben_ein_befund(self, monkeypatch):
+        timeout = _handle_error(httpx.TimeoutException(""))
+        tool = AsyncMock(return_value=timeout)
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        assert await _kanton_abfragen("SO", []) == timeout
+        assert tool.await_count == 2
+
+    async def test_eine_absage_wird_nicht_wiederholt(self, monkeypatch):
+        tool = AsyncMock(return_value=self._http(404))
+        monkeypatch.setattr(sys.modules[__name__], "bak_isos_by_kanton", tool)
+        monkeypatch.setattr(sys.modules[__name__], "_pause", AsyncMock())
+        wiederholt: list[str] = []
+        await _kanton_abfragen("SO", wiederholt)
+        assert tool.await_count == 1
+        assert wiederholt == []
+
+
 @pytest.mark.live
 class TestLiveApis:
     @pytest.mark.asyncio
@@ -818,46 +931,106 @@ class TestLiveApis:
         assert any(r["name"] == "Zürich" for r in data["results"])
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(("kanton", "amtlich"), [("ZH", 73), ("GR", 107)])
-    async def test_live_isos_anzahl_je_kanton(self, run_live, kanton, amtlich):
-        """Exakte Zahlen — sie stehen in einer Verordnung, nicht in einem Index.
+    async def test_live_isos_deckt_sich_mit_der_gueltigen_visos(self, run_live):
+        """Die API gegen die VISOS, die heute gilt — Sollwerte live von Fedlex.
 
-        Grundlage ist der Anhang 1 der VISOS (SR 451.12) in der Fassung vom
-        1.11.2026 (V vom 18.9.2026, AS 2026 488), am 3.11.2026 ausgezaehlt:
-        1255 Eintraege, davon ZH 73 und GR 107. Alle 26 Kantone stimmen in der
-        Anzahl mit dem, was `api3.geo.admin.ch` liefert, GR auch Nummer fuer
-        Nummer.
+        Massstab ist Anhang 1 der VISOS (SR 451.12) in der Fassung, die am
+        Stichtag gilt. `scripts/visos_anhang.py` liest sie zur Laufzeit; offline
+        geprueft wird der Leser in `tests/test_visos_anhang.py`.
 
-        Die Vorfassung vom 1.6.2026 setzte GR 105 fest. Die Revision nahm
-        Hinterrhein (2061), Jenaz (2065) und Vals-Platz (2296) auf und strich
-        Roveredo (2183); der geplante Lauf vom 2.11.2026 wurde darauf rot, auf
-        demselben Commit, der eine Woche zuvor gruen war. Das ist der Fall, fuer
-        den dieser Test da ist, und er kommt mit jeder Revision wieder.
+        Bis zum 3.11.2026 standen hier feste Zahlen, ZH 73 und GR 105 aus der
+        Fassung vom 1.6.2026. Am 1.11.2026 trat eine Revision in Kraft (AS 2026
+        488: Hinterrhein, Jenaz, Vals-Platz neu, Roveredo gestrichen), die API
+        zog nach, und der geplante Lauf vom 2.11.2026 wurde rot — auf demselben
+        Commit, der eine Woche zuvor gruen war. Der Server lieferte die
+        gueltige Zahl; veraltet war der Test. Feste Zahlen fragen «wurde die
+        VISOS revidiert?», und das ist kein Vertrag mit der Quelle. Dieser Test
+        fragt nur noch: «Liefert der Server, was die gueltige Verordnung
+        festsetzt?»
 
-        «In der Anzahl», nicht in der Menge: Wilen bei Neunforn fuehrt der
-        Anhang zweimal, unter TG als 3705 und unter ZH als 5782. Die API kennt
-        nur 3705, mit `kantone: ['TG', 'ZH']`. Fuer ZH ergeben beide 73,
-        schweizweit liefert die API 1254 statt 1255. Wer hier Nummernmengen
-        oder die Landessumme vergleicht, muss diesen Fall ausnehmen.
+        Verglichen wird je Kanton zweierlei, und beides braucht es:
 
-        Sonst waere hier eine Untergrenze richtig. Diese Liste aendert sich
-        aber nur, wenn der Bundesrat die Verordnung aendert — kein laufender
-        Bestand, der um ein paar Eintraege schwankt. Faellt der Test, ist die
-        erste Frage nicht «ist die Quelle kaputt», sondern «wurde die VISOS
-        revidiert»: Anhang 1 auf fedlex.admin.ch nachzaehlen und die Zahl hier
-        mit dem Datum der neuen Fassung anpassen.
+        * die **Nummern** — eine Revision, die ein Ortsbild streicht und ein
+          anderes aufnimmt, laesst die Anzahl gleich;
+        * `total_in_kanton` — gegen den alten Fehler, Features statt Ortsbilder
+          zu zaehlen (GR 507 statt 105). Als Menge fallen doppelte Nummern
+          zusammen; nur die Anzahl sieht ihn.
 
-        GR steht hier, weil ZH allein nichts unterscheidet: Dort traegt jedes
-        Objekt genau eine Feature-ID, die alte Zaehlung nach `id` kam also auf
-        dieselben 73. In GR kamen 507 heraus.
+        Rot heisst: API und gueltige Verordnung weichen ab, die Meldung nennt
+        Kanton, Nummern und Fassung. Kurz nach einer Revision kann das die
+        Nachfuehrung bei geo.admin sein; ob die API noch die Vorfassung
+        liefert, zeigt die Fedlex-Abfrage in `CLAUDE.md`. Faellt Fedlex selbst
+        aus, nennt die Meldung `FedlexLeseError`.
         """
         if not run_live:
             pytest.skip("Live-Test übersprungen")
-        result = await bak_isos_by_kanton(IsosKantonInput(kanton=kanton))
-        data = json.loads(result)
-        assert data["total_in_kanton"] == amtlich, (
-            f"{kanton}: {data['total_in_kanton']} statt {amtlich} laut VISOS-Anhang "
-            "(SR 451.12, Fassung 1.11.2026). Erst die Verordnung pruefen, dann die Quelle."
+        stichtag = datetime.now(ZoneInfo("Europe/Zurich")).date()
+        with httpx.Client(
+            timeout=60.0,
+            follow_redirects=True,
+            headers={"User-Agent": "swiss-culture-mcp-live-tests"},
+        ) as client:
+            fassung, eintraege = visos_anhang.abrufen(client, stichtag)
+
+        im_anhang = {(e.kanton, e.nummer) for e in eintraege}
+        namen = {e.nummer: e.objekt for e in eintraege}
+        soll: dict[str, set[str]] = {}
+        for kanton, nummer in im_anhang:
+            soll.setdefault(kanton, set()).add(_ANHANG_ZU_API.get((kanton, nummer), nummer))
+        assert set(soll) == set(KANTONE), (
+            f"Anhang 1 der Fassung {fassung.kennung} nennt {sorted(soll)} statt der "
+            "26 Kantone — erst den Leser gegen die Quelle pruefen."
+        )
+
+        befunde = [
+            f"Ausnahme {k} -> {v} hat kein Gegenstueck mehr im Anhang; die Liste "
+            "_ANHANG_ZU_API gehoert nachgefuehrt."
+            for k, v in _ANHANG_ZU_API.items()
+            if k not in im_anhang
+        ]
+        wiederholt: list[str] = []
+        for kanton in sorted(soll):
+            antwort = await _kanton_abfragen(kanton, wiederholt)
+            # Ein Fehlertext des Tools ist ein Befund mit Namen, kein
+            # JSONDecodeError: Der erste Lauf dieses Tests am 3.11.2026 war rot,
+            # 18 s langsamer als sonst, und seine Ursache liess sich hinterher
+            # nicht mehr lesen. Der zweite solche Lauf nannte sie dank dieser
+            # Zeile: SO, Zeitueberschreitung nach 20 s.
+            try:
+                data = json.loads(antwort)
+            except json.JSONDecodeError:
+                befunde.append(f"{kanton}: Server meldet {antwort[:200]!r}")
+                continue
+            ist = {str(r["isos_nummer"]) for r in data["results"]}
+            api_namen = {str(r["isos_nummer"]): r["name"] for r in data["results"]}
+            if data["total_in_kanton"] != len(soll[kanton]):
+                befunde.append(
+                    f"{kanton}: total_in_kanton {data['total_in_kanton']} statt {len(soll[kanton])}"
+                )
+            nur_anhang = sorted(soll[kanton] - ist, key=int)
+            nur_api = sorted(ist - soll[kanton], key=int)
+            if nur_anhang:
+                befunde.append(
+                    f"{kanton}: nur im Anhang "
+                    + ", ".join(f"{n} {namen.get(n, '?')}" for n in nur_anhang)
+                )
+            if nur_api:
+                befunde.append(
+                    f"{kanton}: nur in der API " + ", ".join(f"{n} {api_namen[n]}" for n in nur_api)
+                )
+        if wiederholt:
+            # Sichtbar im Lauf, auch wenn er gruen endet: Wer die Latenz der
+            # Quelle beobachten will, findet sie in der Warnungsliste.
+            warnings.warn(
+                "VISOS-Abgleich: nach voruebergehender Stoerung erneut gefragt — "
+                + "; ".join(wiederholt),
+                stacklevel=1,
+            )
+        assert not befunde, (
+            f"API und VISOS-Fassung {fassung.kennung} (gueltig ab {fassung.ab:%d.%m.%Y}, "
+            f"{fassung.eli}) weichen ab:\n"
+            + "\n".join(befunde)
+            + (f"\nErneut gefragt: {'; '.join(wiederholt)}" if wiederholt else "")
         )
 
     @pytest.mark.asyncio
