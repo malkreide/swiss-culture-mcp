@@ -30,7 +30,7 @@ news.admin.ch RSS, opendata.swiss CKAN, lebendige-traditionen.ch — siehe
 | Binding | stdio-Transport als Default; der optionale `streamable_http`-Transport bindet auf `127.0.0.1` und verweigert das Binden auf `0.0.0.0`, sofern nicht `MCP_ALLOW_PUBLIC_BIND=true` explizit gesetzt ist (SEC-003) |
 | Input | Pydantic-v2-Validierung auf jedem Tool-Input-Modell; ISOS-Detail-Slugs werden vor der Nutzung per Regex validiert (SEC-005) |
 | XML | RSS-Parsing nutzt `defusedxml.ElementTree` — schützt vor XXE und Billion-Laughs (SEC-004) |
-| HTML | Nicht vertrauenswürdiges HTML von lebendige-traditionen.ch wird defensiv geparst; Regressions-Fixtures sichern den Scraper ab (SEC-019) |
+| HTML | lebendige-traditionen.ch wird als JSON gelesen; das HTML in seinen Textfeldern geht durch Pythons `html.parser`, nicht durch reguläre Ausdrücke. Aufgezeichnete Antworten der Quelle sichern den Leser ab (SEC-019) |
 | Tools | Jedes Tool setzt `readOnlyHint: True`; es existieren keine Schreib-, Mutations- oder Löschpfade |
 | Secrets | Keine erforderlich — der Server nutzt keinen API-Key und keine Credentials; nichts Geheimes wird gespeichert oder geloggt |
 | Fehler | Upstream-Fehlerbodies werden nur auf stderr geloggt; das Modell erhält eine generische, nicht leckende Meldung (SEC-006) |

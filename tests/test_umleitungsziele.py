@@ -30,7 +30,7 @@ ABGERUFEN = {
     "geo_searchserver": "GEO_ADMIN_SEARCH",
     "ckan": "CKAN_BASE",
     "rss": "RSS_BASE",
-    "traditionen_liste": "TRADITIONS_BASE",
+    "traditionen_liste": "TRADITIONEN_API",
 }
 
 

@@ -29,7 +29,15 @@ BAK_ORG = "bundesamt-fur-kultur-bak"
 RSS_BASE = "https://www.newsd.admin.ch/newsd/feeds/rss"
 BAK_ORG_NR = "314"  # BAK-Organisations-ID im News Service Bund
 
-TRADITIONS_BASE = "https://www.lebendige-traditionen.ch/tradition/de/home"
+# lebendige-traditionen.ch ist eine Nuxt-Anwendung und laedt ihre Inhalte als
+# JSON von `/api/collector/de/<slug>.json` (gemessen am 7.11.2026). Die frueheren
+# HTML-Adressen unter `/tradition/de/home/...` antworten seit dem Umbau mit 404
+# (festgestellt am 3.11.2026, am 16.8.2026 noch 200) und leiten nicht weiter.
+# Die alte Listenadresse bleibt als Konstante stehen, damit der Recorder prueft,
+# dass sie tot bleibt — wie `BAK_WEBSITE_TOT`.
+TRADITIONEN_SEITE = "https://www.lebendige-traditionen.ch"
+TRADITIONEN_API = f"{TRADITIONEN_SEITE}/api/collector/de"
+TRADITIONEN_LISTE_TOT = f"{TRADITIONEN_SEITE}/tradition/de/home/liste/liste.html"
 
 GISOS_BASE = "https://www.gisos.bak.admin.ch/sites"
 

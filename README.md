@@ -64,7 +64,7 @@
 | **geo.admin.ch** | REST MapServer | ISOS (Federal Inventory of Swiss Townscapes) |
 | **news.admin.ch** | RSS Feed | BAK press releases, cultural prizes |
 | **opendata.swiss** | CKAN REST API | BAK open data datasets |
-| **lebendige-traditionen.ch** | HTML Fetch | 228 entries of intangible cultural heritage |
+| **lebendige-traditionen.ch** | JSON (the website's own interface) | 228 entries of intangible cultural heritage |
 
 ---
 
@@ -384,11 +384,12 @@ PYTHONPATH=src pytest tests/ -m "live"
 ## Known Limitations
 
 - **ISOS statistics:** Sample-based per canton (not exhaustive for all cantons)
-- **Living Traditions:** HTML scraping – may break if lebendige-traditionen.ch changes its structure
+- **Living Traditions:** read from the JSON interface the website itself loads (`/api/collector/de/…`), not a documented public API – it can change without notice; the weekly live run checks it
 - **BAK news/prizes:** RSS feed limited to the most recent entries
 - **opendata.swiss CKAN:** Full-text search may return results from other publishers
 - **The addresses this server hands out are measured, not assumed.** `scripts/record_fixtures.py` re-checks every one on each run, together with four controls (an invented geo.admin.ch service, an invented BAK path, an invented news organisation number, an invented tradition slug). On 2026-08-08 one was dead: `bak_isos_overview` published `.../home/kulturerbe/baukultur.html` as its BAK source — HTTP 404, as is the whole `kulturerbe` branch. It was replaced by the BAK root, which verifiably answers 200, not by a guessed replacement URL.
 - **Everything else held.** geo.admin.ch, opendata.swiss, gisos, isos, the news feed with `org-nr=314` and the tradition pages all return real content. That null result is recorded too: without it the next pass starts from nothing.
+- **On 2026-11-03 the tradition pages were gone.** lebendige-traditionen.ch had been rebuilt; its old addresses answered 404 and both tradition tools failed in production, while every unit test stayed green — their fixtures were hand-written and encoded exactly the assumption that had broken. The tools now read the site's JSON interface, the recorder stores real responses, and the weekly live run covers the traditions.
 
 ---
 

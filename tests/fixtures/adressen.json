@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-08-16",
+  "recorded_at": "2026-11-07",
   "adressen": {
     "geo_mapserver": {
       "url": "https://api3.geo.admin.ch/rest/services/all/MapServer",
@@ -8,7 +8,7 @@
       "umgeleitet": false,
       "status": 200,
       "content_type": "application/json",
-      "bytes": 2690209,
+      "bytes": 2694237,
       "warum": "die Ebenenliste, aus der ISOS gelesen wird"
     },
     "geo_searchserver": {
@@ -18,7 +18,7 @@
       "umgeleitet": false,
       "status": 200,
       "content_type": "application/json",
-      "bytes": 28944,
+      "bytes": 29319,
       "warum": "die Ortssuche"
     },
     "kontrolle_geo_erfunden": {
@@ -38,7 +38,7 @@
       "umgeleitet": true,
       "status": 200,
       "content_type": "application/json;charset=utf-8",
-      "bytes": 7486,
+      "bytes": 7420,
       "warum": "die CKAN-Suche"
     },
     "gisos": {
@@ -58,7 +58,7 @@
       "umgeleitet": true,
       "status": 200,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 502267,
+      "bytes": 372111,
       "warum": "die BAK-Website, die ausgegeben wird"
     },
     "bak_baukultur_tot": {
@@ -68,7 +68,7 @@
       "umgeleitet": false,
       "status": 404,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 491560,
+      "bytes": 331540,
       "warum": "die frueher ausgegebene BAK-Seite"
     },
     "kontrolle_bak_erfunden": {
@@ -78,7 +78,7 @@
       "umgeleitet": false,
       "status": 404,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 491576,
+      "bytes": 331556,
       "warum": "KONTROLLE: erfundener BAK-Pfad"
     },
     "rss": {
@@ -88,7 +88,7 @@
       "umgeleitet": false,
       "status": 200,
       "content_type": "",
-      "bytes": 345000,
+      "bytes": 345748,
       "warum": "der News-Feed mit org-nr=314"
     },
     "kontrolle_rss_erfunden": {
@@ -102,32 +102,42 @@
       "warum": "KONTROLLE: erfundene Organisationsnummer"
     },
     "traditionen_liste": {
+      "url": "https://www.lebendige-traditionen.ch/api/collector/de/alle-traditionen.json",
+      "final_url": "https://www.lebendige-traditionen.ch/api/collector/de/alle-traditionen.json",
+      "final_host": "www.lebendige-traditionen.ch",
+      "umgeleitet": false,
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 137581,
+      "warum": "die Traditionsliste (JSON)"
+    },
+    "traditionen_liste_tot": {
       "url": "https://www.lebendige-traditionen.ch/tradition/de/home/liste/liste.html",
       "final_url": "https://www.lebendige-traditionen.ch/tradition/de/home/liste/liste.html",
       "final_host": "www.lebendige-traditionen.ch",
       "umgeleitet": false,
-      "status": 200,
+      "status": 404,
       "content_type": "text/html;charset=utf-8",
-      "bytes": 41329,
-      "warum": "die Traditionsliste"
+      "bytes": 75778,
+      "warum": "die fruehere Listenseite, seit dem Umbau 404"
     }
   },
   "traditionen": {
     "aarauer-bachfischet": {
       "status": 200,
-      "bytes": 52682
+      "bytes": 13022
     },
     "aareschwimmen-in-bern": {
       "status": 200,
-      "bytes": 55154
+      "bytes": 15334
     },
     "aargauer-und-solothurner-jugendfeste": {
       "status": 200,
-      "bytes": 53170
+      "bytes": 13764
     },
     "KONTROLLE_erfundener_slug": {
       "status": 404,
-      "bytes": 4349
+      "bytes": 189
     }
   }
 }
