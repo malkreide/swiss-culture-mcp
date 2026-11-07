@@ -4,6 +4,7 @@ Logger-Setup lebt hier, weil alle Sicherheits-relevanten Events (geblockte
 Hosts, Upstream-Fehler) in diesem Modul entstehen.
 """
 
+import asyncio
 import logging
 import os
 import sys
@@ -79,22 +80,69 @@ def _assert_host_allowed(url: httpx.URL) -> None:
         raise httpx.RequestError(f"Host nicht erlaubt: {url.host}")
 
 
+# ---------------------------------------------------------------------------
+# Ein zweiter Versuch bei voruebergehenden Stoerungen
+# ---------------------------------------------------------------------------
+#
+# Gemessen am 3.11.2026: `api3.geo.admin.ch` antwortet meist unter einer
+# Sekunde, hat aber Ausreisser — AG 30,5 s, TI 7,9 s, mit und ohne
+# Zwischenspeicher. Nach `TIMEOUT` (20 s) gibt der Client auf, und das Werkzeug
+# meldet «Zeitueberschreitung», obwohl eine zweite Anfrage gleich danach in
+# unter einer Sekunde antwortet. Der Live-Test lief bei 26 Anfragen je Lauf in
+# 2 von rund 20 Laeufen genau da hinein.
+#
+# Wiederholt wird **einmal**, und nur, was eine Stoerung ist: Zeitueberschreitung,
+# Netzwerkfehler, eine Gegenseite, die die Verbindung ohne Antwort schliesst,
+# und HTTP 502/503/504. Eine Antwort wird nie wiederholt — 4xx, 500, ein
+# verbotener Zielhost (`_assert_host_allowed`), eine Umleitungsschleife: Sie
+# kaeme beim zweiten Mal gleich zurueck, und ein zweiter Versuch taete so, als
+# waere sie eine Stoerung. Alle Aufrufe sind GET, wiederholen ist also folgenlos.
+#
+# Der Preis: Haengen beide Versuche, wartet ein Werkzeug hoechstens
+# 2 x TIMEOUT + PAUSE (41 s) statt 20 s. Bei einem Ausreisser wie dem gemessenen
+# sind es gut 21 s — und eine Antwort statt einer Fehlermeldung.
+
+VERSUCHE = 2
+PAUSE_S = 1.0
+_VORUEBERGEHENDE_FEHLER = (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError)
+_VORUEBERGEHENDE_STATUS = frozenset({502, 503, 504})
+# Modul-Alias: Tests ersetzen diese Pause, nicht `asyncio.sleep` selbst — das
+# wuerde die Mechanik im ganzen Prozess entschaerfen (CLAUDE.md, «Tests»).
+_pause = asyncio.sleep
+
+
+async def _abrufen(url: str, params: dict | None) -> httpx.Response:
+    """GET mit Host-Allowlist und genau einem zweiten Versuch bei einer Stoerung."""
+    client = _get_http_client()
+    for versuch in range(1, VERSUCHE + 1):
+        letzter = versuch == VERSUCHE
+        try:
+            response = await client.get(url, params=params)
+        except _VORUEBERGEHENDE_FEHLER as e:
+            if letzter:
+                raise
+            grund = type(e).__name__
+        else:
+            # Ausserhalb des `try`: Ein verbotener Host ist eine Antwort, keine
+            # Stoerung, und wird nicht wiederholt.
+            _assert_host_allowed(response.url)
+            if letzter or response.status_code not in _VORUEBERGEHENDE_STATUS:
+                response.raise_for_status()
+                return response
+            grund = f"HTTP {response.status_code}"
+        logger.warning("upstream_retry versuch=%d grund=%s url=%s", versuch, grund, url)
+        await _pause(PAUSE_S)
+    raise AssertionError("unerreichbar")  # pragma: no cover
+
+
 async def _get(url: str, params: dict | None = None) -> dict:
     """HTTP GET mit einheitlichem Error-Handling und Host-Allowlist."""
-    client = _get_http_client()
-    response = await client.get(url, params=params)
-    _assert_host_allowed(response.url)
-    response.raise_for_status()
-    return response.json()
+    return (await _abrufen(url, params)).json()
 
 
 async def _get_text(url: str, params: dict | None = None) -> str:
     """HTTP GET, gibt rohen Text zurück (für HTML/XML)."""
-    client = _get_http_client()
-    response = await client.get(url, params=params)
-    _assert_host_allowed(response.url)
-    response.raise_for_status()
-    return response.text
+    return (await _abrufen(url, params)).text
 
 
 def _handle_error(e: Exception) -> str:
