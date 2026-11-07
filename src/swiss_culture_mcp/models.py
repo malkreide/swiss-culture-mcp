@@ -140,8 +140,9 @@ class TraditionDetailInput(BaseModel):
     slug: str = Field(
         ...,
         description=(
-            "URL-Slug der Tradition (z.B. 'alphorn--und-buechelspiel', 'fasnacht-basel', "
-            "'schwingen'). Aus bak_list_traditions oder als bekannte Tradition eingeben."
+            "Slug der Tradition (z.B. 'alphorn-und-buechelspiel', 'basler-fasnacht', "
+            "'schwingen'). Aus bak_list_traditions; seit dem Umbau der Website im "
+            "Herbst 2026 sind manche alten Slugs ungueltig."
         ),
         min_length=3,
         max_length=200,

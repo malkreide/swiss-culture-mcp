@@ -13,7 +13,7 @@ import copy
 import json
 from pathlib import Path
 
-from swiss_culture_mcp.constants import BAK_WEBSITE, BAK_WEBSITE_TOT
+from swiss_culture_mcp.constants import BAK_WEBSITE, BAK_WEBSITE_TOT, TRADITIONEN_LISTE_TOT
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -32,6 +32,11 @@ class TestLebendeAdressen:
         a = _adressen()["adressen"]
         for label in ("geo_mapserver", "geo_searchserver", "ckan", "gisos", "bak_wurzel", "rss"):
             assert a[label]["status"] == 200, f"{label}: {a[label]['status']}"
+
+    def test_die_traditionsliste_antwortete_mit_json(self):
+        eintrag = _adressen()["adressen"]["traditionen_liste"]
+        assert eintrag["status"] == 200, eintrag
+        assert eintrag["content_type"].startswith("application/json"), eintrag
 
     def test_die_traditionsseiten_antworteten_mit_200(self):
         t = _adressen()["traditionen"]
@@ -86,6 +91,12 @@ class TestToteAdresse:
         code = Path(server.__file__).read_text(encoding="utf-8")
         assert "kulturerbe/baukultur.html" not in code
         assert "BAK_WEBSITE" in code
+
+    def test_die_fruehere_traditionsliste_war_404(self):
+        """Seit dem Umbau von lebendige-traditionen.ch (festgestellt 3.11.2026)."""
+        a = _adressen()["adressen"]
+        assert a["traditionen_liste_tot"]["status"] == 404
+        assert a["traditionen_liste_tot"]["url"] == TRADITIONEN_LISTE_TOT
 
     def test_die_ersatzadresse_ist_die_gepruefte(self):
         a = _adressen()["adressen"]

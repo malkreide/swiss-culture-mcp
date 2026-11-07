@@ -53,7 +53,7 @@ jobs:
           set +e
           # `--run-live` ist nicht optional: Ohne die Option ueberspringt sich
           # jeder `-m live`-Test selbst (conftest.py, Vorgabe False), und der
-          # Lauf endet mit 4 uebersprungen / Exit 0. `tests/test_live_workflow.py`
+          # Lauf endet mit lauter uebersprungenen Tests / Exit 0. `tests/test_live_workflow.py`
           # haelt fest, dass sie hier steht.
           PYTHONPATH=src pytest tests/ -m live -v --run-live --junitxml=live-report.xml 2>&1 | tee live-output.txt
           echo "pytest_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"

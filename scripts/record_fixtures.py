@@ -23,15 +23,20 @@ WAS DER ERSTE VERGLEICH AM 2026-08-08 ERGAB.
   Traditionsseiten liefern echte Inhalte. Das ist ein Nullbefund und gehoert
   trotzdem aufgezeichnet: Ohne ihn faengt der naechste Durchgang bei null an.
 
-EIN BEINAHE-FEHLBEFUND, DER HIERHER GEHOERT. `{TRADITIONS_BASE}` allein
-antwortet mit 404 — dem Stamm fehlt ein `.html`, und die Wurzel der Seite
-leitet auf `/tradition/de/home.html` um. Daraus folgt aber **nichts**: Der
-Server ruft den Stamm nie allein auf, sondern nur
-`{TRADITIONS_BASE}/liste/liste.html` und
-`{TRADITIONS_BASE}/traditionen/<slug>.html`, und beide antworten mit 200.
-Der erste Testabruf schlug bloss fehl, weil ICH einen Slug geraten hatte.
-Deshalb zieht dieses Skript die Slugs aus der Listenseite, statt sie sich
-auszudenken.
+EIN BEINAHE-FEHLBEFUND, DER HIERHER GEHOERT. Der erste Testabruf einer
+Traditionsseite schlug fehl, weil ICH einen Slug geraten hatte — ein 404, der
+wie ein Befund aussah und keiner war. Deshalb zieht dieses Skript die Slugs
+aus der Liste, statt sie sich auszudenken.
+
+DER UMBAU VON LEBENDIGE-TRADITIONEN.CH. Am 3.11.2026 brach dieses Skript ab:
+Die Listenseite `/tradition/de/home/liste/liste.html` antwortete mit 404, am
+16.8.2026 noch mit 200. Die Website ist eine Nuxt-Anwendung geworden und laedt
+ihre Inhalte als JSON von `/api/collector/de/<slug>.json`. Das Skript misst
+jetzt diese Adressen, haelt fest, dass die alte Liste tot bleibt, und zeichnet
+echte Antworten auf: die Liste, eine Tradition mit Kanton und UNESCO-Eintrag
+(Basler Fasnacht), eine ueberregionale (Alphorn- und Buechelspiel) und eine,
+deren Abschnitt «Kanton» als h4 steht (Gebaerdensprachen). Die frueheren Fixtures dazu waren von Hand geschrieben — sie
+hielten die Unit-Tests gruen, waehrend beide Werkzeuge produktiv scheiterten.
 
 OHNE KONTROLLEN BELEGT DAS NICHTS. Zu jeder Messung gehoert ein frei
 erfundenes Gegenstueck — ein Pfad, ein Slug, ein Dienst, den es sicher nicht
@@ -44,9 +49,9 @@ mehr zu unterscheiden.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
-import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -67,8 +72,20 @@ from swiss_culture_mcp.constants import (  # noqa: E402
     CKAN_BASE,
     GISOS_BASE,
     RSS_BASE,
-    TRADITIONS_BASE,
+    TRADITIONEN_LISTE_TOT,
 )
+from swiss_culture_mcp.traditionen import (  # noqa: E402
+    LISTE_SLUG,
+    api_url,
+    parse_detail,
+    parse_liste,
+)
+
+# Die Traditionen, deren Antwort als Fixture aufgezeichnet wird: eine mit Kanton
+# und UNESCO-Eintrag, eine ueberregionale mit Platzhalter-Link, und eine, auf
+# der «Kanton» als h4 statt h2 steht und «CH» die ganze Schweiz meint — drei
+# der Formen, die das Inventar am 7.11.2026 tatsaechlich trug.
+TRADITIONEN_FIXTURES = ("basler-fasnacht", "alphorn-und-buechelspiel", "gebaerdensprachen")
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; swiss-culture-mcp-fixtures/1.0)"}
 GEO = "https://api3.geo.admin.ch/rest/services"
@@ -92,6 +109,22 @@ def record() -> int:
             }
         )
         print(f"ok  {name:<26} {len(text.encode('utf-8')):>7} B")
+
+    def write_gz(name: str, content: bytes, url: str, rule: str) -> None:
+        # Die Antwort unveraendert, gzip mit `mtime=0`: dieselbe Antwort ergibt
+        # dieselbe Datei.
+        daten = gzip.compress(content, compresslevel=9, mtime=0)
+        (FIXTURES / name).write_bytes(daten)
+        entries.append(
+            {
+                "name": name,
+                "url": url,
+                "rule": f"{rule}. Unkomprimiert {len(content)} B",
+                "bytes": len(daten),
+                "sha256": hashlib.sha256(daten).hexdigest(),
+            }
+        )
+        print(f"ok  {name:<26} {len(daten):>7} B (gz)")
 
     with httpx.Client(timeout=90.0, follow_redirects=True, headers=HEADERS) as c:
         sonden = [
@@ -125,7 +158,12 @@ def record() -> int:
                 f"{RSS_BASE}?lang=de&org-nr=999999",
                 "KONTROLLE: erfundene Organisationsnummer",
             ),
-            ("traditionen_liste", f"{TRADITIONS_BASE}/liste/liste.html", "die Traditionsliste"),
+            ("traditionen_liste", api_url(LISTE_SLUG), "die Traditionsliste (JSON)"),
+            (
+                "traditionen_liste_tot",
+                TRADITIONEN_LISTE_TOT,
+                "die fruehere Listenseite, seit dem Umbau 404",
+            ),
         ]
         adressen: dict[str, dict] = {}
         for label, url, warum in sonden:
@@ -155,22 +193,38 @@ def record() -> int:
         #
         # Der erste Versuch mit einem geratenen Slug ergab 404 und sah nach
         # einem Befund aus. Er war keiner.
-        liste = c.get(f"{TRADITIONS_BASE}/liste/liste.html").text
-        slugs = sorted(
-            set(re.findall(r"/tradition/de/home/traditionen/([a-z0-9_-]+)\.html", liste))
-        )
+        liste_antwort = c.get(api_url(LISTE_SLUG))
+        liste_antwort.raise_for_status()
+        slugs = [t["slug"] for t in parse_liste(liste_antwort.json())["traditionen"]]
         if len(slugs) < 5:
             raise SystemExit(
-                f"Nur {len(slugs)} Slugs auf der Listenseite gefunden. Entweder "
-                "hat sich ihre Form geaendert, oder die Seite ist leer — beides "
-                "gehoert geprueft, bevor daraus eine Fixture wird."
+                f"Nur {len(slugs)} Slugs in der Liste gefunden. Entweder hat sich "
+                "ihre Form geaendert, oder die Liste ist leer — beides gehoert "
+                "geprueft, bevor daraus eine Fixture wird."
+            )
+        fehlend = sorted(set(TRADITIONEN_FIXTURES) - set(slugs))
+        if fehlend:
+            raise SystemExit(
+                f"Die Fixture-Traditionen {fehlend} stehen nicht mehr in der Liste. "
+                "Dann gehoert die Auswahl geprueft, nicht still ersetzt."
             )
         proben = {}
         for s in slugs[:3]:
-            r = c.get(f"{TRADITIONS_BASE}/traditionen/{s}.html")
+            r = c.get(api_url(s))
             proben[s] = {"status": r.status_code, "bytes": len(r.content)}
-        r = c.get(f"{TRADITIONS_BASE}/traditionen/diesen-slug-gibt-es-nicht.html")
+        r = c.get(api_url("diesen-slug-gibt-es-nicht"))
         proben["KONTROLLE_erfundener_slug"] = {"status": r.status_code, "bytes": len(r.content)}
+        detail_antworten = {}
+        for s in TRADITIONEN_FIXTURES:
+            r = c.get(api_url(s))
+            r.raise_for_status()
+            gelesen = parse_detail(r.json(), s)
+            if gelesen["fehlende_abschnitte"]:
+                raise SystemExit(
+                    f"Die Seite {s} traegt die Abschnitte {gelesen['fehlende_abschnitte']} "
+                    "nicht mehr. Erst die Quelle ansehen, dann aufzeichnen."
+                )
+            detail_antworten[s] = r
 
         # -- Was tragen muss, damit die Befunde ueberhaupt etwas heissen -----
         for label in ("kontrolle_geo_erfunden", "kontrolle_bak_erfunden"):
@@ -202,6 +256,11 @@ def record() -> int:
                 "Die BAK-Baukultur-Seite ist zurueck — dann gehoert der Link "
                 "wiederhergestellt und der Befund gestrichen."
             )
+        if st["traditionen_liste_tot"] == 200:
+            raise SystemExit(
+                "Die fruehere Traditionsliste antwortet wieder mit 200 — dann "
+                "gehoert geprueft, welche Adresse die Quelle jetzt meint."
+            )
         if adressen["rss"]["bytes"] <= adressen["kontrolle_rss_erfunden"]["bytes"]:
             raise SystemExit(
                 "Der Feed mit der konfigurierten org-nr ist nicht groesser als "
@@ -216,10 +275,23 @@ def record() -> int:
             "Statuscode, Content-Type und Groesse je Adresse, die dieser Server "
             "baut oder ausgibt — samt vier Kontrollen mit erfundenen Werten "
             "(Dienst, Pfad, Organisationsnummer, Tradition-Slug). Die "
-            "Traditions-Slugs stammen aus der Listenseite und nicht aus einem "
+            "Traditions-Slugs stammen aus der Liste und nicht aus einem "
             "Einfall: Ein geratener Slug erzeugte beim ersten Versuch einen "
             "404, der wie ein Befund aussah und keiner war",
         )
+        write_gz(
+            "traditionen_liste.json.gz",
+            liste_antwort.content,
+            api_url(LISTE_SLUG),
+            f"Die Antwort der Traditionsliste, unveraendert: {len(slugs)} Traditionen",
+        )
+        for s, r in detail_antworten.items():
+            write_gz(
+                f"tradition_{s}.json.gz",
+                r.content,
+                api_url(s),
+                f"Die Antwort der Detailseite {s}, unveraendert",
+            )
 
     _write_provenance(recorded_at, entries)
     print(f"\nPROVENANCE.md geschrieben, Aufzeichnungsdatum {recorded_at}")
@@ -250,16 +322,21 @@ def _write_provenance(recorded_at: str, entries: list[dict]) -> None:
         "| erfundener geo.admin.ch-Dienst | 404 | die Dienstnamen sind echt |",
         "| erfundener BAK-Pfad | 404 | der 404 der Baukultur-Seite ist echt |",
         "| erfundene News-Organisationsnummer | kleinerer Feed | `org-nr=314` filtert wirklich |",
-        "| erfundener Tradition-Slug | 404 | die Slug-Seiten sind echt |",
+        "| erfundener Tradition-Slug | 404 | die Slug-Antworten sind echt |",
         "",
         "## Ein Beinahe-Fehlbefund, der hierher gehoert",
         "",
-        "`TRADITIONS_BASE` allein antwortet mit 404 — dem Stamm fehlt ein",
-        "`.html`. Daraus folgt **nichts**: Der Server ruft den Stamm nie allein",
-        "auf, sondern nur `/liste/liste.html` und `/traditionen/<slug>.html`,",
-        "und beide antworten mit 200. Der erste Testabruf schlug fehl, weil ein",
-        "Slug geraten worden war. Dieses Skript zieht die Slugs deshalb aus der",
-        "Listenseite.",
+        "Der erste Testabruf einer Traditionsseite schlug fehl, weil ein Slug",
+        "geraten worden war. Dieses Skript zieht die Slugs deshalb aus der Liste.",
+        "",
+        "## Der Umbau von lebendige-traditionen.ch",
+        "",
+        "Die fruehere Listenseite `/tradition/de/home/liste/liste.html` antwortet",
+        "seit dem Umbau mit 404 (festgestellt am 3.11.2026, am 16.8.2026 noch 200).",
+        "Die Website laedt ihre Inhalte als JSON von `/api/collector/de/<slug>.json`;",
+        "gemessen und aufgezeichnet wird jetzt diese Schnittstelle. Die",
+        "`*.json.gz` sind ihre Antworten, unveraendert — keine von Hand",
+        "geschriebenen Fixtures mehr.",
         "",
         "Das Skript bricht ab, wenn eine Kontrolle nicht mehr traegt, wenn eine",
         "lebende Adresse stirbt oder wenn die tote zurueckkehrt.",

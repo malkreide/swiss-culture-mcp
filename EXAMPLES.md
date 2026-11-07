@@ -8,7 +8,7 @@ Lehrpersonen, Schulbehörden, Fachreferent:innen
 **Projektwoche Immaterielles Kulturerbe**
 «Welche lebendigen Traditionen gibt es in der Schweiz, die mit Musik zu tun haben, und was genau ist das Alphorn- und Büchelspiel?»
 → `bak_list_traditions()`
-→ `bak_get_tradition_detail(slug="alphorn--und-buechelspiel")`
+→ `bak_get_tradition_detail(slug="alphorn-und-buechelspiel")`
 Warum nützlich: Erlaubt Lehrpersonen, gezielt nach kulturellen Traditionen für den Unterricht zu suchen und detailliertes Material für Projektwochen aufzubereiten. (Kein API-Key erforderlich)
 
 **Lokalgeschichte im Unterricht**
@@ -27,7 +27,7 @@ Warum nützlich: Gibt Familien Inspiration für Wochenendausflüge zu historisch
 
 **Traditionen für Kinder**
 «Worum geht es bei der Basler Fasnacht genau und welche Traditionen werden da gepflegt?»
-→ `bak_get_tradition_detail(slug="fasnacht-basel")`
+→ `bak_get_tradition_detail(slug="basler-fasnacht")`
 Warum nützlich: Hilft Eltern, Kindern komplexe und historisch gewachsene Schweizer Traditionen verständlich zu erklären und kulturelle Anlässe gemeinsam vorzubereiten. (Kein API-Key erforderlich)
 
 ## 🗳️ Bevölkerung & öffentliches Interesse

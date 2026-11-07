@@ -240,6 +240,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Anfrage mit 421 ab. Beide READMEs fuehren die Variable, die Connector-URL
   `https://<host>/mcp` und den Docker-Aufruf.
 
+### Behoben
+
+- **Lebendige Traditionen: beide Werkzeuge lesen wieder.** lebendige-traditionen.ch
+  wurde zwischen dem 16.8. und dem 3.11.2026 zu einer Nuxt-Anwendung umgebaut.
+  Die alten Adressen unter `/tradition/de/home/...` antworten mit 404 und leiten
+  nicht weiter; `bak_list_traditions` meldete «Ressource nicht gefunden»,
+  `bak_get_tradition_detail` ebenso. Kein Test wurde rot: Die Fixtures waren
+  zwei von Hand geschriebene HTML-Schnipsel von zusammen 776 Bytes, und kein
+  Live-Test fragte die Seite ab.
+
+  Die Werkzeuge lesen jetzt die JSON-Schnittstelle, aus der die Website selbst
+  laedt (`/api/collector/de/<slug>.json`, gleicher Host). Neu in
+  `src/swiss_culture_mcp/traditionen.py`, ohne regulaere Ausdruecke (SEC-019):
+
+  - **Liste:** offizielle Namen statt aus dem Slug geratener, dazu
+    `unesco_repraesentative_liste` — der Stern am Titel, den die Quelle auf
+    jeder dieser Seiten als «Aufgenommen in die Repraesentative Liste des
+    immateriellen Kulturerbes der UNESCO» erklaert (9 von 228). Der
+    Buchstabenfilter findet Umlaute unter dem Grundbuchstaben. Erreicht die
+    Liste die Obergrenze der Uebersicht (250), sagt das Werkzeug, dass sie
+    abgeschnitten sein kann.
+  - **Detail:** Beschreibungstext, Kategorien und **Kantone aus der Quelle**
+    statt einer Heuristik, die im ganzen HTML nach Kantonsnamen suchte;
+    `ueberregional` fuer Traditionen, die die Seite unter «Schweiz» fuehrt;
+    verwandte Traditionen; das PDF der ausfuehrlichen Beschreibung als Link.
+    Fehlt ein erwarteter Abschnitt oder ist er nicht lesbar, steht er in
+    `fehlende_abschnitte` statt still leer zu bleiben.
+  - **Alte Slugs** (etwa `fasnacht-basel`, `alphorn--und-buechelspiel`)
+    bekommen statt «Ressource nicht gefunden» die neuen als Vorschlag.
+
+  Gegengeprueft am 7.11.2026 ueber alle 228 Detailseiten: Jede trug
+  Beschreibungstext, Kategorie und PDF, Titel und UNESCO-Kennzeichen stimmten
+  mit der Liste ueberein, und die 20 Traditionen ohne Kanton waren genau die
+  20, die die Seite unter «Schweiz» fuehrt. Der erste Entwurf hielt dem nicht
+  stand: Er las nur die Regelform des Abschnitts «Kanton» und machte fuenf
+  regionale Traditionen (darunter «Volksmusik in Graubuenden») zu
+  ueberregionalen. Gelesen werden jetzt alle fuenf Formen, die das Inventar
+  traegt.
+
+  `record_fixtures.py` misst die JSON-Adressen, haelt fest, dass die alte
+  Liste tot bleibt, und zeichnet vier echte Antworten auf; die
+  Hand-Fixtures sind geloescht. Neuer Live-Test `test_live_traditionen` an
+  gezielt gewaehlten Eintraegen. Gegenprobe: 17 Mutationen einzeln, jede
+  erkannt. Die Ausgabefelder haben sich geaendert (`name` statt
+  `name_aus_slug`, `beschreibung` statt `text_absaetze`, `kantone` statt
+  `erwaehnte_kantone`); die alten Felder lieferte das Werkzeug seit dem Umbau
+  ohnehin nicht mehr.
+
 ### Anmerkung zur Gegenprobe
 
 44 Mutationen einzeln gefahren, Bytecode-Cache je Lauf geleert, die Ankunft

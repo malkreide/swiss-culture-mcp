@@ -1,22 +1,26 @@
-# HTML-Fixtures für Regression-Tests (SEC-019)
+# Fixtures
 
-Diese Dateien sind eingefrorene Schnappschüsse der relevanten Seitenstruktur
-von **lebendige-traditionen.ch**. Sie dienen als Regression-Schutz für die
-Regex-basierten HTML-Parser in `swiss_culture_mcp.server`:
+Alle Dateien hier sind **aufgezeichnete Antworten der Quellen**, nicht von Hand
+geschrieben. Herkunft, Datum und Prüfsumme stehen in `PROVENANCE.md` (erzeugt von
+`scripts/record_fixtures.py`) und `PROVENANCE_VISOS.md` (erzeugt von
+`scripts/record_visos.py`). Nicht von Hand pflegen.
 
-| Fixture | Parser | Erwartete Felder |
+## Lebendige Traditionen (SEC-019)
+
+| Fixture | Leser | Inhalt |
 |---|---|---|
-| `tradition_alphorn.html` | `bak_get_tradition_detail` | `<title>`, `<meta name="description">`, `<p>`-Text, Kantons-Erwähnungen |
-| `tradition_list.html` | `bak_list_traditions` | `<a href="/tradition/.../<slug>.html">` |
+| `traditionen_liste.json.gz` | `traditionen.parse_liste` | Antwort von `/api/collector/de/alle-traditionen.json` |
+| `tradition_basler-fasnacht.json.gz` | `traditionen.parse_detail` | Tradition mit Kanton und UNESCO-Eintrag |
+| `tradition_alphorn-und-buechelspiel.json.gz` | `traditionen.parse_detail` | überregional, Platzhalter-Link statt Kanton |
+| `tradition_gebaerdensprachen.json.gz` | `traditionen.parse_detail` | «Kanton» als h4, «CH» für die ganze Schweiz |
 
-## Wartung
+Bis zum 7.11.2026 lagen hier zwei von Hand geschriebene HTML-Schnipsel
+(`tradition_alphorn.html`, `tradition_list.html`). Sie hielten alle Tests grün,
+während lebendige-traditionen.ch umgebaut war und beide Werkzeuge produktiv
+scheiterten — sie kodierten genau die Annahme, die gebrochen war.
 
-Wenn lebendige-traditionen.ch seine DOM-Struktur ändert:
-
-1. Aktuellen Stand fetchen, neue Fixture(s) anlegen.
-2. `tests/test_server.py::TestHtmlFixtures` updaten.
-3. Bei strukturellen Brüchen: Parser-Regex in `server.py` anpassen oder auf
-   `selectolax`/`beautifulsoup4` migrieren.
+Ändert die Quelle ihre Form: neu aufzeichnen, `tests/test_traditionen.py`
+gegen die neue Antwort laufen lassen, und was fällt, an der Quelle prüfen.
 
 ## VISOS-Aufnahmen (Sollwerte des ISOS-Live-Tests)
 
@@ -25,6 +29,5 @@ Wenn lebendige-traditionen.ch seine DOM-Struktur ändert:
 | `visos_fassungen.json` | `visos_anhang.parse_fassungen` | Alle Fassungen der VISOS (SR 451.12) aus der SPARQL-Schnittstelle von Fedlex |
 | `visos_anhang1_<JJJJMMTT>.html.gz` | `visos_anhang.parse_anhang1` | Deutsche HTML-Ausgabe der gueltigen Fassung, unveraendert, gzip |
 
-Erzeugt von `scripts/record_visos.py`, Herkunft in `PROVENANCE_VISOS.md` —
-nicht von Hand pflegen. Nach einer neuen Aufnahme gehoeren die Zahlen in
-`tests/test_visos_anhang.py` mit einer unabhaengigen Auszaehlung nachgefuehrt.
+Nach einer neuen Aufnahme gehoeren die Zahlen in `tests/test_visos_anhang.py`
+mit einer unabhaengigen Auszaehlung nachgefuehrt.

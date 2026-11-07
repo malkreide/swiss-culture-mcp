@@ -150,14 +150,6 @@ MOCK_CKAN_RESPONSE = {
     }
 }
 
-MOCK_TRADITION_HTML = (
-    pathlib.Path(__file__).parent / "fixtures" / "tradition_alphorn.html"
-).read_text(encoding="utf-8")
-
-MOCK_TRADITION_LIST_HTML = (
-    pathlib.Path(__file__).parent / "fixtures" / "tradition_list.html"
-).read_text(encoding="utf-8")
-
 # ---------------------------------------------------------------------------
 # Unit-Tests: Hilfsfunktionen
 # ---------------------------------------------------------------------------
@@ -524,10 +516,11 @@ class TestInputValidation:
         with pytest.raises(Exception):
             TraditionDetailInput(slug="schwingen?injected=1")
 
-    def test_tradition_slug_accepts_double_dash(self):
-        # Echter Slug aus Inventar: 'alphorn--und-buechelspiel'
-        inp = TraditionDetailInput(slug="alphorn--und-buechelspiel")
-        assert inp.slug == "alphorn--und-buechelspiel"
+    def test_tradition_slug_accepts_current_slug(self):
+        # Echter Slug, gemessen am 7.11.2026. Bis zum Umbau der Website hiess er
+        # 'alphorn--und-buechelspiel'; den doppelten Bindestrich gibt es nicht mehr.
+        inp = TraditionDetailInput(slug="alphorn-und-buechelspiel")
+        assert inp.slug == "alphorn-und-buechelspiel"
 
 
 # ---------------------------------------------------------------------------
@@ -695,115 +688,10 @@ class TestBakGetOpendata:
             assert "q" in call_args[1]["params"] or "q" in call_args[0][1]
 
 
-class TestBakListTraditions:
-    @pytest.mark.asyncio
-    async def test_list_returns_traditions(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_LIST_HTML
-            result = await bak_list_traditions(TraditionListInput())
-            data = json.loads(result)
-            assert data["count"] == 3  # 3 unique slugs
-            assert any("alphorn" in t["slug"] for t in data["traditions"])
-
-    @pytest.mark.asyncio
-    async def test_list_deduplication(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_LIST_HTML
-            result = await bak_list_traditions(TraditionListInput())
-            data = json.loads(result)
-            slugs = [t["slug"] for t in data["traditions"]]
-            assert len(slugs) == len(set(slugs))  # Keine Duplikate
-
-    @pytest.mark.asyncio
-    async def test_list_buchstabe_filter(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_LIST_HTML
-            result = await bak_list_traditions(TraditionListInput(buchstabe="A"))
-            data = json.loads(result)
-            assert all(t["name_aus_slug"].upper().startswith("A") for t in data["traditions"])
-
-
-class TestBakGetTraditionDetail:
-    @pytest.mark.asyncio
-    async def test_detail_extracts_title(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_HTML
-            result = await bak_get_tradition_detail(
-                TraditionDetailInput(slug="alphorn--und-buechelspiel")
-            )
-            data = json.loads(result)
-            assert "Alphorn" in data["titel"]
-            assert data["slug"] == "alphorn--und-buechelspiel"
-
-    @pytest.mark.asyncio
-    async def test_detail_extracts_description(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_HTML
-            result = await bak_get_tradition_detail(
-                TraditionDetailInput(slug="alphorn--und-buechelspiel")
-            )
-            data = json.loads(result)
-            assert "Blasinstrument" in data["meta_beschreibung"]
-
-    @pytest.mark.asyncio
-    async def test_detail_kantone_detection(self):
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = MOCK_TRADITION_HTML
-            result = await bak_get_tradition_detail(
-                TraditionDetailInput(slug="alphorn--und-buechelspiel")
-            )
-            data = json.loads(result)
-            assert "Bern" in data["erwaehnte_kantone"]
-
-
-# ---------------------------------------------------------------------------
-# HTML-Fixture-Regressionen (SEC-019)
-# ---------------------------------------------------------------------------
-
-
-class TestHtmlFixtures:
-    """Sichert die Regex-basierten Parser gegen eingefrorene HTML-Snapshots ab.
-
-    Bricht, sobald lebendige-traditionen.ch seine DOM-Struktur ändert UND die
-    eingefrorene Fixture in tests/fixtures/ aktualisiert wurde. Frühwarnsystem
-    für die Regex-Patterns in server.py.
-    """
-
-    FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
-
-    def test_alphorn_fixture_exists(self):
-        assert (self.FIXTURES_DIR / "tradition_alphorn.html").is_file()
-
-    def test_list_fixture_exists(self):
-        assert (self.FIXTURES_DIR / "tradition_list.html").is_file()
-
-    @pytest.mark.asyncio
-    async def test_alphorn_fixture_extracts_title_meta_kantone(self):
-        from swiss_culture_mcp.server import bak_get_tradition_detail
-
-        html = (self.FIXTURES_DIR / "tradition_alphorn.html").read_text(encoding="utf-8")
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = html
-            result = await bak_get_tradition_detail(
-                TraditionDetailInput(slug="alphorn--und-buechelspiel")
-            )
-            data = json.loads(result)
-            assert "Alphorn" in data["titel"]
-            assert "Blasinstrument" in data["meta_beschreibung"]
-            assert {"Bern", "Graubünden", "Wallis"}.issubset(set(data["erwaehnte_kantone"]))
-            assert any("Holzblasinstrument" in p for p in data["text_absaetze"])
-
-    @pytest.mark.asyncio
-    async def test_list_fixture_extracts_three_unique_slugs(self):
-        from swiss_culture_mcp.server import bak_list_traditions
-
-        html = (self.FIXTURES_DIR / "tradition_list.html").read_text(encoding="utf-8")
-        with patch("swiss_culture_mcp.server._get_text", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = html
-            result = await bak_list_traditions(TraditionListInput())
-            data = json.loads(result)
-            slugs = {t["slug"] for t in data["traditions"]}
-            assert slugs == {"alphorn--und-buechelspiel", "schwingen", "fasnacht-basel"}
+# Die Werkzeuge der lebendigen Traditionen stehen in `tests/test_traditionen.py`,
+# gegen aufgezeichnete Antworten der Quelle. Hier standen bis zum 7.11.2026
+# Tests gegen zwei von Hand geschriebene HTML-Schnipsel — gruen, waehrend beide
+# Werkzeuge produktiv scheiterten.
 
 
 # ---------------------------------------------------------------------------
@@ -1032,6 +920,42 @@ class TestLiveApis:
             + "\n".join(befunde)
             + (f"\nErneut gefragt: {'; '.join(wiederholt)}" if wiederholt else "")
         )
+
+    @pytest.mark.asyncio
+    async def test_live_traditionen(self, run_live):
+        """Liste und Detail gegen lebendige-traditionen.ch, an bekannten Eintraegen.
+
+        Die Website wurde zwischen dem 16.8. und dem 3.11.2026 umgebaut, und
+        keiner der damaligen Live-Tests fragte sie ab: Beide Werkzeuge waren
+        kaputt, und der Wochenlauf blieb gruen. Geprueft wird an gezielt
+        gewaehlten Eintraegen, nicht am ersten Treffer — die Basler Fasnacht
+        (ein Kanton, UNESCO-Eintrag) und das Alphorn- und Buechelspiel
+        (ueberregional). Die Gesamtzahl ist eine Untergrenze: Das Inventar
+        waechst selten, aber es waechst (2012: 167, 2017: 199, heute 228).
+        """
+        if not run_live:
+            pytest.skip("Live-Test übersprungen")
+        liste_text = await bak_list_traditions(TraditionListInput())
+        assert liste_text.startswith("{"), liste_text
+        liste = json.loads(liste_text)
+        assert liste["gesamt"] >= 228, liste["gesamt"]
+        assert "warnung" not in liste, liste["warnung"]
+        eintraege = {e["slug"]: e for e in liste["traditions"]}
+        assert eintraege["basler-fasnacht"]["unesco_repraesentative_liste"] is True
+
+        fasnacht = json.loads(
+            await bak_get_tradition_detail(TraditionDetailInput(slug="basler-fasnacht"))
+        )
+        assert fasnacht["fehlende_abschnitte"] == []
+        assert [k["kuerzel"] for k in fasnacht["kantone"]] == ["BS"]
+        assert fasnacht["beschreibung"] and fasnacht["kategorien"]
+        assert fasnacht["detailbeschreibung_pdf"]
+
+        alphorn = json.loads(
+            await bak_get_tradition_detail(TraditionDetailInput(slug="alphorn-und-buechelspiel"))
+        )
+        assert alphorn["fehlende_abschnitte"] == []
+        assert alphorn["kantone"] == [] and alphorn["ueberregional"] is True
 
     @pytest.mark.asyncio
     async def test_live_bak_news(self, run_live):

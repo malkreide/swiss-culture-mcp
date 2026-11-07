@@ -28,7 +28,7 @@ lebendige-traditionen.ch — see `README.md`). Hardening already in place:
 | Binding | stdio transport by default; the optional `streamable_http` transport binds to `127.0.0.1` and refuses to bind `0.0.0.0` unless `MCP_ALLOW_PUBLIC_BIND=true` is set explicitly (SEC-003) |
 | Input | Pydantic v2 validation on every tool input model; ISOS detail slugs are regex-validated before use (SEC-005) |
 | XML | RSS parsing uses `defusedxml.ElementTree` — protects against XXE and Billion-Laughs (SEC-004) |
-| HTML | Untrusted HTML from lebendige-traditionen.ch is parsed defensively; regression fixtures guard the scraper (SEC-019) |
+| HTML | lebendige-traditionen.ch is read as JSON; the HTML inside its text fields goes through Python's `html.parser`, not regular expressions. Recorded responses of the source guard the reader (SEC-019) |
 | Tools | Every tool sets `readOnlyHint: True`; no write, mutate, or delete paths exist |
 | Secrets | None required — the server uses no API key or credentials; nothing secret is stored or logged |
 | Errors | Upstream error bodies are logged to stderr only; the model receives a generic, non-leaking message (SEC-006) |

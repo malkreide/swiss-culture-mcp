@@ -339,8 +339,8 @@ Einordnung macht `scripts/classify_live_run.py`
 `upstream`-Issue. `schedule` greift nur auf dem Default-Branch: Änderungen
 an der Datei wirken erst nach dem Merge, vorher von Hand auslösen.
 Der pytest-Aufruf braucht **`--run-live`**; ohne die Option überspringt
-sich jeder Live-Test selbst und der Lauf endet mit 4 übersprungen /
-Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
+sich jeder Live-Test selbst und der Lauf endet mit lauter übersprungenen
+Tests / Exit 0. Der Flag fehlte, `test_live_workflow.py` hält ihn jetzt fest.
 Die Sollwerte der ISOS-Zahlen stehen weder in der API noch im Test, sondern
 im Anhang 1 der VISOS (SR 451.12). Der Live-Test liest sie zur Laufzeit aus
 der Fassung, die am Stichtag (Europe/Zurich) gilt (`scripts/visos_anhang.py`),
@@ -390,6 +390,30 @@ sichtbar als `JSONDecodeError`). Die autouse-Fixture in `conftest.py` setzt
 ihn je Live-Test zurück — ohne sie meldet der Job einen gebrochenen Vertrag,
 wo nur zwei Tests hintereinander liefen.
 
+**Lebendige Traditionen lesen JSON, nicht HTML.** lebendige-traditionen.ch
+wurde zwischen dem 16.8. und dem 3.11.2026 umgebaut; die alten Adressen
+`/tradition/de/home/...` antworten mit 404 und leiten nicht weiter. Beide
+Werkzeuge scheiterten produktiv, und alle Tests blieben grün: Ihre Fixtures
+waren zwei von Hand geschriebene HTML-Schnipsel, und kein Live-Test fragte die
+Seite ab. Die Seite lädt ihre Inhalte jetzt von `/api/collector/de/<slug>.json`
+(gleicher Host); das liest `src/swiss_culture_mcp/traditionen.py`, geprüft
+gegen echte Antworten in `tests/test_traditionen.py` und wöchentlich in
+`test_live_traditionen`. Gemessen am 7.11.2026, über alle 228 Detailseiten:
+
+- Der Abschnitt «Kanton» kommt in fünf Formen vor — Link mit Kürzel als
+  `aria-label` (die Regel), Link mit vollem Namen, Kürzel als Klartext, «CH» /
+  «Schweiz», Platzhalter («Traditionen nach Kantone», «Traditionen Liste») —
+  und auf drei Seiten als h4 statt h2. Wer nur die Regel liest, bekommt fünf
+  regionale Traditionen als überregional heraus; so geschehen beim ersten
+  Entwurf.
+- Die 20 Traditionen ohne Kanton sind genau die 20, die die Seite unter
+  «Schweiz» führt — erst nach dem Lesen aller fünf Formen.
+- «Detailbeschreibung» ist ein PDF auf `backend.lebendige-traditionen.ch`. Der
+  Server gibt es als Link aus, ohne es zu holen; der Host gehört deshalb nicht
+  in die Allowlist.
+- Die Übersicht zeigt höchstens `maxElements` (250) Einträge. Erreicht die
+  Liste diese Zahl, meldet das Werkzeug, dass sie abgeschnitten sein kann.
+
 **Wer den Cron überwacht, braucht selbst Werkzeug.** Am 17.8.2026 feuerte
 `schedule` zum ersten fälligen Termin nicht; beide bisherigen Live-Läufe
 liefen von Hand. Ein Check-in dafür als Routine (`create_trigger`) hilft nur
@@ -418,8 +442,7 @@ VISOS, von `scripts/record_visos.py` (`PROVENANCE_VISOS.md`) — getrennt, weil
 `record_fixtures.py` mit Absicht abbricht, sobald eine Adresse des Servers
 stirbt, und die Sollwert-Quelle sonst an jeder fremden Website hinge. Am
 3.11.2026 war genau das der Fall: lebendige-traditionen.ch war umgebaut. Alle
-Fixtures: nicht von
-Hand pflegen. Der Recorder bricht bei einem vorübergehenden 502 der Quelle
+Fixtures: nicht von Hand pflegen. Der Recorder bricht bei einem vorübergehenden 502 der Quelle
 ab; die Ausgabe endet dann an einer Stelle, die wegen der Pipe-Pufferung
 nicht die fehlerhafte Sonde ist. Einfach nochmal laufen lassen.
 Alles Weitere: `README.md`, `CONTRIBUTING.md`.

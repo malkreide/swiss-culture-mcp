@@ -5,17 +5,18 @@ Datenquellen:
   - geo.admin.ch REST API: ISOS (Bundesinventar schützenswerte Ortsbilder)
   - news.admin.ch RSS: BAK Medienmitteilungen und Kulturpreise
   - opendata.swiss CKAN API: BAK Open-Data-Datensätze
-  - lebendige-traditionen.ch: Immaterielle Kulturgüter (HTML-Fetch)
+  - lebendige-traditionen.ch: Immaterielle Kulturgüter (JSON der Website)
 
 Kein API-Schlüssel erforderlich. Alle Quellen sind öffentlich zugänglich.
 """
 
 import asyncio
+import difflib
 import json
 import os
-import re
 
 import defusedxml.ElementTree as ET  # noqa: N817  (conventional alias)
+import httpx
 from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
@@ -34,7 +35,6 @@ from .constants import (
     PROJECT_URL,
     RSS_BASE,
     SIEDLUNGSKATEGORIEN,
-    TRADITIONS_BASE,
 )
 from .http_client import (
     _assert_host_allowed,
@@ -55,6 +55,15 @@ from .models import (
     TraditionDetailInput,
     TraditionListInput,
 )
+from .traditionen import (
+    LISTE_SLUG,
+    TraditionenLeseError,
+    parse_liste,
+)
+from .traditionen import api_url as traditionen_api_url
+from .traditionen import buchstabe as tradition_buchstabe
+from .traditionen import parse_detail as parse_tradition_detail
+from .traditionen import seiten_url as traditionen_seiten_url
 
 __all__ = [
     # Re-exports für Backwards-Kompatibilität und Test-Suite
@@ -926,68 +935,58 @@ async def bak_get_opendata(params: OpendataInput) -> str:
     },
 )
 async def bak_list_traditions(params: TraditionListInput) -> str:
-    """Listet lebendige Traditionen der Schweiz vom offiziellen BAK-Inventar auf.
+    """Listet die lebendigen Traditionen der Schweiz aus dem offiziellen BAK-Inventar auf.
 
-    Die «Liste der lebendigen Traditionen der Schweiz» umfasst 228 Einträge
-    (Stand 2023) des immateriellen Kulturerbes: Bräuche, Feste, Handwerk,
-    Musik, Sprache und weiteres. Optional nach Anfangsbuchstabe filtern.
+    Die «Liste der lebendigen Traditionen der Schweiz» umfasst das immaterielle
+    Kulturerbe: Bräuche, Feste, Handwerk, Musik, Sprache und weiteres — zurzeit
+    228 Einträge (gemessen am 7.11.2026; die aktuelle Zahl steht in 'gesamt').
+    Namen und Slugs kommen offiziell aus der Quelle. Optional nach
+    Anfangsbuchstabe filtern; Umlaute zählen zum Grundbuchstaben (Ä unter A).
 
     Args:
         params (TraditionListInput): Parameter mit:
             - buchstabe (str, optional): Anfangsbuchstabe filtern (A–Z)
 
     Returns:
-        str: JSON mit Liste der Traditionen, je mit:
-            - name: Bezeichnung der Tradition
-            - slug: URL-Slug für bak_get_tradition_detail
-            - url: Direktlink zur BAK-Seite
+        str: JSON mit 'gesamt', 'count' und 'traditions', je mit:
+            - name: offizielle Bezeichnung
+            - slug: für bak_get_tradition_detail
+            - url: Seite auf lebendige-traditionen.ch
+            - unesco_repraesentative_liste: auch in die Repräsentative Liste des
+              immateriellen Kulturerbes der UNESCO aufgenommen
     """
     try:
-        html = await _get_text(f"{TRADITIONS_BASE}/liste/liste.html")
-        links = re.findall(r'href="(/tradition/de/home/traditionen/([^"]+\.html))"', html)
-        # Deduplizieren, Slug extrahieren
-        seen_slugs = set()
-        traditions = []
-        for path, slug_html in links:
-            slug = slug_html.replace(".html", "")
-            if slug in seen_slugs:
-                continue
-            seen_slugs.add(slug)
-            name = slug.replace("--", " – ").replace("-", " ").title()
-            traditions.append(
-                {
-                    "slug": slug,
-                    "name_aus_slug": name,
-                    "url": f"https://www.lebendige-traditionen.ch{path}",
-                }
-            )
-
-        # Buchstaben-Filter
-        if params.buchstabe:
-            letter = params.buchstabe.upper()
-            traditions = [t for t in traditions if t["name_aus_slug"].upper().startswith(letter)]
-
-        traditions = sorted(traditions, key=lambda t: t["name_aus_slug"])
-
-        return json.dumps(
-            {
-                "inventar": "Liste der lebendigen Traditionen der Schweiz",
-                "betreiber": "Bundesamt für Kultur (BAK)",
-                "aktualisiert": "2023 (228 Einträge)",
-                "buchstabe_filter": params.buchstabe,
-                "count": len(traditions),
-                "traditions": traditions,
-                "hinweis": (
-                    "Verwende 'slug' mit bak_get_tradition_detail für vollständige Beschreibung. "
-                    "Namen aus URL-Slug generiert – offizielle Bezeichnung auf Detailseite prüfen."
-                ),
-                "portal": "https://www.lebendige-traditionen.ch",
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+        liste = parse_liste(await _get(traditionen_api_url(LISTE_SLUG)))
+    except TraditionenLeseError as e:
+        return f"Fehler: lebendige-traditionen.ch antwortet in unerwarteter Form ({e})."
     except Exception as e:
         return _handle_error(e)
+
+    traditionen = liste["traditionen"]
+    gesamt = len(traditionen)
+    if params.buchstabe:
+        gesucht = tradition_buchstabe(params.buchstabe)
+        traditionen = [t for t in traditionen if tradition_buchstabe(t["name"]) == gesucht]
+
+    antwort = {
+        "inventar": "Liste der lebendigen Traditionen der Schweiz",
+        "betreiber": "Bundesamt für Kultur (BAK)",
+        "aktualisiert": liste["aktualisiert"],
+        "gesamt": gesamt,
+        "buchstabe_filter": params.buchstabe,
+        "count": len(traditionen),
+        "traditions": traditionen,
+        "hinweis": "Verwende 'slug' mit bak_get_tradition_detail für die Beschreibung.",
+        "portal": traditionen_seiten_url(LISTE_SLUG),
+    }
+    if liste["max_elements"] is not None and gesamt >= liste["max_elements"]:
+        # Die Uebersicht zeigt hoechstens `maxElements` Eintraege. Wer genau so
+        # viele bekommt, weiss nicht, ob es alle sind — und soll das erfahren.
+        antwort["warnung"] = (
+            f"Die Übersicht der Quelle zeigt höchstens {liste['max_elements']} Einträge; "
+            "diese Liste kann abgeschnitten sein."
+        )
+    return json.dumps(antwort, ensure_ascii=False, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -1006,69 +1005,74 @@ async def bak_list_traditions(params: TraditionListInput) -> str:
     },
 )
 async def bak_get_tradition_detail(params: TraditionDetailInput) -> str:
-    """Ruft die Detailbeschreibung einer lebendigen Tradition vom BAK-Inventar ab.
+    """Ruft die Beschreibung einer lebendigen Tradition aus dem BAK-Inventar ab.
 
-    Holt die offizielle Beschreibung einer Tradition von lebendige-traditionen.ch.
-    Den Slug erhält man aus bak_list_traditions oder als bekannte Kurzbezeichnung.
+    Den Slug liefert bak_list_traditions. Seit dem Umbau von
+    lebendige-traditionen.ch im Herbst 2026 haben sich manche Slugs geändert
+    (etwa 'fasnacht-basel' → 'basler-fasnacht'); ein unbekannter Slug bekommt
+    ähnliche Vorschläge zurück.
 
-    Bekannte Slugs (Auswahl):
-    - 'fasnacht-basel' → Basler Fasnacht
+    Bekannte Slugs (Auswahl, geprüft am 7.11.2026):
+    - 'basler-fasnacht' → Basler Fasnacht
     - 'schwingen' → Schwingen
-    - 'alphorn--und-buechelspiel' → Alphorn- und Büchelspiel
-    - 'sgrafitto' → Sgrafitto-Technik (GR)
-    - 'winzerfest-vevey' → Fête des Vignerons
-    - 'appenzeller-silvesterklaus' → Appenzeller Silvesterklaus
+    - 'alphorn-und-buechelspiel' → Alphorn- und Büchelspiel
+    - 'sgraffito' → Sgraffito
+    - 'winzerfest-in-vevey' → Winzerfest in Vevey
+    - 'silvesterchlausen' → Silvesterchlausen
 
     Args:
         params (TraditionDetailInput): Parameter mit:
-            - slug (str): URL-Slug der Tradition
+            - slug (str): Slug der Tradition
 
     Returns:
         str: JSON mit:
-            - titel: Offizieller Name der Tradition
-            - beschreibung: Volltext-Beschreibung
-            - kantone_mention: Im Text erwähnte Kantone (heuristisch)
-            - url: Direktlink zur BAK-Seite
+            - titel, unesco_repraesentative_liste
+            - beschreibung: Absätze des Beschreibungstexts
+            - kategorien: etwa «Gesellschaftliche Praktiken»
+            - kantone: Kürzel und Name, wie die Quelle sie zuordnet
+            - ueberregional: true, wenn die Quelle keinen einzelnen Kanton nennt
+              und die Tradition unter «Schweiz» führt
+            - verwandte_traditionen: Name und Slug
+            - detailbeschreibung_pdf: ausführliche Beschreibung als PDF
+            - fehlende_abschnitte: erwartete Abschnitte, die die Seite nicht trägt
+            - url
     """
     try:
-        url = f"{TRADITIONS_BASE}/traditionen/{params.slug}.html"
-        html = await _get_text(url)
-
-        # Titel extrahieren
-        title_match = re.search(r"<title>([^<|]+)", html)
-        titel = title_match.group(1).strip() if title_match else params.slug
-
-        # Description Meta-Tag
-        desc_match = re.search(r'<meta name="description" content="([^"]+)"', html)
-        beschreibung = desc_match.group(1) if desc_match else ""
-
-        # Weitere Textabschnitte aus <p>-Tags
-        p_tags = re.findall(r"<p[^>]*>([^<]{50,})</p>", html)
-        text_absaetze = [
-            re.sub(r"<[^>]+>", "", p).strip() for p in p_tags[:5] if len(p.strip()) > 50
-        ]
-
-        # Kantone heuristisch erkennen
-        kanton_namen = list(KANTONE.values())
-        content_lower = html.lower()
-        erwähnte_kantone = [name for name in kanton_namen if name.lower() in content_lower]
-
+        seite = await _get(traditionen_api_url(params.slug))
         return json.dumps(
             {
-                "slug": params.slug,
-                "titel": titel,
-                "meta_beschreibung": beschreibung,
-                "text_absaetze": text_absaetze,
-                "erwaehnte_kantone": erwähnte_kantone[:10],
-                "url": url,
+                **parse_tradition_detail(seite, params.slug),
                 "inventar": "Liste der lebendigen Traditionen der Schweiz",
-                "hinweis": "Beschreibung aus HTML extrahiert. Vollständige Dokumentation auf der Webseite.",
             },
             ensure_ascii=False,
             indent=2,
         )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 404:
+            return _handle_error(e)
+        return await _tradition_unbekannt(params.slug)
+    except TraditionenLeseError as e:
+        return f"Fehler: lebendige-traditionen.ch antwortet in unerwarteter Form ({e})."
     except Exception as e:
         return _handle_error(e)
+
+
+async def _tradition_unbekannt(slug: str) -> str:
+    """Ein 404 ist hier eine Antwort, keine Störung: kein Rat, es später zu versuchen."""
+    try:
+        slugs = [
+            t["slug"]
+            for t in parse_liste(await _get(traditionen_api_url(LISTE_SLUG)))["traditionen"]
+        ]
+    except Exception:
+        slugs = []
+    aehnlich = difflib.get_close_matches(slug, slugs, n=3, cutoff=0.5)
+    vorschlag = f" Ähnliche Slugs: {', '.join(aehnlich)}." if aehnlich else ""
+    return (
+        f"Fehler: Keine Tradition mit dem Slug «{slug}».{vorschlag} Gültige Slugs liefert "
+        "bak_list_traditions; seit dem Umbau der Website im Herbst 2026 haben sich "
+        "einige geändert (etwa fasnacht-basel → basler-fasnacht)."
+    )
 
 
 # ---------------------------------------------------------------------------
