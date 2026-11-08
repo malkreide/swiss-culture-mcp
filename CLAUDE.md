@@ -375,13 +375,16 @@ sonst, und seine Ursache war hinterher nicht mehr lesbar; der zweite nannte
 sie — SO, Zeitüberschreitung nach den 20 s des Server-Clients. Gemessen am
 3.11.2026: `api3.geo.admin.ch` antwortet meist unter einer Sekunde, hat aber
 Ausreisser (AG 30,5 s, TI 7,9 s), mit und ohne Zwischenspeicher. Bei 26
-Anfragen je Lauf traf das 2 von rund 20 Läufen. Der Abgleich fragt einen Kanton
-deshalb nach Zeitüberschreitung, Verbindungsfehler oder 5xx **genau einmal**
-neu (`_kanton_abfragen`) und vermerkt das als Warnung; erst ein zweiter
-Fehlschlag ist ein Befund. 404, 403, 429 und inhaltliche Abweichungen werden
-nie wiederholt. Dieselben Ausreisser treffen die Nutzer des Servers — der
-Client gibt nach 20 s auf (`TIMEOUT` in `constants.py`); das ist offen und
-nicht Teil des Abgleichs.
+Anfragen je Lauf traf das 2 von rund 20 Läufen. Seit dem 7.11.2026 fragt
+deshalb der **Server selbst** nach Zeitüberschreitung, Netzwerkfehler,
+abgebrochener Verbindung oder HTTP 502/503/504 **genau einmal** neu
+(`http_client._abrufen`, Pause 1 s) — für alle Werkzeuge, nicht nur für den
+Test. Vorher stand die Wiederholung im Live-Test (`_kanton_abfragen`); zwei
+Schichten hätten bis zu vier Versuche je Kanton ergeben, und der Test hätte
+nicht mehr geprüft, was die Nutzer erleben. 4xx, 500, ein verbotener Zielhost
+und inhaltliche Abweichungen werden nie wiederholt. Der Preis: Hängen beide
+Versuche, wartet ein Werkzeug höchstens 41 s statt 20 s (`TIMEOUT` in
+`constants.py`).
 Gezählt wird nach ISOS-`nummer`, nie nach Feature-`id`: Die Quelle liefert je
 Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst

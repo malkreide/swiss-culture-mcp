@@ -152,6 +152,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Geaendert
 
+- **Ein zweiter Versuch bei voruebergehenden Stoerungen, im Server.**
+  `api3.geo.admin.ch` hat Ausreisser (am 3.11.2026 AG 30,5 s, TI 7,9 s, sonst
+  unter einer Sekunde); der Client gab nach 20 s auf, und das Werkzeug meldete
+  «Zeitueberschreitung», wo eine zweite Anfrage in unter einer Sekunde
+  antwortete. `http_client._abrufen` fragt jetzt nach Zeitueberschreitung,
+  Netzwerkfehler, abgebrochener Verbindung oder HTTP 502/503/504 genau einmal
+  neu, nach 1 s Pause, und schreibt dazu `upstream_retry` ins Log. Das gilt fuer
+  alle Werkzeuge, `_get` wie `_get_text`. Nie wiederholt werden 4xx, 500, ein
+  verbotener Zielhost und eine Umleitungsschleife — Antworten, keine
+  Stoerungen. Alle Aufrufe sind GET.
+
+  Der Preis: Haengen beide Versuche, wartet ein Werkzeug hoechstens 41 s statt
+  20 s. Bei einem Ausreisser wie dem gemessenen sind es gut 21 s und eine
+  Antwort statt einer Fehlermeldung.
+
+  Die Wiederholung im ISOS-Live-Test (`_kanton_abfragen`, seit #84) entfaellt:
+  Zwei Schichten haetten bis zu vier Versuche je Kanton ergeben, und der Test
+  pruefte nicht mehr, was die Nutzer erleben. Der benannte Befund statt eines
+  `JSONDecodeError` bleibt. `tests/test_wiederholung.py` (19 Tests, offline
+  mit `httpx.MockTransport`); Gegenprobe mit 8 Mutationen, jede erkannt.
+
 - **Der ISOS-Live-Test liest seine Sollwerte von Fedlex.** Statt fester Zahlen
   (ZH 73, GR 107) vergleicht `test_live_isos_deckt_sich_mit_der_gueltigen_visos`
   alle 26 Kantone mit Anhang 1 der VISOS-Fassung, die am Stichtag gilt — je
