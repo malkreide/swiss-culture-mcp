@@ -152,6 +152,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Geaendert
 
+- **Der Live-Lauf weist aus, wie oft der Server ein zweites Mal fragen
+  musste.** Seit #86 wiederholt der Client eine Anfrage nach einer Stoerung
+  einmal. Gelingt das, bleibt der Test gruen, und pytest zeigt die Ausgabe
+  gruener Tests nicht: Die Live-Laeufe vom 9. und 11.11.2026 waren gruen, und ob
+  dabei wiederholt wurde, gab das Protokoll nicht her. Eine Wiederholung, die
+  niemand sieht, verdeckt, dass die Quelle hakt.
+
+  `http_client.WIEDERHOLUNGEN` zaehlt jetzt je Host und Grund — ein Zaehler,
+  keine Liste, weil der Server lange laeuft. `tests/conftest.py` nimmt die
+  Differenz je Live-Test und schreibt am Ende jedes Live-Laufs den Abschnitt
+  «Wiederholungen der Quellen», bei null ausdruecklich
+  (`Wiederholungen: 0 — ...`). Der Workflow liest die Zeile in die
+  Zusammenfassung des Laufs, nach der `PIPESTATUS`-Zeile, damit der Exit-Code
+  von pytest erhalten bleibt; fehlt sie, steht dort «nicht ausgewiesen».
+
+  Neu `tests/test_wiederholungen_im_lauf.py` (innerer pytest-Lauf mit dem
+  echten `conftest.py`), dazu Tests fuer den Zaehler und die Reihenfolge im
+  Workflow. Gegenprobe mit 7 Mutationen, jede erkannt.
+
 - **Ein zweiter Versuch bei voruebergehenden Stoerungen, im Server.**
   `api3.geo.admin.ch` hat Ausreisser (am 3.11.2026 AG 30,5 s, TI 7,9 s, sonst
   unter einer Sekunde); der Client gab nach 20 s auf, und das Werkzeug meldete

@@ -159,3 +159,49 @@ class TestWerkzeug:
         assert not antwort.startswith("Fehler"), antwort
         assert json.loads(antwort)["total_in_kanton"] == 1
         assert len(seite.anfragen) == 2
+
+
+class TestZaehler:
+    """`http_client.WIEDERHOLUNGEN` zaehlt jede Wiederholung, je (Host, Grund).
+
+    Ohne ihn bliebe eine gelungene Wiederholung unsichtbar — und mit ihr, dass
+    die Quelle hakt. Der Live-Lauf weist die Zahl aus (`tests/conftest.py`).
+    """
+
+    @staticmethod
+    def _neu(vorher):
+        return http_client.WIEDERHOLUNGEN - vorher
+
+    @pytest.mark.asyncio
+    async def test_eine_wiederholung_wird_mit_host_und_grund_gezaehlt(self, gegenseite):
+        gegenseite(httpx.ReadTimeout, _ok())
+        vorher = http_client.WIEDERHOLUNGEN.copy()
+        await http_client._get(GEO)
+        assert self._neu(vorher) == {("api3.geo.admin.ch", "ReadTimeout"): 1}
+
+    @pytest.mark.asyncio
+    async def test_ein_gateway_fehler_traegt_seinen_status(self, gegenseite):
+        gegenseite(httpx.Response(503), _ok())
+        vorher = http_client.WIEDERHOLUNGEN.copy()
+        await http_client._get(GEO)
+        assert self._neu(vorher) == {("api3.geo.admin.ch", "HTTP 503"): 1}
+
+    @pytest.mark.asyncio
+    async def test_zwei_stoerungen_sind_eine_wiederholung(self, gegenseite):
+        """Gezaehlt wird, was wiederholt wurde — nicht jeder Fehlschlag."""
+        gegenseite(httpx.ReadTimeout)
+        vorher = http_client.WIEDERHOLUNGEN.copy()
+        with pytest.raises(httpx.ReadTimeout):
+            await http_client._get(GEO)
+        assert sum(self._neu(vorher).values()) == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("antwort", [_ok(), httpx.Response(404)])
+    async def test_ohne_wiederholung_bleibt_der_zaehler_stehen(self, gegenseite, antwort):
+        gegenseite(antwort)
+        vorher = http_client.WIEDERHOLUNGEN.copy()
+        try:
+            await http_client._get(GEO)
+        except httpx.HTTPStatusError:
+            pass
+        assert not self._neu(vorher)

@@ -384,7 +384,15 @@ Schichten hätten bis zu vier Versuche je Kanton ergeben, und der Test hätte
 nicht mehr geprüft, was die Nutzer erleben. 4xx, 500, ein verbotener Zielhost
 und inhaltliche Abweichungen werden nie wiederholt. Der Preis: Hängen beide
 Versuche, wartet ein Werkzeug höchstens 41 s statt 20 s (`TIMEOUT` in
-`constants.py`).
+`constants.py`). Eine gelungene Wiederholung hält den Test grün, und pytest
+zeigt die Ausgabe grüner Tests nicht — die Läufe vom 9. und 11.11.2026 gaben
+deshalb nicht her, ob wiederholt wurde. Seither zählt der Client mit
+(`http_client.WIEDERHOLUNGEN`, je Host und Grund), und jeder Live-Lauf endet mit
+dem Abschnitt «Wiederholungen der Quellen»; die Zeile `Wiederholungen: N`
+steht auch in der Zusammenfassung des Laufs auf GitHub, bei null ausdrücklich.
+Gezählt wird nur während Live-Tests (`tests/conftest.py`), nicht, was die
+Offline-Tests nachstellen. Fedlex läuft nicht über den Server-Client und zählt
+nicht mit.
 Gezählt wird nach ISOS-`nummer`, nie nach Feature-`id`: Die Quelle liefert je
 Objekt mehrere Features, in GR bis zu 51.
 Ein Live-Test läuft nie allein: Der modulweite HTTP-Client überlebt sonst
