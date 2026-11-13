@@ -5,6 +5,7 @@ Hosts, Upstream-Fehler) in diesem Modul entstehen.
 """
 
 import asyncio
+import collections
 import logging
 import os
 import sys
@@ -110,6 +111,13 @@ _VORUEBERGEHENDE_STATUS = frozenset({502, 503, 504})
 # wuerde die Mechanik im ganzen Prozess entschaerfen (CLAUDE.md, «Tests»).
 _pause = asyncio.sleep
 
+# Wie oft wiederholt wurde, je (Host, Grund). Ein Zaehler und keine Liste: Der
+# Server laeuft lange, und die Zahl der Schluessel ist durch die Allowlist und
+# die wenigen Gruende begrenzt. Ohne ihn waere eine Wiederholung unsichtbar,
+# sobald sie gelingt — und genau dann verdeckt sie, dass die Quelle hakt. Der
+# Live-Lauf weist die Zahl aus (`tests/conftest.py`).
+WIEDERHOLUNGEN: collections.Counter[tuple[str, str]] = collections.Counter()
+
 
 async def _abrufen(url: str, params: dict | None) -> httpx.Response:
     """GET mit Host-Allowlist und genau einem zweiten Versuch bei einer Stoerung."""
@@ -130,6 +138,7 @@ async def _abrufen(url: str, params: dict | None) -> httpx.Response:
                 response.raise_for_status()
                 return response
             grund = f"HTTP {response.status_code}"
+        WIEDERHOLUNGEN[(httpx.URL(url).host, grund)] += 1
         logger.warning("upstream_retry versuch=%d grund=%s url=%s", versuch, grund, url)
         await _pause(PAUSE_S)
     raise AssertionError("unerreichbar")  # pragma: no cover

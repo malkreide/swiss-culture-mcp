@@ -57,6 +57,12 @@ jobs:
           # haelt fest, dass sie hier steht.
           PYTHONPATH=src pytest tests/ -m live -v --run-live --junitxml=live-report.xml 2>&1 | tee live-output.txt
           echo "pytest_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          # Wie oft der Server ein zweites Mal fragen musste, auf die Uebersicht
+          # des Laufs: Ein Lauf, der nur dank zweiter Versuche gruen ist, soll
+          # man sehen, ohne das Protokoll zu oeffnen. Erst NACH der Zeile mit
+          # PIPESTATUS — die bezieht sich auf die zuletzt gelaufene Pipeline.
+          grep -E '^Wiederholungen: ' live-output.txt >> "$GITHUB_STEP_SUMMARY" \
+            || echo "Wiederholungen: nicht ausgewiesen" >> "$GITHUB_STEP_SUMMARY"
 
       # `if: failure()` kennt rot und nicht rot. Ein Live-Lauf hat drei
       # Antworten, und die dritte zaehlt: Ein gescheitertes `pip install`, ein

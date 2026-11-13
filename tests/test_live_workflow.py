@@ -71,3 +71,22 @@ def test_die_option_ist_ueberhaupt_registriert() -> None:
     assert '"--run-live"' in conftest or "'--run-live'" in conftest, (
         "conftest.py registriert `--run-live` nicht mehr"
     )
+
+
+def test_die_wiederholungen_stehen_in_der_zusammenfassung_des_laufs() -> None:
+    """Die Zahl aus `conftest.py` gelangt auf die Uebersichtsseite des Laufs.
+
+    Und zwar NACH der Zeile mit `PIPESTATUS`: Die bezieht sich auf die zuletzt
+    gelaufene Pipeline. Stuende das `grep` dazwischen, hielte `pytest_exit` den
+    Exit-Code des `grep` fest statt den von pytest — und ein roter Lauf mit
+    gefundener Zeile gaelte als gruen.
+    """
+    zeilen = _befehlszeilen()
+    pipestatus = next(i for i, z in enumerate(zeilen) if "PIPESTATUS" in z)
+    summary = [
+        i for i, z in enumerate(zeilen) if "Wiederholungen" in z and "GITHUB_STEP_SUMMARY" in z
+    ]
+    assert summary, "keine Zeile schreibt die Wiederholungen nach $GITHUB_STEP_SUMMARY"
+    assert all(i > pipestatus for i in summary), (
+        "Die Wiederholungen werden vor der PIPESTATUS-Zeile geschrieben"
+    )
